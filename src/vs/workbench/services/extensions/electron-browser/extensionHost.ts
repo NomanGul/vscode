@@ -23,7 +23,7 @@ import product from 'vs/platform/node/product';
 import { IEnvironmentService } from 'vs/platform/environment/common/environment';
 import { IMessagePassingProtocol } from 'vs/base/parts/ipc/common/ipc';
 import { generateRandomPipeName, Protocol } from 'vs/base/parts/ipc/node/ipc.net';
-import { createServer, Server, Socket } from 'net';
+import { createServer, Server, Socket, createConnection } from 'net';
 import Event, { Emitter, debounceEvent, mapEvent, anyEvent, fromNodeEventEmitter } from 'vs/base/common/event';
 import { IInitData, IWorkspaceData, IConfigurationInitData } from 'vs/workbench/api/node/extHost.protocol';
 import { IExtensionService } from 'vs/platform/extensions/common/extensions';
@@ -37,7 +37,147 @@ import { IRemoteConsoleLog, log, parse } from 'vs/base/node/console';
 import { getScopes } from 'vs/platform/configuration/common/configurationRegistry';
 import { ILogService } from 'vs/platform/log/common/log';
 
-export class ExtensionHostProcessWorker {
+export interface IExtensionHostStarter {
+	readonly onCrashed: Event<[number, string]>;
+
+	start(): TPromise<IMessagePassingProtocol>;
+	getInspectPort(): number;
+	dispose(): void;
+}
+
+export class ExtensionHostRemoteProcess implements IExtensionHostStarter {
+
+	private _onCrashed: Emitter<[number, string]> = new Emitter<[number, string]>();
+	public readonly onCrashed: Event<[number, string]> = this._onCrashed.event;
+
+	private _connection: Socket;
+	private _protocol: IMessagePassingProtocol;
+
+	constructor(
+		/* intentionally not injected */private readonly _extensionService: IExtensionService,
+		@IWorkspaceContextService private readonly _contextService: IWorkspaceContextService,
+		@IWindowService private readonly _windowService: IWindowService,
+		@IEnvironmentService private readonly _environmentService: IEnvironmentService,
+		@IWorkspaceConfigurationService private readonly _configurationService: IWorkspaceConfigurationService,
+		@ITelemetryService private readonly _telemetryService: ITelemetryService,
+		@ILogService private readonly _logService: ILogService
+	) {
+		this._connection = null;
+		this._protocol = null;
+		// TODO@remote: listen to lifecycle service
+	}
+
+	public start(): TPromise<IMessagePassingProtocol> {
+		return new TPromise<IMessagePassingProtocol>((resolve, reject) => {
+
+			const socket = createConnection({
+				host: '127.0.0.1',
+				port: 8000
+			}, () => {
+				socket.removeListener('error', reject);
+				this._connection = socket;
+				resolve(new Protocol(socket));
+			});
+			socket.once('error', reject);
+
+		}).then((protocol) => {
+
+			// 1) wait for the incoming `ready` event and send the initialization data.
+			// 2) wait for the incoming `initialized` event.
+			return new TPromise<IMessagePassingProtocol>((resolve, reject) => {
+
+				let handle = setTimeout(() => {
+					reject('timeout');
+				}, 60 * 1000);
+
+				const disposable = protocol.onMessage(msg => {
+
+					if (msg === 'ready') {
+						// 1) Extension Host is ready to receive messages, initialize it
+						this._createExtHostInitData().then(data => protocol.send(JSON.stringify(data)));
+						return;
+					}
+
+					if (msg === 'initialized') {
+						// 2) Extension Host is initialized
+
+						clearTimeout(handle);
+
+						// stop listening for messages here
+						disposable.dispose();
+
+						// release this promise
+						resolve(protocol);
+						return;
+					}
+
+					console.error(`received unexpected message during handshake phase from the extension host: `, msg);
+				});
+
+			});
+		});
+	}
+
+	private _createExtHostInitData(): TPromise<IInitData> {
+		return TPromise.join<any>([this._telemetryService.getTelemetryInfo(), this._extensionService.getExtensions()]).then(([telemetryInfo, extensionDescriptions]) => {
+			const configurationData: IConfigurationInitData = { ...this._configurationService.getConfigurationData(), configurationScopes: [] };
+			const r: IInitData = {
+				parentPid: process.pid,
+				environment: {
+					isExtensionDevelopmentDebug: false,//TODO@remote this._isExtensionDevDebug,
+					appRoot: this._environmentService.appRoot,
+					appSettingsHome: this._environmentService.appSettingsHome,
+					disableExtensions: this._environmentService.disableExtensions,
+					userExtensionsHome: this._environmentService.extensionsPath,
+					extensionDevelopmentPath: this._environmentService.extensionDevelopmentPath,
+					extensionTestsPath: this._environmentService.extensionTestsPath,
+					// globally disable proposed api when built and not insiders developing extensions
+					enableProposedApiForAll: !this._environmentService.isBuilt || (!!this._environmentService.extensionDevelopmentPath && product.nameLong.indexOf('Insiders') >= 0),
+					enableProposedApiFor: this._environmentService.args['enable-proposed-api'] || []
+				},
+				workspace: this._contextService.getWorkbenchState() === WorkbenchState.EMPTY ? null : <IWorkspaceData>this._contextService.getWorkspace(),
+				extensions: extensionDescriptions,
+				// Send configurations scopes only in development mode.
+				configuration: !this._environmentService.isBuilt || this._environmentService.isExtensionDevelopment ? { ...configurationData, configurationScopes: getScopes(this._configurationService.keys().default) } : configurationData,
+				telemetryInfo,
+				args: this._environmentService.args,
+				execPath: this._environmentService.execPath,
+				windowId: this._windowService.getCurrentWindowId(),
+				logLevel: this._logService.getLevel()
+			};
+			return r;
+		});
+	}
+
+	getInspectPort(): number {
+		return undefined;
+	}
+
+	dispose(): void {
+		if (!this._protocol) {
+			return;
+		}
+
+		// Send the extension host a request to terminate itself
+		// (graceful termination)
+		this._protocol.send({
+			type: '__$terminate'
+		});
+
+		// Give the extension host 60s, after which we will
+		// try to kill the process and release any resources
+		setTimeout(() => {
+			if (this._connection) {
+				this._connection.end();
+				this._connection = null;
+			}
+		}, 60 * 1000);
+
+		this._protocol = null;
+	}
+}
+
+export class ExtensionHostProcessWorker implements IExtensionHostStarter {
 
 	private _onCrashed: Emitter<[number, string]> = new Emitter<[number, string]>();
 	public readonly onCrashed: Event<[number, string]> = this._onCrashed.event;
@@ -141,7 +281,6 @@ export class ExtensionHostProcessWorker {
 						AMD_ENTRYPOINT: 'vs/workbench/node/extensionHostProcess',
 						PIPE_LOGGING: 'true',
 						VERBOSE_LOGGING: true,
-						VSCODE_WINDOW_ID: String(this._windowService.getCurrentWindowId()),
 						VSCODE_IPC_HOOK_EXTHOST: pipeName,
 						VSCODE_HANDLES_UNCAUGHT_ERRORS: true,
 						VSCODE_LOG_STACK: !this._isExtensionDevTestFromCli && (this._isExtensionDevHost || !this._environmentService.isBuilt || product.quality !== 'stable' || this._environmentService.verbose)

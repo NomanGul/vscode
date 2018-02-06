@@ -28,7 +28,7 @@ import { ITelemetryService } from 'vs/platform/telemetry/common/telemetry';
 import { IEnvironmentService } from 'vs/platform/environment/common/environment';
 import { IStorageService } from 'vs/platform/storage/common/storage';
 import { IInstantiationService } from 'vs/platform/instantiation/common/instantiation';
-import { ExtensionHostProcessWorker } from 'vs/workbench/services/extensions/electron-browser/extensionHost';
+import { ExtensionHostProcessWorker, ExtensionHostRemoteProcess, IExtensionHostStarter } from 'vs/workbench/services/extensions/electron-browser/extensionHost';
 import { IMessagePassingProtocol } from 'vs/base/parts/ipc/common/ipc';
 import { ExtHostCustomersRegistry } from 'vs/workbench/api/electron-browser/extHostCustomers';
 import { IWindowService } from 'vs/platform/windows/common/windows';
@@ -122,7 +122,7 @@ export class ExtensionService extends Disposable implements IExtensionService {
 	private _extensionHostProcessFinishedActivateEvents: { [activationEvent: string]: boolean; };
 	private _extensionHostProcessActivationTimes: { [id: string]: ActivationTimes; };
 	private _extensionHostExtensionRuntimeErrors: { [id: string]: Error[]; };
-	private _extensionHostProcessWorker: ExtensionHostProcessWorker;
+	private _extensionHostProcessWorker: IExtensionHostStarter;
 	private _extensionHostProcessRPCProtocol: RPCProtocol;
 	private _extensionHostProcessCustomers: IDisposable[];
 	/**
@@ -250,7 +250,12 @@ export class ExtensionService extends Disposable implements IExtensionService {
 	private _startExtensionHostProcess(initialActivationEvents: string[]): void {
 		this._stopExtensionHostProcess();
 
-		this._extensionHostProcessWorker = this._instantiationService.createInstance(ExtensionHostProcessWorker, this);
+		if (!false) {
+			// TODO@remote
+			this._extensionHostProcessWorker = this._instantiationService.createInstance(ExtensionHostRemoteProcess, this);
+		} else {
+			this._extensionHostProcessWorker = this._instantiationService.createInstance(ExtensionHostProcessWorker, this);
+		}
 		this._extensionHostProcessWorker.onCrashed(([code, signal]) => this._onExtensionHostCrashed(code, signal));
 		this._extensionHostProcessProxy = this._extensionHostProcessWorker.start().then(
 			(protocol) => {
