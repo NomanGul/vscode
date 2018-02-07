@@ -50,6 +50,11 @@ import { ISingleEditOperation } from 'vs/editor/common/model';
 import { ILineMatch, IPatternInfo } from 'vs/platform/search/common/search';
 import { LogLevel } from 'vs/platform/log/common/log';
 
+// TODO@vs-remote
+// export interface SerializedUri extends UriComponents {
+// 	$serialized: true;
+// }
+
 export interface IEnvironment {
 	isExtensionDevelopmentDebug: boolean;
 	enableProposedApiForAll: boolean;

@@ -23,8 +23,8 @@ import { ExtensionActivatedByEvent } from 'vs/workbench/api/node/extHostExtensio
 import { EnvironmentService } from 'vs/platform/environment/node/environmentService';
 import { IDisposable, dispose } from 'vs/base/common/lifecycle';
 import { IMessagePassingProtocol } from 'vs/base/parts/ipc/common/ipc';
-import { RPCProtocol } from 'vs/workbench/services/extensions/node/rpcProtocol';
-import URI from 'vs/base/common/uri';
+import { RPCProtocol, IURITransformer } from 'vs/workbench/services/extensions/node/rpcProtocol';
+import URI, { UriComponents } from 'vs/base/common/uri';
 import { ExtHostLogService } from 'vs/workbench/api/node/extHostLogService';
 
 // const nativeExit = process.exit.bind(process);
@@ -88,7 +88,25 @@ export class ExtensionHostMain {
 		patchProcess(allowExit);
 
 		// services
-		const rpcProtocol = new RPCProtocol(protocol);
+		let uriTransformer: IURITransformer = null;
+		if (initData.remoteOptions) {
+			uriTransformer = new class implements IURITransformer {
+				transformIncoming(uri: UriComponents): UriComponents {
+					// TODO@vs-remote
+					// if (uri.scheme === 'vscode-remote') {
+					// 	return <UriComponents>URI.file(uri.path).toJSON();
+					// }
+					// console.log(`transform incoming: ${JSON.stringify(uri)}`);
+					return uri;
+				}
+				transformOutgoing(uri: URI): URI {
+					// TODO@vs-remote
+					// console.log(`transform outgoing: ${uri}`);
+					return uri;
+				}
+			};
+		}
+		const rpcProtocol = new RPCProtocol(protocol, uriTransformer);
 		const extHostWorkspace = new ExtHostWorkspace(rpcProtocol, initData.workspace);
 		const environmentService = new EnvironmentService(initData.args, initData.execPath);
 		this._extHostLogService = new ExtHostLogService(initData.windowId, initData.logLevel, environmentService);
