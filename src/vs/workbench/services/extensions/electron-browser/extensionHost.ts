@@ -25,7 +25,7 @@ import { IMessagePassingProtocol } from 'vs/base/parts/ipc/common/ipc';
 import { generateRandomPipeName, Protocol } from 'vs/base/parts/ipc/node/ipc.net';
 import { createServer, Server, Socket, createConnection } from 'net';
 import Event, { Emitter, debounceEvent, mapEvent, anyEvent, fromNodeEventEmitter } from 'vs/base/common/event';
-import { IInitData, IWorkspaceData, IConfigurationInitData } from 'vs/workbench/api/node/extHost.protocol';
+import { IInitData, IWorkspaceData, IConfigurationInitData, IRemoteOptions } from 'vs/workbench/api/node/extHost.protocol';
 import { IExtensionService } from 'vs/platform/extensions/common/extensions';
 import { IWorkspaceConfigurationService } from 'vs/workbench/services/configuration/common/configuration';
 import { ICrashReporterService } from 'vs/workbench/services/crashReporter/electron-browser/crashReporterService';
@@ -36,6 +36,11 @@ import { IDisposable, dispose } from 'vs/base/common/lifecycle';
 import { IRemoteConsoleLog, log, parse } from 'vs/base/node/console';
 import { getScopes } from 'vs/platform/configuration/common/configurationRegistry';
 import { ILogService } from 'vs/platform/log/common/log';
+
+export const REMOTE_OPTIONS: IRemoteOptions = {
+	host: '127.0.0.1',
+	port: 8000
+};
 
 export interface IExtensionHostStarter {
 	readonly onCrashed: Event<[number, string]>;
@@ -54,6 +59,7 @@ export class ExtensionHostRemoteProcess implements IExtensionHostStarter {
 	private _protocol: IMessagePassingProtocol;
 
 	constructor(
+		private readonly _options: IRemoteOptions,
 		/* intentionally not injected */private readonly _extensionService: IExtensionService,
 		@IWorkspaceContextService private readonly _contextService: IWorkspaceContextService,
 		@IWindowService private readonly _windowService: IWindowService,
@@ -71,8 +77,8 @@ export class ExtensionHostRemoteProcess implements IExtensionHostStarter {
 		return new TPromise<IMessagePassingProtocol>((resolve, reject) => {
 
 			const socket = createConnection({
-				host: '127.0.0.1',
-				port: 8000
+				host: this._options.host,
+				port: this._options.port
 			}, () => {
 				socket.removeListener('error', reject);
 				this._connection = socket;
@@ -145,7 +151,7 @@ export class ExtensionHostRemoteProcess implements IExtensionHostStarter {
 				windowId: this._windowService.getCurrentWindowId(),
 				logLevel: this._logService.getLevel(),
 
-				remoteAuthority: '127.0.0.1:8000'
+				remoteOptions: this._options
 			};
 			return r;
 		});
@@ -523,7 +529,7 @@ export class ExtensionHostProcessWorker implements IExtensionHostStarter {
 				execPath: this._environmentService.execPath,
 				windowId: this._windowService.getCurrentWindowId(),
 				logLevel: this._logService.getLevel(),
-				remoteAuthority: null
+				remoteOptions: null
 			};
 			return r;
 		});

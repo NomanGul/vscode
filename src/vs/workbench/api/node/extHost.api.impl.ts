@@ -118,10 +118,9 @@ export function createApiFactory(
 	const extHostWindow = rpcProtocol.set(ExtHostContext.ExtHostWindow, new ExtHostWindow(rpcProtocol));
 	rpcProtocol.set(ExtHostContext.ExtHostExtensionService, extensionService);
 
-
-	// TODO@vs-remote
-	if (initData.remoteAuthority) {
-		extHostFileSystem.registerFileSystemProvider('vscode-remote', new FileSystemProvider(initData.remoteAuthority));
+	if (initData.remoteOptions) {
+		const remoteAuthority = `${initData.remoteOptions.host}:${initData.remoteOptions.port}`;
+		extHostFileSystem.registerFileSystemProvider('vscode-remote', new FileSystemProvider(remoteAuthority));
 	}
 
 	// Check that no named customers are missing

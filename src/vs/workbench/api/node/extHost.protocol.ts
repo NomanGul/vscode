@@ -69,6 +69,11 @@ export interface IWorkspaceData {
 	configuration?: UriComponents;
 }
 
+export interface IRemoteOptions {
+	host: string;
+	port: number;
+}
+
 export interface IInitData {
 	parentPid: number;
 	environment: IEnvironment;
@@ -82,9 +87,9 @@ export interface IInitData {
 	logLevel: LogLevel;
 
 	/**
-	 * The authority part of the connection.
+	 * The remote information.
 	 */
-	remoteAuthority: string;
+	remoteOptions: IRemoteOptions;
 }
 
 export interface IConfigurationInitData extends IConfigurationData {
