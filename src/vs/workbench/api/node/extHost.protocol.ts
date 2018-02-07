@@ -516,7 +516,7 @@ export interface ExtHostEditorsShape {
 }
 
 export interface IDocumentsAndEditorsDelta {
-	removedDocuments?: string[];
+	removedDocuments?: UriComponents[];
 	addedDocuments?: IModelAddedData[];
 	removedEditors?: string[];
 	addedEditors?: ITextEditorAddData[];
