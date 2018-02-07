@@ -90,18 +90,24 @@ export class ExtensionHostMain {
 		// services
 		let uriTransformer: IURITransformer = null;
 		if (initData.remoteOptions) {
+			const remoteAuthority = `${initData.remoteOptions.host}:${initData.remoteOptions.port}`;
 			uriTransformer = new class implements IURITransformer {
 				transformIncoming(uri: UriComponents): UriComponents {
 					// TODO@vs-remote
-					// if (uri.scheme === 'vscode-remote') {
-					// 	return <UriComponents>URI.file(uri.path).toJSON();
-					// }
-					// console.log(`transform incoming: ${JSON.stringify(uri)}`);
+					if (uri.scheme === 'vscode-remote') {
+						// console.log(`INCOMING: ${URI.revive(uri)} ====> ${URI.file(uri.path)}`);
+						return <UriComponents>URI.file(uri.path).toJSON();
+					}
+					console.log(`transform incoming: ${JSON.stringify(uri)}`);
 					return uri;
 				}
 				transformOutgoing(uri: URI): URI {
 					// TODO@vs-remote
-					// console.log(`transform outgoing: ${uri}`);
+					if (uri.scheme === 'file') {
+						// console.log(`OUTGOING: ${uri} ====> ${URI.from({ scheme: 'vscode-remote', authority: remoteAuthority, path: uri.fsPath })}`);
+						return URI.from({ scheme: 'vscode-remote', authority: remoteAuthority, path: uri.fsPath });
+					}
+					console.log(`transform outgoing: ${uri}`);
 					return uri;
 				}
 			};

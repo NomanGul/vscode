@@ -13,7 +13,7 @@ import { IStat, FileType } from 'vs/platform/files/common/files';
 import * as vscode from 'vscode';
 
 export default class FileSystemProvider implements vscode.FileSystemProvider {
-	constructor(private readonly _authority: string) {
+	constructor() {
 	}
 
 	private asFileSystemStat(stat: fs.Stats): IStat {
@@ -112,12 +112,7 @@ export default class FileSystemProvider implements vscode.FileSystemProvider {
 		let stats = await Promise.all(statPromises);
 		let result: [URI, IStat][] = [];
 		for (let i = 0; i < files.length; i++) {
-			const uri = URI.from({
-				scheme: 'vscode-remote',
-				authority: this._authority,
-				path: files[i]
-			});
-			result.push([uri, stats[i]]);
+			result.push([URI.file(files[i]), stats[i]]);
 		}
 		return result;
 	}
