@@ -251,7 +251,7 @@ export class ExtensionService extends Disposable implements IExtensionService {
 		this._stopExtensionHostProcess();
 
 		if (!false) {
-			// TODO@remote
+			// TODO@vs-remote
 			this._extensionHostProcessWorker = this._instantiationService.createInstance(ExtensionHostRemoteProcess, this);
 		} else {
 			this._extensionHostProcessWorker = this._instantiationService.createInstance(ExtensionHostProcessWorker, this);
@@ -434,6 +434,18 @@ export class ExtensionService extends Disposable implements IExtensionService {
 
 		this._getRuntimeExtension()
 			.then(runtimeExtensons => {
+				// TODO@vs-remote
+				const blockExtensions = [
+					'vscode.git',
+					'vscode.emmet',
+					'vscode.merge-conflict'
+				];
+				runtimeExtensons = runtimeExtensons.filter((ext) => {
+					if (blockExtensions.indexOf(ext.id) >= 0) {
+						return false;
+					}
+					return true;
+				});
 				this._registry = new ExtensionDescriptionRegistry(runtimeExtensons);
 
 				let availableExtensions = this._registry.getAllExtensionDescriptions();

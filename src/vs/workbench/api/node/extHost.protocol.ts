@@ -80,6 +80,11 @@ export interface IInitData {
 	args: ParsedArgs;
 	execPath: string;
 	logLevel: LogLevel;
+
+	/**
+	 * The authority part of the connection.
+	 */
+	remoteAuthority: string;
 }
 
 export interface IConfigurationInitData extends IConfigurationData {

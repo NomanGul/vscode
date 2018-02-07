@@ -64,7 +64,7 @@ export class ExtensionHostRemoteProcess implements IExtensionHostStarter {
 	) {
 		this._connection = null;
 		this._protocol = null;
-		// TODO@remote: listen to lifecycle service
+		// TODO@vs-remote: listen to lifecycle service
 	}
 
 	public start(): TPromise<IMessagePassingProtocol> {
@@ -124,7 +124,7 @@ export class ExtensionHostRemoteProcess implements IExtensionHostStarter {
 			const r: IInitData = {
 				parentPid: process.pid,
 				environment: {
-					isExtensionDevelopmentDebug: false,//TODO@remote this._isExtensionDevDebug,
+					isExtensionDevelopmentDebug: false,// TODO@vs-remote this._isExtensionDevDebug,
 					appRoot: this._environmentService.appRoot,
 					appSettingsHome: this._environmentService.appSettingsHome,
 					disableExtensions: this._environmentService.disableExtensions,
@@ -143,7 +143,9 @@ export class ExtensionHostRemoteProcess implements IExtensionHostStarter {
 				args: this._environmentService.args,
 				execPath: this._environmentService.execPath,
 				windowId: this._windowService.getCurrentWindowId(),
-				logLevel: this._logService.getLevel()
+				logLevel: this._logService.getLevel(),
+
+				remoteAuthority: '127.0.0.1:8000'
 			};
 			return r;
 		});
@@ -520,7 +522,8 @@ export class ExtensionHostProcessWorker implements IExtensionHostStarter {
 				args: this._environmentService.args,
 				execPath: this._environmentService.execPath,
 				windowId: this._windowService.getCurrentWindowId(),
-				logLevel: this._logService.getLevel()
+				logLevel: this._logService.getLevel(),
+				remoteAuthority: null
 			};
 			return r;
 		});
