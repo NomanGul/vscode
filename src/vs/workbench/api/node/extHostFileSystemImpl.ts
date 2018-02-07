@@ -60,7 +60,7 @@ export default class FileSystemProvider implements vscode.FileSystemProvider {
 			totalLength = undefined;
 		}
 		let position = offset !== void 0 ? offset : 0;
-		let bufferSize = totalLength !== void 0 && totalLength < 4096 ? totalLength : 4096;
+		let bufferSize = totalLength !== void 0 && totalLength < 65536 ? totalLength : 65536;
 		let buffer: Buffer = new Buffer(bufferSize);
 
 		let totalRead: number = 0;
