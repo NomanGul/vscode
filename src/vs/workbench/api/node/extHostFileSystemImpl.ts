@@ -7,24 +7,27 @@
 import * as fs from 'fs';
 import * as path from 'path';
 
+import URI from 'vs/base/common/uri';
+import { IStat, FileType } from 'vs/platform/files/common/files';
+
 import * as vscode from 'vscode';
 
 export default class FileSystemProvider implements vscode.FileSystemProvider {
 	constructor() {
 	}
 
-	private asFileSystemStat(stat: fs.Stats): vscode.FileStat {
+	private asFileSystemStat(stat: fs.Stats): IStat {
 		return {
 			id: stat.ino,
 			mtime: stat.mtime.getTime(),
 			size: stat.size,
-			type: stat.isDirectory() ? vscode.FileType.Dir : stat.isFile() ? vscode.FileType.File : vscode.FileType.Symlink
+			type: stat.isDirectory() ? FileType.Dir : stat.isFile() ? FileType.File : FileType.Symlink
 		};
 	}
 
-	public utimes(resource: vscode.Uri, mtime: number, atime: number): Promise<vscode.FileStat> {
+	public utimes(resource: URI, mtime: number, atime: number): Promise<IStat> {
 		let fsPath = resource.fsPath;
-		return new Promise<vscode.FileStat>((_resolve, reject) => {
+		return new Promise<IStat>((_resolve, reject) => {
 			fs.utimes(fsPath, atime, mtime, (err) => {
 				if (err) {
 					reject(err);
@@ -36,16 +39,16 @@ export default class FileSystemProvider implements vscode.FileSystemProvider {
 		});
 	}
 
-	public async stat(resource: vscode.Uri): Promise<vscode.FileStat> {
+	public async stat(resource: URI): Promise<IStat> {
 		return this._stat(resource.fsPath);
 	}
 
-	public async _stat(fsPath: string): Promise<vscode.FileStat> {
+	public async _stat(fsPath: string): Promise<IStat> {
 		let stats = await this.fsStat(fsPath);
 		return this.asFileSystemStat(stats);
 	}
 
-	public async read(resource: vscode.Uri, offset: number, length: number, progress: vscode.Progress<Uint8Array>): Promise<number> {
+	public async read(resource: URI, offset: number, length: number, progress: vscode.Progress<Uint8Array>): Promise<number> {
 		let fsPath = resource.fsPath;
 		let totalLength = length !== void 0 ? length : void 0;
 		if (totalLength === 0) {
@@ -81,7 +84,7 @@ export default class FileSystemProvider implements vscode.FileSystemProvider {
 		return totalRead;
 	}
 
-	public async write(resource: vscode.Uri, content: Uint8Array): Promise<void> {
+	public async write(resource: URI, content: Uint8Array): Promise<void> {
 		let fsPath = resource.fsPath;
 		let buffer = Buffer.from(content);
 
@@ -101,35 +104,35 @@ export default class FileSystemProvider implements vscode.FileSystemProvider {
 		}
 	}
 
-	public async readdir(resource: vscode.Uri): Promise<[vscode.Uri, vscode.FileStat][]> {
+	public async readdir(resource: URI): Promise<[URI, IStat][]> {
 		let fsPath = resource.fsPath;
 		let files = await this.fsreaddir(fsPath);
 		files = files.map(file => path.join(fsPath, file));
-		let statPromises: Promise<vscode.FileStat>[] = files.map(file => this._stat(file));
+		let statPromises: Promise<IStat>[] = files.map(file => this._stat(file));
 		let stats = await Promise.all(statPromises);
-		let result: [vscode.Uri, vscode.FileStat][] = [];
+		let result: [URI, IStat][] = [];
 		for (let i = 0; i < files.length; i++) {
-			result.push([vscode.Uri.file(files[i]), stats[i]]);
+			result.push([URI.file(files[i]), stats[i]]);
 		}
 		return result;
 	}
 
-	public async unlink(resource: vscode.Uri): Promise<void> {
+	public async unlink(resource: URI): Promise<void> {
 		let fsPath = resource.fsPath;
 		return this.fsunlink(fsPath);
 	}
 
-	public async mkdir(resource: vscode.Uri): Promise<vscode.FileStat> {
+	public async mkdir(resource: URI): Promise<IStat> {
 		let fsPath = resource.fsPath;
 		await this.fsmkdir(fsPath);
 		return this._stat(fsPath);
 	}
 
-	public async rmdir(resource: vscode.Uri): Promise<void> {
+	public async rmdir(resource: URI): Promise<void> {
 		return this.fsrmdir(resource.fsPath);
 	}
 
-	public async move(resource: vscode.Uri, target: vscode.Uri): Promise<vscode.FileStat> {
+	public async move(resource: URI, target: URI): Promise<IStat> {
 		await this.fsrename(resource.fsPath, target.fsPath);
 		return this._stat(target.fsPath);
 	}
