@@ -413,7 +413,7 @@ export interface SCMGroupFeatures {
 
 export type SCMRawResource = [
 	number /*handle*/,
-	string /*resourceUri*/,
+	string /*resourceUri*/, // TODO@vs-remote
 	string[] /*icons: light, dark*/,
 	string /*tooltip*/,
 	boolean /*strike through*/,

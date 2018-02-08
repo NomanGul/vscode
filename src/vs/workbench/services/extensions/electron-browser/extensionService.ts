@@ -451,7 +451,7 @@ export class ExtensionService extends Disposable implements IExtensionService {
 				const extensions = resp.extensions;
 				extensions.forEach((extension) => {
 					(<any>extension).remoteExtensionFolderPath = extension.extensionFolderPath;
-					(<any>extension).extensionFolderPath = localExtensionsFolder + extension.extensionFolderPath.substr(remoteExtensionsFolder.length);
+					(<any>extension).extensionFolderPath = localExtensionsFolder + path.sep + extension.extensionFolderPath.substr(remoteExtensionsFolder.length + 1);
 				});
 				return extensions;
 			});
