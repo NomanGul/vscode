@@ -26,7 +26,7 @@ import { generateRandomPipeName, Protocol } from 'vs/base/parts/ipc/node/ipc.net
 import { createServer, Server, Socket, createConnection } from 'net';
 import Event, { Emitter, debounceEvent, mapEvent, anyEvent, fromNodeEventEmitter } from 'vs/base/common/event';
 import { IInitData, IWorkspaceData, IConfigurationInitData, IRemoteOptions } from 'vs/workbench/api/node/extHost.protocol';
-import { IExtensionService } from 'vs/platform/extensions/common/extensions';
+import { IExtensionService, IExtensionDescription } from 'vs/platform/extensions/common/extensions';
 import { IWorkspaceConfigurationService } from 'vs/workbench/services/configuration/common/configuration';
 import { ICrashReporterService } from 'vs/workbench/services/crashReporter/electron-browser/crashReporterService';
 import { IBroadcastService, IBroadcast } from 'vs/platform/broadcast/electron-browser/broadcastService';
@@ -39,7 +39,8 @@ import { ILogService } from 'vs/platform/log/common/log';
 
 export const REMOTE_OPTIONS: IRemoteOptions = {
 	host: '127.0.0.1',
-	port: 8000
+	port: 8000,
+	controlPort: 8001
 };
 
 export interface IExtensionHostStarter {
@@ -125,7 +126,15 @@ export class ExtensionHostRemoteProcess implements IExtensionHostStarter {
 	}
 
 	private _createExtHostInitData(): TPromise<IInitData> {
-		return TPromise.join<any>([this._telemetryService.getTelemetryInfo(), this._extensionService.getExtensions()]).then(([telemetryInfo, extensionDescriptions]) => {
+		return TPromise.join<any>([this._telemetryService.getTelemetryInfo(), this._extensionService.getExtensions()]).then(([telemetryInfo, originalExtensionDescriptions]) => {
+
+			let extensionDescriptions: IExtensionDescription[] = [];
+			for (let i = 0; i < originalExtensionDescriptions.length; i++) {
+				const extension = objects.assign({}, originalExtensionDescriptions[i]);
+				(<any>extension).extensionFolderPath = (<any>extension).remoteExtensionFolderPath;
+				extensionDescriptions[i] = extension;
+			}
+
 			const configurationData: IConfigurationInitData = { ...this._configurationService.getConfigurationData(), configurationScopes: [] };
 			const r: IInitData = {
 				parentPid: process.pid,

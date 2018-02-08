@@ -56,7 +56,10 @@ const httpServer = http.createServer((request, response) => {
 		};
 		ExtensionScanner.scanExtensions(input, logger).then((extensions) => {
 			response.writeHead(200);
-			response.end(JSON.stringify(extensions));
+			response.end(JSON.stringify({
+				extensionsFolder: EXTENSION_FOLDER,
+				extensions: extensions
+			}));
 		}, (err) => {
 			response.writeHead(500);
 			response.end(err);

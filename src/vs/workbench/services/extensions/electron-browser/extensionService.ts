@@ -43,6 +43,8 @@ import { ReloadWindowAction } from 'vs/workbench/electron-browser/actions';
 import product from 'vs/platform/node/product';
 import * as strings from 'vs/base/common/strings';
 import { RPCProtocol } from 'vs/workbench/services/extensions/node/rpcProtocol';
+import { IRequestService } from 'vs/platform/request/node/request';
+import { asJson } from 'vs/base/node/request';
 
 const SystemExtensionsRoot = path.normalize(path.join(URI.parse(require.toUrl('')).fsPath, '..', 'extensions'));
 const ExtraDevSystemExtensionsRoot = path.normalize(path.join(URI.parse(require.toUrl('')).fsPath, '..', '.build', 'builtInExtensions'));
@@ -138,7 +140,8 @@ export class ExtensionService extends Disposable implements IExtensionService {
 		@IExtensionEnablementService private readonly _extensionEnablementService: IExtensionEnablementService,
 		@IStorageService private readonly _storageService: IStorageService,
 		@IWindowService private readonly _windowService: IWindowService,
-		@ILifecycleService lifecycleService: ILifecycleService
+		@ILifecycleService lifecycleService: ILifecycleService,
+		@IRequestService private readonly _requestService: IRequestService
 	) {
 		super();
 		this._registry = null;
@@ -431,20 +434,33 @@ export class ExtensionService extends Disposable implements IExtensionService {
 
 	private _scanAndHandleExtensions(): void {
 
-		this._getRuntimeExtension()
-			.then(runtimeExtensons => {
-				// TODO@vs-remote
-				const blockExtensions = [
-					'vscode.git',
-					'vscode.emmet',
-					'vscode.merge-conflict'
-				];
-				runtimeExtensons = runtimeExtensons.filter((ext) => {
-					if (blockExtensions.indexOf(ext.id) >= 0) {
-						return false;
-					}
-					return true;
+		let runtimeExtensionsPromise: TPromise<IExtensionDescription[]>;
+		if (REMOTE_OPTIONS) {
+			interface IScanExtensionsResponse {
+				extensions: IExtensionDescription[];
+				extensionsFolder: string;
+			}
+			const url = `http://${REMOTE_OPTIONS.host}:${REMOTE_OPTIONS.controlPort}/scan-extensions`;
+			runtimeExtensionsPromise = this._requestService.request({
+				url: url
+			}).then((ctx) => {
+				return asJson<IScanExtensionsResponse>(ctx);
+			}).then((resp) => {
+				const localExtensionsFolder = path.join(os.homedir(), '.vscode-remote', 'extensions');
+				const remoteExtensionsFolder = resp.extensionsFolder;
+				const extensions = resp.extensions;
+				extensions.forEach((extension) => {
+					(<any>extension).remoteExtensionFolderPath = extension.extensionFolderPath;
+					(<any>extension).extensionFolderPath = localExtensionsFolder + extension.extensionFolderPath.substr(remoteExtensionsFolder.length);
 				});
+				return extensions;
+			});
+		} else {
+			runtimeExtensionsPromise = this._getRuntimeExtension();
+		}
+
+		runtimeExtensionsPromise
+			.then(runtimeExtensons => {
 				this._registry = new ExtensionDescriptionRegistry(runtimeExtensons);
 
 				let availableExtensions = this._registry.getAllExtensionDescriptions();
