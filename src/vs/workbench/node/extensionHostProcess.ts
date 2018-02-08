@@ -97,13 +97,14 @@ function connectToRenderer(protocol: IMessagePassingProtocol): Promise<IRenderer
 			});
 
 			// Kill oneself if one's parent dies. Much drama.
-			setInterval(function () {
-				try {
-					process.kill(initData.parentPid, 0); // throws an exception if the main process doesn't exist anymore.
-				} catch (e) {
-					onTerminate();
-				}
-			}, 5000);
+			// TODO@vs-remote
+			// setInterval(function () {
+			// 	try {
+			// 		process.kill(initData.parentPid, 0); // throws an exception if the main process doesn't exist anymore.
+			// 	} catch (e) {
+			// 		onTerminate();
+			// 	}
+			// }, 5000);
 
 			// Tell the outside that we are initialized
 			protocol.send('initialized');

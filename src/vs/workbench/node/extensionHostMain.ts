@@ -19,6 +19,7 @@ import { IInitData, IEnvironment, IWorkspaceData, MainContext } from 'vs/workben
 import * as errors from 'vs/base/common/errors';
 import * as watchdog from 'native-watchdog';
 import * as glob from 'vs/base/common/glob';
+import * as platform from 'vs/base/common/platform';
 import { ExtensionActivatedByEvent } from 'vs/workbench/api/node/extHostExtensionActivator';
 import { EnvironmentService } from 'vs/platform/environment/node/environmentService';
 import { IDisposable, dispose } from 'vs/base/common/lifecycle';
@@ -95,19 +96,27 @@ export class ExtensionHostMain {
 				transformIncoming(uri: UriComponents): UriComponents {
 					// TODO@vs-remote
 					if (uri.scheme === 'vscode-remote') {
-						// console.log(`INCOMING: ${URI.revive(uri)} ====> ${URI.file(uri.path)}`);
-						return <UriComponents>URI.file(uri.path).toJSON();
+						const r = URI.file(uri.path);
+						// console.log(`INCOMING: ${URI.revive(uri)} ====> ${r}`);
+						return <UriComponents>r.toJSON();
+					} else if (uri.scheme === 'file') {
+						const r = URI.from({ scheme: 'vscode-local', authority: '', path: uri.path.replace(/\\/g, '/') });
+						// console.log(`INCOMING: ${URI.revive(uri)} ====> ${r}`);
+						return r;
 					}
-					console.log(`transform incoming: ${JSON.stringify(uri)}`);
 					return uri;
 				}
 				transformOutgoing(uri: URI): URI {
 					// TODO@vs-remote
 					if (uri.scheme === 'file') {
-						// console.log(`OUTGOING: ${uri} ====> ${URI.from({ scheme: 'vscode-remote', authority: remoteAuthority, path: uri.fsPath })}`);
-						return URI.from({ scheme: 'vscode-remote', authority: remoteAuthority, path: uri.fsPath });
+						const r = URI.from({ scheme: 'vscode-remote', authority: remoteAuthority, path: (platform.isWindows ? '/' : '') + uri.fsPath.replace(/\\/g, '/') });
+						// console.log(`OUTGOING: ${uri} ====> ${r}`);
+						return r;
+					} else if (uri.scheme === 'vscode-local') {
+						const r = URI.file(uri.path);
+						// console.log(`OUTGOING: ${URI.revive(uri)} ====> ${r}`);
+						return r;
 					}
-					console.log(`transform outgoing: ${uri}`);
 					return uri;
 				}
 			};
