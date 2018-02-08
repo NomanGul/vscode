@@ -5,25 +5,72 @@
 'use strict';
 
 import * as net from 'net';
+import * as http from 'http';
 import * as objects from 'vs/base/common/objects';
 import * as cp from 'child_process';
-
+import * as os from 'os';
+import * as path from 'path';
+import pkg from 'vs/platform/node/package';
 import { generateRandomPipeName } from 'vs/base/parts/ipc/node/ipc.net';
 import { TPromise } from 'vs/base/common/winjs.base';
 import URI from 'vs/base/common/uri';
 import { fromNodeEventEmitter } from 'vs/base/common/event';
 import { IRemoteConsoleLog } from 'vs/base/node/console';
+import { ExtensionScanner, ExtensionScannerInput, ILog } from 'vs/workbench/services/extensions/node/extensionPoints';
 
-const server = net.createServer((connection) => {
+const EXTENSION_FOLDER = path.join(os.homedir(), '.vscode-remote', 'extensions');
+
+const extHostServer = net.createServer((connection) => {
 	console.log(`received a connection`);
 	const con = new ExtensionHostConnection(connection);
 	con.start();
 });
-server.on('error', (err) => {
+extHostServer.on('error', (err) => {
 	throw err;
 });
-server.listen(8000, () => {
-	console.log('server listening on 8000');
+extHostServer.listen(8000, () => {
+	console.log('Extension Host Server listening on 8000');
+});
+
+const httpServer = http.createServer((request, response) => {
+	if (request.url === '/scan-extensions') {
+		const input = new ExtensionScannerInput(
+			pkg.version,
+			null,
+			'en', // TODO@vs-remote
+			true,
+			EXTENSION_FOLDER,
+			true, // TODO@vs-remote built-in
+			{}
+		);
+		const logger = new class implements ILog {
+			public error(source: string, message: string): void {
+				console.error(source, message);
+			}
+			public warn(source: string, message: string): void {
+				console.warn(source, message);
+			}
+			public info(source: string, message: string): void {
+				console.info(source, message);
+			}
+		};
+		ExtensionScanner.scanExtensions(input, logger).then((extensions) => {
+			response.writeHead(200);
+			response.end(JSON.stringify(extensions));
+		}, (err) => {
+			response.writeHead(500);
+			response.end(err);
+		});
+		return;
+	}
+	response.writeHead(404);
+	response.end('Not found');
+});
+httpServer.on('error', (err) => {
+	throw err;
+});
+httpServer.listen(8001, () => {
+	console.log('Control server listening on 8001');
 });
 
 class ExtensionHostConnection {
