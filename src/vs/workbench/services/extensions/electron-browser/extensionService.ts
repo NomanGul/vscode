@@ -23,12 +23,12 @@ import { ExtensionsRegistry, ExtensionPoint, IExtensionPointUser, ExtensionMessa
 import { ExtensionScanner, ILog, ExtensionScannerInput, IExtensionResolver, IExtensionReference, Translations } from 'vs/workbench/services/extensions/node/extensionPoints';
 import { IMessageService, CloseAction } from 'vs/platform/message/common/message';
 import { ProxyIdentifier } from 'vs/workbench/services/extensions/node/proxyIdentifier';
-import { ExtHostContext, ExtHostExtensionServiceShape, IExtHostContext, MainContext } from 'vs/workbench/api/node/extHost.protocol';
+import { ExtHostContext, ExtHostExtensionServiceShape, IExtHostContext, MainContext, IRemoteOptions } from 'vs/workbench/api/node/extHost.protocol';
 import { ITelemetryService } from 'vs/platform/telemetry/common/telemetry';
 import { IEnvironmentService } from 'vs/platform/environment/common/environment';
 import { IStorageService } from 'vs/platform/storage/common/storage';
 import { IInstantiationService } from 'vs/platform/instantiation/common/instantiation';
-import { ExtensionHostProcessWorker, ExtensionHostRemoteProcess, IExtensionHostStarter, REMOTE_OPTIONS } from 'vs/workbench/services/extensions/electron-browser/extensionHost';
+import { ExtensionHostProcessWorker, ExtensionHostRemoteProcess, IExtensionHostStarter } from 'vs/workbench/services/extensions/electron-browser/extensionHost';
 import { IMessagePassingProtocol } from 'vs/base/parts/ipc/common/ipc';
 import { ExtHostCustomersRegistry } from 'vs/workbench/api/electron-browser/extHostCustomers';
 import { IWindowService } from 'vs/platform/windows/common/windows';
@@ -45,6 +45,7 @@ import * as strings from 'vs/base/common/strings';
 import { RPCProtocol } from 'vs/workbench/services/extensions/node/rpcProtocol';
 import { IRequestService } from 'vs/platform/request/node/request';
 import { asJson } from 'vs/base/node/request';
+import { IWorkspaceContextService, IWorkspaceFolder } from 'vs/platform/workspace/common/workspace';
 
 const SystemExtensionsRoot = path.normalize(path.join(URI.parse(require.toUrl('')).fsPath, '..', 'extensions'));
 const ExtraDevSystemExtensionsRoot = path.normalize(path.join(URI.parse(require.toUrl('')).fsPath, '..', '.build', 'builtInExtensions'));
@@ -105,6 +106,8 @@ const NO_OP_VOID_PROMISE = TPromise.wrap<void>(void 0);
 export class ExtensionService extends Disposable implements IExtensionService {
 	public _serviceBrand: any;
 
+	private _remoteOptions: IRemoteOptions;
+
 	private _onDidRegisterExtensions: Emitter<IExtensionDescription[]>;
 
 	private _registry: ExtensionDescriptionRegistry;
@@ -141,9 +144,14 @@ export class ExtensionService extends Disposable implements IExtensionService {
 		@IStorageService private readonly _storageService: IStorageService,
 		@IWindowService private readonly _windowService: IWindowService,
 		@ILifecycleService lifecycleService: ILifecycleService,
-		@IRequestService private readonly _requestService: IRequestService
+		@IRequestService private readonly _requestService: IRequestService,
+		@IWorkspaceContextService workspaceContextService: IWorkspaceContextService
 	) {
 		super();
+
+		// TOOO@vs-remote: Listen to folder added, removed, etc.
+		this._remoteOptions = this._findRemoteOptions(workspaceContextService.getWorkspace().folders);
+
 		this._registry = null;
 		this._installedExtensionsReady = new Barrier();
 		this._isDev = !this._environmentService.isBuilt || this._environmentService.isExtensionDevelopment;
@@ -161,6 +169,24 @@ export class ExtensionService extends Disposable implements IExtensionService {
 		this._extensionHostProcessProxy = null;
 
 		this.startDelayed(lifecycleService);
+	}
+
+	private _findRemoteOptions(folders: IWorkspaceFolder[]): IRemoteOptions {
+		for (let i = 0; i < folders.length; i++) {
+			const folder = folders[i];
+			if (folder.uri.scheme === 'vscode-remote') {
+				let [host, strPort] = folder.uri.authority.split(':');
+				let port = strPort ? parseInt(strPort, 10) : NaN;
+				if (host && !isNaN(port)) {
+					return {
+						host: host,
+						port: port,
+						controlPort: port + 1
+					};
+				}
+			}
+		}
+		return null;
 	}
 
 	private startDelayed(lifecycleService: ILifecycleService): void {
@@ -253,8 +279,8 @@ export class ExtensionService extends Disposable implements IExtensionService {
 	private _startExtensionHostProcess(initialActivationEvents: string[]): void {
 		this._stopExtensionHostProcess();
 
-		if (REMOTE_OPTIONS) {
-			this._extensionHostProcessWorker = this._instantiationService.createInstance(ExtensionHostRemoteProcess, REMOTE_OPTIONS, this);
+		if (this._remoteOptions) {
+			this._extensionHostProcessWorker = this._instantiationService.createInstance(ExtensionHostRemoteProcess, this._remoteOptions, this);
 		} else {
 			this._extensionHostProcessWorker = this._instantiationService.createInstance(ExtensionHostProcessWorker, this);
 		}
@@ -435,12 +461,12 @@ export class ExtensionService extends Disposable implements IExtensionService {
 	private _scanAndHandleExtensions(): void {
 
 		let runtimeExtensionsPromise: TPromise<IExtensionDescription[]>;
-		if (REMOTE_OPTIONS) {
+		if (this._remoteOptions) {
 			interface IScanExtensionsResponse {
 				extensions: IExtensionDescription[];
 				extensionsFolder: string;
 			}
-			const url = `http://${REMOTE_OPTIONS.host}:${REMOTE_OPTIONS.controlPort}/scan-extensions`;
+			const url = `http://${this._remoteOptions.host}:${this._remoteOptions.controlPort}/scan-extensions`;
 			runtimeExtensionsPromise = this._requestService.request({
 				url: url
 			}).then((ctx) => {

@@ -37,12 +37,6 @@ import { IRemoteConsoleLog, log, parse } from 'vs/base/node/console';
 import { getScopes } from 'vs/platform/configuration/common/configurationRegistry';
 import { ILogService } from 'vs/platform/log/common/log';
 
-export const REMOTE_OPTIONS: IRemoteOptions = {
-	host: '127.0.0.1',
-	port: 8000,
-	controlPort: 8001
-};
-
 export interface IExtensionHostStarter {
 	readonly onCrashed: Event<[number, string]>;
 
