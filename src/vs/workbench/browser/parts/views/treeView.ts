@@ -37,6 +37,7 @@ export class TreeView extends TreeViewsViewletPanel {
 
 	private menus: Menus;
 	private activated: boolean = false;
+	private treeContainer: HTMLElement;
 	private treeInputPromise: TPromise<void>;
 
 	private dataProviderElementChangeListener: IDisposable;
@@ -61,10 +62,8 @@ export class TreeView extends TreeViewsViewletPanel {
 		}
 	}
 
-	public renderBody(container: HTMLElement): void {
-		this.treeContainer = super.renderViewTree(container);
-		DOM.addClass(this.treeContainer, 'tree-explorer-viewlet-tree-view');
-
+	renderBody(container: HTMLElement): void {
+		this.treeContainer = DOM.append(container, DOM.$('.tree-explorer-viewlet-tree-view'));
 		this.tree = this.createViewer($(this.treeContainer));
 		this.setInput();
 	}
@@ -75,6 +74,13 @@ export class TreeView extends TreeViewsViewletPanel {
 		if (expanded) {
 			this.activate();
 		}
+	}
+
+	layoutBody(size: number): void {
+		if (this.treeContainer) {
+			this.treeContainer.style.height = size + 'px';
+		}
+		super.layoutBody(size);
 	}
 
 	private activate() {
@@ -379,6 +385,10 @@ class Aligner extends Disposable {
 	}
 
 	private hasToAlignWithTwisty(): boolean {
+		if (this.hasParentHasIcon()) {
+			return false;
+		}
+
 		const fileIconTheme = this.themeService.getFileIconTheme();
 		if (!(fileIconTheme.hasFileIcons && !fileIconTheme.hasFolderIcons)) {
 			return false;
@@ -406,6 +416,21 @@ class Aligner extends Disposable {
 	private getSiblings(): ITreeItem[] {
 		const parent: ITreeItem = this.tree.getNavigator(this.node).parent() || this.tree.getInput();
 		return parent.children;
+	}
+
+	private hasParentHasIcon(): boolean {
+		const parent = this.tree.getNavigator(this.node).parent() || this.tree.getInput();
+		const icon = this.themeService.getTheme().type === LIGHT ? parent.icon : parent.iconDark;
+		if (icon) {
+			return true;
+		}
+		if (parent.resourceUri) {
+			const fileIconTheme = this.themeService.getFileIconTheme();
+			if (fileIconTheme.hasFileIcons && fileIconTheme.hasFolderIcons) {
+				return true;
+			}
+		}
+		return false;
 	}
 }
 

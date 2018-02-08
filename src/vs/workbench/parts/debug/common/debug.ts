@@ -222,11 +222,16 @@ export interface IEnablement extends ITreeElement {
 	enabled: boolean;
 }
 
-export interface IRawBreakpoint {
+export interface IBreakpointData {
 	id?: string;
 	lineNumber: number;
 	column?: number;
 	enabled?: boolean;
+	condition?: string;
+	hitCondition?: string;
+}
+
+export interface IBreakpointUpdateData extends DebugProtocol.Breakpoint {
 	condition?: string;
 	hitCondition?: string;
 }
@@ -412,11 +417,12 @@ export interface IConfigurationManager {
 	canSetBreakpointsIn(model: EditorIModel): boolean;
 
 	/**
-	 * Returns null for no folder workspace. Otherwise returns a launch object corresponding to the selected debug configuration.
+	 * Returns an object containing the selected launch configuration and the selected configuration name. Both these fields can be null (no folder workspace).
 	 */
-	selectedLaunch: ILaunch;
-
-	selectedName: string;
+	selectedConfiguration: {
+		launch: ILaunch;
+		name: string;
+	};
 
 	selectConfiguration(launch: ILaunch, name?: string, debugStarted?: boolean): void;
 
@@ -535,12 +541,12 @@ export interface IDebugService {
 	/**
 	 * Adds new breakpoints to the model for the file specified with the uri. Notifies debug adapter of breakpoint changes.
 	 */
-	addBreakpoints(uri: uri, rawBreakpoints: IRawBreakpoint[]): TPromise<void>;
+	addBreakpoints(uri: uri, rawBreakpoints: IBreakpointData[]): TPromise<void>;
 
 	/**
 	 * Updates the breakpoints.
 	 */
-	updateBreakpoints(uri: uri, data: { [id: string]: DebugProtocol.Breakpoint }): void;
+	updateBreakpoints(uri: uri, data: { [id: string]: IBreakpointUpdateData }): void;
 
 	/**
 	 * Enables or disables all breakpoints. If breakpoint is passed only enables or disables the passed breakpoint.

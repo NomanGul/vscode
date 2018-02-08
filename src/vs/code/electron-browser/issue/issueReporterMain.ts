@@ -168,6 +168,18 @@ export class IssueReporter extends Disposable {
 			content.push(`a { color: ${styles.textLinkColor}; }`);
 		}
 
+		if (styles.sliderBackgroundColor) {
+			content.push(`body::-webkit-scrollbar-thumb { background-color: ${styles.sliderBackgroundColor}; }`);
+		}
+
+		if (styles.sliderActiveColor) {
+			content.push(`body::-webkit-scrollbar-thumb:active { background-color: ${styles.sliderActiveColor}; }`);
+		}
+
+		if (styles.sliderHoverColor) {
+			content.push(`body::-webkit-scrollbar-thumb:hover { background-color: ${styles.sliderHoverColor}; }`);
+		}
+
 		styleTag.innerHTML = content.join('\n');
 		document.head.appendChild(styleTag);
 		document.body.style.color = styles.color;
@@ -232,6 +244,24 @@ export class IssueReporter extends Disposable {
 				this.issueReporterModel.update({ [elementId]: !this.issueReporterModel.getData()[elementId] });
 			});
 		});
+
+		const labelElements = document.getElementsByClassName('caption');
+		for (let i = 0; i < labelElements.length; i++) {
+			const label = labelElements.item(i);
+			label.addEventListener('click', (e) => {
+				e.stopPropagation();
+
+				// Stop propgagation not working as expected in this case https://bugs.chromium.org/p/chromium/issues/detail?id=809801
+				// preventDefault does prevent outer details tag from toggling, so use that and manually toggle the checkbox
+				e.preventDefault();
+				const containingDiv = (<HTMLLabelElement>e.target).parentElement;
+				const checkbox = <HTMLInputElement>containingDiv.firstElementChild;
+				if (checkbox) {
+					checkbox.checked = !checkbox.checked;
+					this.issueReporterModel.update({ [checkbox.id]: !this.issueReporterModel.getData()[checkbox.id] });
+				}
+			});
+		}
 
 		document.getElementById('reproducesWithoutExtensions').addEventListener('click', (e) => {
 			this.issueReporterModel.update({ reprosWithoutExtensions: true });
