@@ -115,9 +115,9 @@ export function createApiFactory(
 			transformOutgoing(scheme: string): string {
 				if (scheme === 'file') {
 					return 'vscode-remote';
+				} else if (scheme === 'vscode-local') {
+					return 'file';
 				}
-				// TODO@vs-remote
-				console.log(`WHAT TO DO NOW??`);
 				return scheme;
 			}
 		};
