@@ -5,11 +5,11 @@
 'use strict';
 
 import { TPromise } from 'vs/base/common/winjs.base';
-import nls = require('vs/nls');
-import errors = require('vs/base/common/errors');
+import * as nls from 'vs/nls';
+import * as errors from 'vs/base/common/errors';
 import { toErrorMessage } from 'vs/base/common/errorMessage';
-import types = require('vs/base/common/types');
-import paths = require('vs/base/common/paths');
+import * as types from 'vs/base/common/types';
+import * as paths from 'vs/base/common/paths';
 import { Action } from 'vs/base/common/actions';
 import { VIEWLET_ID, TEXT_FILE_EDITOR_ID, IExplorerViewlet } from 'vs/workbench/parts/files/common/files';
 import { ITextFileEditorModel, ITextFileService } from 'vs/workbench/services/textfile/common/textfiles';
@@ -24,7 +24,6 @@ import { IWorkspaceContextService } from 'vs/platform/workspace/common/workspace
 import { IStorageService } from 'vs/platform/storage/common/storage';
 import { ITextResourceConfigurationService } from 'vs/editor/common/services/resourceConfiguration';
 import { IInstantiationService } from 'vs/platform/instantiation/common/instantiation';
-import { CancelAction } from 'vs/platform/message/common/message';
 import { IWorkbenchEditorService } from 'vs/workbench/services/editor/common/editorService';
 import { IThemeService } from 'vs/platform/theme/common/themeService';
 import { IEditorGroupService } from 'vs/workbench/services/group/common/groupService';
@@ -155,18 +154,13 @@ export class TextFileEditor extends BaseTextEditor {
 					return TPromise.wrapError<void>(errors.create(toErrorMessage(error), {
 						actions: [
 							new Action('workbench.files.action.createMissingFile', nls.localize('createFile', "Create File"), null, true, () => {
-								return this.fileService.updateContent(input.getResource(), '').then(() => {
-
-									// Open
-									return this.editorService.openEditor({
-										resource: input.getResource(),
-										options: {
-											pinned: true // new file gets pinned by default
-										}
-									});
-								});
-							}),
-							CancelAction
+								return this.fileService.updateContent(input.getResource(), '').then(() => this.editorService.openEditor({
+									resource: input.getResource(),
+									options: {
+										pinned: true // new file gets pinned by default
+									}
+								}));
+							})
 						]
 					}));
 				}

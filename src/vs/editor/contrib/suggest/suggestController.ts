@@ -77,7 +77,7 @@ class AcceptOnCharacterOracle {
 
 export class SuggestController implements IEditorContribution {
 
-	private static ID: string = 'editor.contrib.suggestController';
+	private static readonly ID: string = 'editor.contrib.suggestController';
 
 	public static get(editor: ICodeEditor): SuggestController {
 		return editor.getContribution<SuggestController>(SuggestController.ID);
@@ -90,9 +90,9 @@ export class SuggestController implements IEditorContribution {
 
 	constructor(
 		private _editor: ICodeEditor,
-		@ICommandService private _commandService: ICommandService,
-		@IContextKeyService private _contextKeyService: IContextKeyService,
-		@IInstantiationService private _instantiationService: IInstantiationService,
+		@ICommandService private readonly _commandService: ICommandService,
+		@IContextKeyService private readonly _contextKeyService: IContextKeyService,
+		@IInstantiationService private readonly _instantiationService: IInstantiationService,
 	) {
 		this._model = new SuggestModel(this._editor);
 		this._memory = _instantiationService.createInstance(SuggestMemories, this._editor.getConfiguration().contribInfo.suggestSelection);
@@ -222,7 +222,7 @@ export class SuggestController implements IEditorContribution {
 
 		} else if (suggestion.command.id === TriggerSuggestAction.id) {
 			// retigger
-			this._model.trigger({ auto: this._model.state === State.Auto }, true);
+			this._model.trigger({ auto: true }, true);
 
 		} else {
 			// exec command, done
@@ -406,7 +406,12 @@ registerEditorCommand(new SuggestCommand({
 registerEditorCommand(new SuggestCommand({
 	id: 'selectLastSuggestion',
 	precondition: ContextKeyExpr.and(SuggestContext.Visible, SuggestContext.MultipleSuggestions),
-	handler: c => c.selectLastSuggestion()
+	handler: c => c.selectLastSuggestion(),
+	kbOpts: {
+		weight: weight,
+		kbExpr: EditorContextKeys.textFocus,
+		primary: KeyCode.End
+	}
 }));
 
 registerEditorCommand(new SuggestCommand({
@@ -437,7 +442,12 @@ registerEditorCommand(new SuggestCommand({
 registerEditorCommand(new SuggestCommand({
 	id: 'selectFirstSuggestion',
 	precondition: ContextKeyExpr.and(SuggestContext.Visible, SuggestContext.MultipleSuggestions),
-	handler: c => c.selectFirstSuggestion()
+	handler: c => c.selectFirstSuggestion(),
+	kbOpts: {
+		weight: weight,
+		kbExpr: EditorContextKeys.textFocus,
+		primary: KeyCode.Home
+	}
 }));
 
 registerEditorCommand(new SuggestCommand({

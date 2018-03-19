@@ -47,8 +47,9 @@ import { createSpdLogService } from 'vs/platform/log/node/spdlogService';
 import { printDiagnostics } from 'vs/code/electron-main/diagnostics';
 import { BufferLogService } from 'vs/platform/log/common/bufferLog';
 import { uploadLogs } from 'vs/code/electron-main/logUploader';
-import { IChoiceService } from 'vs/platform/message/common/message';
-import { ChoiceCliService } from 'vs/platform/message/node/messageCli';
+import { setUnexpectedErrorHandler } from 'vs/base/common/errors';
+import { IDialogService } from 'vs/platform/dialogs/common/dialogs';
+import { CommandLineDialogService } from 'vs/platform/dialogs/node/dialogService';
 
 function createServices(args: ParsedArgs, bufferLogService: BufferLogService): IInstantiationService {
 	const services = new ServiceCollection();
@@ -72,7 +73,7 @@ function createServices(args: ParsedArgs, bufferLogService: BufferLogService): I
 	services.set(IRequestService, new SyncDescriptor(RequestService));
 	services.set(IURLService, new SyncDescriptor(URLService, args['open-url'] ? args._urls : []));
 	services.set(IBackupMainService, new SyncDescriptor(BackupMainService));
-	services.set(IChoiceService, new SyncDescriptor(ChoiceCliService));
+	services.set(IDialogService, new SyncDescriptor(CommandLineDialogService));
 
 	return new InstantiationService(services, true);
 }
@@ -290,8 +291,12 @@ function quit(accessor: ServicesAccessor, reason?: ExpectedError | Error): void 
 }
 
 function main() {
-	let args: ParsedArgs;
 
+	// Set the error handler early enough so that we are not getting the
+	// default electron error dialog popping up
+	setUnexpectedErrorHandler(err => console.error(err));
+
+	let args: ParsedArgs;
 	try {
 		args = parseMainProcessArgv(process.argv);
 		args = validatePaths(args);

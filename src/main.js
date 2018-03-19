@@ -10,6 +10,8 @@ perf.mark('main:started');
 // Perf measurements
 global.perfStartTime = Date.now();
 
+Error.stackTraceLimit = 100; // increase number of stack frames (from 10, https://github.com/v8/v8/wiki/Stack-Trace-API)
+
 //#region Add support for using node_modules.asar
 (function () {
 	const path = require('path');
@@ -162,6 +164,21 @@ function touch(file) {
 	});
 }
 
+function resolveJSFlags() {
+	let jsFlags = [];
+	if (args['js-flags']) {
+		jsFlags.push(args['js-flags']);
+	}
+	if (args['max-memory'] && !/max_old_space_size=(\d+)/g.exec(args['js-flags'])) {
+		jsFlags.push(`--max_old_space_size=${args['max-memory']}`);
+	}
+	if (jsFlags.length > 0) {
+		return jsFlags.join(' ');
+	} else {
+		return null;
+	}
+}
+
 // Language tags are case insensitve however an amd loader is case sensitive
 // To make this work on case preserving & insensitive FS we do the following:
 // the language bundles have lower case language tags and we always lower case
@@ -265,7 +282,7 @@ function getNLSConfiguration(locale) {
 
 	let isCoreLangaguage = true;
 	if (locale) {
-		isCoreLangaguage = ['de', 'es', 'fr', 'it', 'ja', 'ko', 'ru', 'tr', 'zh-cn', 'zh-tw'].some((language) => {
+		isCoreLangaguage = ['de', 'es', 'fr', 'it', 'ja', 'ko', 'ru', 'zh-cn', 'zh-tw'].some((language) => {
 			return locale === language || locale.startsWith(language + '-');
 		});
 	}
@@ -351,7 +368,7 @@ function getNLSConfiguration(locale) {
 								}
 								target[module] = targetStrings;
 							}
-							writes.push(writeFile(path.join(coreLocation, bundle.replace(/\//g,'!') + '.nls.json'), JSON.stringify(target)));
+							writes.push(writeFile(path.join(coreLocation, bundle.replace(/\//g, '!') + '.nls.json'), JSON.stringify(target)));
 						}
 						writes.push(writeFile(translationsConfigFile, JSON.stringify(packConfig.translations)));
 						return Promise.all(writes);
@@ -441,7 +458,8 @@ let nodeCachedDataDir = getNodeCachedDataDir().then(function (value) {
 
 		// tell v8 to not be lazy when parsing JavaScript. Generally this makes startup slower
 		// but because we generate cached data it makes subsequent startups much faster
-		app.commandLine.appendSwitch('--js-flags', '--nolazy');
+		let existingJSFlags = resolveJSFlags();
+		app.commandLine.appendSwitch('--js-flags', existingJSFlags ? existingJSFlags + ' --nolazy' : '--nolazy');
 	}
 	return value;
 });
@@ -453,6 +471,11 @@ userDefinedLocale.then((locale) => {
 		nlsConfiguration = getNLSConfiguration(locale);
 	}
 });
+
+let jsFlags = resolveJSFlags();
+if (jsFlags) {
+	app.commandLine.appendSwitch('--js-flags', jsFlags);
+}
 
 // Load our code once ready
 app.once('ready', function () {

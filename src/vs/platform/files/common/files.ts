@@ -5,12 +5,12 @@
 'use strict';
 
 import { TPromise } from 'vs/base/common/winjs.base';
-import paths = require('vs/base/common/paths');
+import * as paths from 'vs/base/common/paths';
 import URI from 'vs/base/common/uri';
-import glob = require('vs/base/common/glob');
+import * as glob from 'vs/base/common/glob';
 import { isLinux } from 'vs/base/common/platform';
 import { createDecorator } from 'vs/platform/instantiation/common/instantiation';
-import Event from 'vs/base/common/event';
+import { Event } from 'vs/base/common/event';
 import { beginsWithIgnoreCase } from 'vs/base/common/strings';
 import { IProgress } from 'vs/platform/progress/common/progress';
 import { IDisposable } from 'vs/base/common/lifecycle';
@@ -411,6 +411,11 @@ export interface IFileStat extends IBaseStat {
 	isDirectory: boolean;
 
 	/**
+	 * The resource is a symbolic link.
+	 */
+	isSymbolicLink?: boolean;
+
+	/**
 	 * The children of the file stat or undefined if none.
 	 */
 	children?: IFileStat[];
@@ -604,7 +609,8 @@ export enum FileOperationResult {
 	FILE_READ_ONLY,
 	FILE_PERMISSION_DENIED,
 	FILE_TOO_LARGE,
-	FILE_INVALID_PATH
+	FILE_INVALID_PATH,
+	FILE_EXCEED_MEMORY_LIMIT
 }
 
 export const AutoSaveConfiguration = {

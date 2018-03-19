@@ -5,11 +5,11 @@
 'use strict';
 
 import 'vs/css!./quickopen';
-import nls = require('vs/nls');
+import * as nls from 'vs/nls';
 import { TPromise } from 'vs/base/common/winjs.base';
-import platform = require('vs/base/common/platform');
-import types = require('vs/base/common/types');
-import errors = require('vs/base/common/errors');
+import * as platform from 'vs/base/common/platform';
+import * as types from 'vs/base/common/types';
+import * as errors from 'vs/base/common/errors';
 import { IQuickNavigateConfiguration, IAutoFocus, IEntryRunContext, IModel, Mode, IKeyMods } from 'vs/base/parts/quickopen/common/quickOpen';
 import { Filter, Renderer, DataSource, IModelProvider, AccessibilityProvider } from 'vs/base/parts/quickopen/browser/quickOpenViewer';
 import { Dimension, Builder, $ } from 'vs/base/browser/builder';
@@ -20,7 +20,7 @@ import { Tree } from 'vs/base/parts/tree/browser/treeImpl';
 import { ProgressBar } from 'vs/base/browser/ui/progressbar/progressbar';
 import { StandardKeyboardEvent } from 'vs/base/browser/keyboardEvent';
 import { DefaultController, ClickBehavior } from 'vs/base/parts/tree/browser/treeDefaults';
-import DOM = require('vs/base/browser/dom');
+import * as DOM from 'vs/base/browser/dom';
 import { KeyCode } from 'vs/base/common/keyCodes';
 import { IDisposable, dispose } from 'vs/base/common/lifecycle';
 import { ScrollbarVisibility } from 'vs/base/common/scrollable';
@@ -155,8 +155,8 @@ export class QuickOpenWidget implements IModelProvider {
 				}
 			})
 				.on(DOM.EventType.CONTEXT_MENU, (e: Event) => DOM.EventHelper.stop(e, true)) // Do this to fix an issue on Mac where the menu goes into the way
-				.on(DOM.EventType.FOCUS, (e: Event) => this.gainingFocus(), null, true)
-				.on(DOM.EventType.BLUR, (e: Event) => this.loosingFocus(e), null, true);
+				.on(DOM.EventType.FOCUS, (e: FocusEvent) => this.gainingFocus(), null, true)
+				.on(DOM.EventType.BLUR, (e: FocusEvent) => this.loosingFocus(e), null, true);
 
 			// Progress Bar
 			this.progressBar = new ProgressBar(div.clone(), { progressBarBackground: this.styles.progressBarBackground });
@@ -240,6 +240,7 @@ export class QuickOpenWidget implements IModelProvider {
 						indentPixels: 0,
 						alwaysFocused: true,
 						verticalScrollMode: ScrollbarVisibility.Visible,
+						horizontalScrollMode: ScrollbarVisibility.Hidden,
 						ariaLabel: nls.localize('treeAriaLabel', "Quick Picker"),
 						keyboardSupport: this.options.keyboardSupport,
 						preventRootFocus: true
@@ -327,7 +328,7 @@ export class QuickOpenWidget implements IModelProvider {
 		})
 
 			// Widget Attributes
-			.addClass('quick-open-widget')
+			.addClass('monaco-quick-open-widget')
 			.build(this.container);
 
 		// Support layout
@@ -447,7 +448,7 @@ export class QuickOpenWidget implements IModelProvider {
 			// Transition into quick navigate mode if not yet done
 			if (!this.quickNavigateConfiguration && quickNavigate) {
 				this.quickNavigateConfiguration = quickNavigate;
-				this.tree.DOMFocus();
+				this.tree.domFocus();
 			}
 
 			// Navigate
@@ -558,7 +559,7 @@ export class QuickOpenWidget implements IModelProvider {
 		if (this.quickNavigateConfiguration) {
 			this.inputContainer.hide();
 			this.builder.show();
-			this.tree.DOMFocus();
+			this.tree.domFocus();
 		}
 
 		// Otherwise use normal UI
@@ -783,7 +784,7 @@ export class QuickOpenWidget implements IModelProvider {
 
 		// Clear Focus
 		if (this.tree.isDOMFocused()) {
-			this.tree.DOMBlur();
+			this.tree.domBlur();
 		} else if (this.inputBox.hasFocus()) {
 			this.inputBox.blur();
 		}
@@ -810,11 +811,13 @@ export class QuickOpenWidget implements IModelProvider {
 		}
 	}
 
-	public setValue(value: string, selection?: [number, number]): void {
+	public setValue(value: string, selectionOrStableHint?: [number, number] | null): void {
 		if (this.inputBox) {
 			this.inputBox.value = value;
-			if (Array.isArray(selection)) {
-				const [start, end] = selection;
+			if (selectionOrStableHint === null) {
+				// null means stable-selection
+			} else if (Array.isArray(selectionOrStableHint)) {
+				const [start, end] = selectionOrStableHint;
 				this.inputBox.select({ start, end });
 			} else {
 				this.inputBox.select();
@@ -942,12 +945,12 @@ export class QuickOpenWidget implements IModelProvider {
 		this.isLoosingFocus = false;
 	}
 
-	private loosingFocus(e: Event): void {
+	private loosingFocus(e: FocusEvent): void {
 		if (!this.isVisible()) {
 			return;
 		}
 
-		const relatedTarget = (<any>e).relatedTarget;
+		const relatedTarget = e.relatedTarget as HTMLElement;
 		if (!this.quickNavigateConfiguration && DOM.isAncestor(relatedTarget, this.builder.getHTMLElement())) {
 			return; // user clicked somewhere into quick open widget, do not close thereby
 		}

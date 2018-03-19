@@ -3,16 +3,12 @@
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
 
-import * as nls from 'vscode-nls';
-const localize = nls.loadMessageBundle();
-
 import * as vscode from 'vscode';
-import * as path from 'path';
 
 import { Command } from '../commandManager';
-import { ExtensionContentSecurityPolicyArbiter } from '../security';
-import { getMarkdownUri, } from '../features/previewContentProvider';
+import { MarkdownPreviewManager } from '../features/previewManager';
 import { TelemetryReporter } from '../telemetryReporter';
+import { PreviewSettings } from '../features/preview';
 
 
 function getViewColumn(sideBySide: boolean): vscode.ViewColumn | undefined {
@@ -35,12 +31,17 @@ function getViewColumn(sideBySide: boolean): vscode.ViewColumn | undefined {
 	return active.viewColumn;
 }
 
-function showPreview(
-	cspArbiter: ExtensionContentSecurityPolicyArbiter,
+interface ShowPreviewSettings {
+	readonly sideBySide?: boolean;
+	readonly locked?: boolean;
+}
+
+async function showPreview(
+	webviewManager: MarkdownPreviewManager,
 	telemetryReporter: TelemetryReporter,
-	uri?: vscode.Uri,
-	sideBySide: boolean = false,
-) {
+	uri: vscode.Uri | undefined,
+	previewSettings: ShowPreviewSettings,
+): Promise<any> {
 	let resource = uri;
 	if (!(resource instanceof vscode.Uri)) {
 		if (vscode.window.activeTextEditor) {
@@ -58,33 +59,33 @@ function showPreview(
 		return;
 	}
 
-	const thenable = vscode.commands.executeCommand('vscode.previewHtml',
-		getMarkdownUri(resource),
-		getViewColumn(sideBySide),
-		localize('previewTitle', 'Preview {0}', path.basename(resource.fsPath)),
-		{
-			allowScripts: true,
-			allowSvgs: cspArbiter.shouldAllowSvgsForResource(resource)
-		});
-
-	telemetryReporter.sendTelemetryEvent('openPreview', {
-		where: sideBySide ? 'sideBySide' : 'inPlace',
-		how: (uri instanceof vscode.Uri) ? 'action' : 'pallete'
+	webviewManager.preview(resource, {
+		resourceColumn: (vscode.window.activeTextEditor && vscode.window.activeTextEditor.viewColumn) || vscode.ViewColumn.One,
+		previewColumn: getViewColumn(!!previewSettings.sideBySide) || vscode.ViewColumn.Active,
+		locked: !!previewSettings.locked
 	});
 
-	return thenable;
+	telemetryReporter.sendTelemetryEvent('openPreview', {
+		where: previewSettings.sideBySide ? 'sideBySide' : 'inPlace',
+		how: (uri instanceof vscode.Uri) ? 'action' : 'pallete'
+	});
 }
 
 export class ShowPreviewCommand implements Command {
 	public readonly id = 'markdown.showPreview';
 
 	public constructor(
-		private readonly cspArbiter: ExtensionContentSecurityPolicyArbiter,
+		private readonly webviewManager: MarkdownPreviewManager,
 		private readonly telemetryReporter: TelemetryReporter
 	) { }
 
-	public execute(uri?: vscode.Uri) {
-		showPreview(this.cspArbiter, this.telemetryReporter, uri, false);
+	public execute(mainUri?: vscode.Uri, allUris?: vscode.Uri[], previewSettings?: PreviewSettings) {
+		for (const uri of (allUris || [mainUri])) {
+			showPreview(this.webviewManager, this.telemetryReporter, uri, {
+				sideBySide: false,
+				locked: previewSettings && previewSettings.locked
+			});
+		}
 	}
 }
 
@@ -92,11 +93,31 @@ export class ShowPreviewToSideCommand implements Command {
 	public readonly id = 'markdown.showPreviewToSide';
 
 	public constructor(
-		private readonly cspArbiter: ExtensionContentSecurityPolicyArbiter,
+		private readonly webviewManager: MarkdownPreviewManager,
+		private readonly telemetryReporter: TelemetryReporter
+	) { }
+
+	public execute(uri?: vscode.Uri, previewSettings?: PreviewSettings) {
+		showPreview(this.webviewManager, this.telemetryReporter, uri, {
+			sideBySide: true,
+			locked: previewSettings && previewSettings.locked
+		});
+	}
+}
+
+
+export class ShowLockedPreviewToSideCommand implements Command {
+	public readonly id = 'markdown.showLockedPreviewToSide';
+
+	public constructor(
+		private readonly webviewManager: MarkdownPreviewManager,
 		private readonly telemetryReporter: TelemetryReporter
 	) { }
 
 	public execute(uri?: vscode.Uri) {
-		showPreview(this.cspArbiter, this.telemetryReporter, uri, true);
+		showPreview(this.webviewManager, this.telemetryReporter, uri, {
+			sideBySide: true,
+			locked: true
+		});
 	}
 }

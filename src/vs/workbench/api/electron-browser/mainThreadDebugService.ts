@@ -8,7 +8,6 @@ import { IDisposable, dispose } from 'vs/base/common/lifecycle';
 import uri from 'vs/base/common/uri';
 import { IDebugService, IConfig, IDebugConfigurationProvider, IBreakpoint, IFunctionBreakpoint, IBreakpointData } from 'vs/workbench/parts/debug/common/debug';
 import { TPromise } from 'vs/base/common/winjs.base';
-import { IWorkspaceContextService } from 'vs/platform/workspace/common/workspace';
 import {
 	ExtHostContext, ExtHostDebugServiceShape, MainThreadDebugServiceShape, DebugSessionUUID, MainContext,
 	IExtHostContext, IBreakpointsDeltaDto, ISourceMultiBreakpointDto, ISourceBreakpointDto, IFunctionBreakpointDto
@@ -25,8 +24,7 @@ export class MainThreadDebugService implements MainThreadDebugServiceShape {
 
 	constructor(
 		extHostContext: IExtHostContext,
-		@IDebugService private debugService: IDebugService,
-		@IWorkspaceContextService private contextService: IWorkspaceContextService,
+		@IDebugService private debugService: IDebugService
 	) {
 		this._proxy = extHostContext.getProxy(ExtHostContext.ExtHostDebugService);
 		this._toDispose = [];
@@ -103,7 +101,8 @@ export class MainThreadDebugService implements MainThreadDebugServiceShape {
 						lineNumber: l.line + 1,
 						column: l.character > 0 ? l.character + 1 : 0,
 						condition: l.condition,
-						hitCondition: l.hitCondition
+						hitCondition: l.hitCondition,
+						logMessage: l.logMessage
 					}
 				);
 				this.debugService.addBreakpoints(uri.revive(dto.uri), rawbps);
@@ -128,9 +127,10 @@ export class MainThreadDebugService implements MainThreadDebugServiceShape {
 					type: 'function',
 					id: fbp.getId(),
 					enabled: fbp.enabled,
-					functionName: fbp.name,
+					condition: fbp.condition,
 					hitCondition: fbp.hitCondition,
-					/* condition: fbp.condition */
+					logMessage: fbp.logMessage,
+					functionName: fbp.name
 				};
 			} else {
 				const sbp = <IBreakpoint>bp;
@@ -140,6 +140,7 @@ export class MainThreadDebugService implements MainThreadDebugServiceShape {
 					enabled: sbp.enabled,
 					condition: sbp.condition,
 					hitCondition: sbp.hitCondition,
+					logMessage: sbp.logMessage,
 					uri: sbp.uri,
 					line: sbp.lineNumber > 0 ? sbp.lineNumber - 1 : 0,
 					character: (typeof sbp.column === 'number' && sbp.column > 0) ? sbp.column - 1 : 0,
@@ -179,9 +180,9 @@ export class MainThreadDebugService implements MainThreadDebugServiceShape {
 	}
 
 	public $startDebugging(_folderUri: uri | undefined, nameOrConfiguration: string | IConfig): TPromise<boolean> {
-		const folderUriString = _folderUri ? uri.revive(_folderUri).toString() : undefined;
-		const folder = folderUriString ? this.contextService.getWorkspace().folders.filter(wf => wf.uri.toString() === folderUriString).pop() : undefined;
-		return this.debugService.startDebugging(folder, nameOrConfiguration).then(x => {
+		const folderUri = _folderUri ? uri.revive(_folderUri) : undefined;
+		const launch = this.debugService.getConfigurationManager().getLaunch(folderUri);
+		return this.debugService.startDebugging(launch, nameOrConfiguration).then(x => {
 			return true;
 		}, err => {
 			return TPromise.wrapError(err && err.message ? err.message : 'cannot start debugging');

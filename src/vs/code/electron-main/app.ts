@@ -58,6 +58,7 @@ import { IIssueService } from 'vs/platform/issue/common/issue';
 import { IssueChannel } from 'vs/platform/issue/common/issueIpc';
 import { IssueService } from 'vs/platform/issue/electron-main/issueService';
 import { LogLevelSetterChannel } from 'vs/platform/log/common/logIpc';
+import { setUnexpectedErrorHandler } from 'vs/base/common/errors';
 
 export class CodeApplication {
 
@@ -90,26 +91,8 @@ export class CodeApplication {
 	private registerListeners(): void {
 
 		// We handle uncaught exceptions here to prevent electron from opening a dialog to the user
-		process.on('uncaughtException', (err: any) => {
-			if (err) {
-
-				// take only the message and stack property
-				const friendlyError = {
-					message: err.message,
-					stack: err.stack
-				};
-
-				// handle on client side
-				if (this.windowsMainService) {
-					this.windowsMainService.sendToFocused('vscode:reportError', JSON.stringify(friendlyError));
-				}
-			}
-
-			this.logService.error(`[uncaught exception in main]: ${err}`);
-			if (err.stack) {
-				this.logService.error(err.stack);
-			}
-		});
+		setUnexpectedErrorHandler(err => this.onUnexpectedError(err));
+		process.on('uncaughtException', err => this.onUnexpectedError(err));
 
 		app.on('will-quit', () => {
 			this.logService.trace('App#will-quit: disposing resources');
@@ -240,6 +223,27 @@ export class CodeApplication {
 		});
 	}
 
+	private onUnexpectedError(err: Error): void {
+		if (err) {
+
+			// take only the message and stack property
+			const friendlyError = {
+				message: err.message,
+				stack: err.stack
+			};
+
+			// handle on client side
+			if (this.windowsMainService) {
+				this.windowsMainService.sendToFocused('vscode:reportError', JSON.stringify(friendlyError));
+			}
+		}
+
+		this.logService.error(`[uncaught exception in main]: ${err}`);
+		if (err.stack) {
+			this.logService.error(err.stack);
+		}
+	}
+
 	private onBroadcast(event: string, payload: any): void {
 
 		// Theme changes
@@ -273,8 +277,7 @@ export class CodeApplication {
 			this.logService.trace(`Resolved machine identifier: ${machineId}`);
 
 			// Spawn shared process
-			this.sharedProcess = new SharedProcess(this.environmentService, machineId, this.userEnv, this.logService);
-			this.toDispose.push(this.sharedProcess);
+			this.sharedProcess = new SharedProcess(this.environmentService, this.lifecycleService, this.logService, machineId, this.userEnv);
 			this.sharedProcessClient = this.sharedProcess.whenReady().then(() => connect(this.environmentService.sharedIPCHandle, 'main'));
 
 			// Services
@@ -342,16 +345,6 @@ export class CodeApplication {
 	private openFirstWindow(accessor: ServicesAccessor): void {
 		const appInstantiationService = accessor.get(IInstantiationService);
 
-		// TODO@Joao: unfold this
-		this.windowsMainService = accessor.get(IWindowsMainService);
-
-		// TODO@Joao: so ugly...
-		this.windowsMainService.onWindowsCountChanged(e => {
-			if (!platform.isMacintosh && e.newCount === 0) {
-				this.sharedProcess.dispose();
-			}
-		});
-
 		// Register more Main IPC services
 		const launchService = accessor.get(ILaunchService);
 		const launchChannel = new LaunchChannel(launchService);
@@ -388,6 +381,7 @@ export class CodeApplication {
 		this.lifecycleService.ready();
 
 		// Propagate to clients
+		this.windowsMainService = accessor.get(IWindowsMainService); // TODO@Joao: unfold this
 		this.windowsMainService.ready(this.userEnv);
 
 		// Open our first window

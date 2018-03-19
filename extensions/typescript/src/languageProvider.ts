@@ -18,8 +18,11 @@ import DiagnosticsManager from './features/diagnostics';
 import { LanguageDescription } from './utils/languageDescription';
 import * as fileSchemes from './utils/fileSchemes';
 import { CachedNavTreeResponse } from './features/baseCodeLensProvider';
+import { memoize } from './utils/memoize';
+import { disposeAll } from './utils/dipose';
 
 const validateSetting = 'validate.enable';
+const foldingSetting = 'typescript.experimental.syntaxFolding';
 
 export default class LanguageProvider {
 	private readonly diagnosticsManager: DiagnosticsManager;
@@ -30,10 +33,10 @@ export default class LanguageProvider {
 
 	private _validate: boolean = true;
 
-	private _documentSelector: DocumentFilter[];
-
 	private readonly disposables: Disposable[] = [];
 	private readonly versionDependentDisposables: Disposable[] = [];
+
+	private foldingProviderRegistration: Disposable | undefined = void 0;
 
 	constructor(
 		private readonly client: TypeScriptServiceClient,
@@ -43,12 +46,12 @@ export default class LanguageProvider {
 	) {
 		this.formattingOptionsManager = new FormattingConfigurationManager(client);
 		this.bufferSyncSupport = new BufferSyncSupport(client, description.modeIds, {
-			delete: (file: string) => {
-				this.diagnosticsManager.delete(file);
+			delete: (resource) => {
+				this.diagnosticsManager.delete(resource);
 			}
 		}, this._validate);
 
-		this.diagnosticsManager = new DiagnosticsManager(description.id, this.client);
+		this.diagnosticsManager = new DiagnosticsManager(description.id);
 
 		workspace.onDidChangeConfiguration(this.configurationChanged, this, this.disposables);
 		this.configurationChanged();
@@ -60,35 +63,23 @@ export default class LanguageProvider {
 	}
 
 	public dispose(): void {
-		while (this.disposables.length) {
-			const obj = this.disposables.pop();
-			if (obj) {
-				obj.dispose();
-			}
-		}
-
-		while (this.versionDependentDisposables.length) {
-			const obj = this.versionDependentDisposables.pop();
-			if (obj) {
-				obj.dispose();
-			}
-		}
+		disposeAll(this.disposables);
+		disposeAll(this.versionDependentDisposables);
 
 		this.diagnosticsManager.dispose();
 		this.bufferSyncSupport.dispose();
 		this.formattingOptionsManager.dispose();
 	}
 
+	@memoize
 	private get documentSelector(): DocumentFilter[] {
-		if (!this._documentSelector) {
-			this._documentSelector = [];
-			for (const language of this.description.modeIds) {
-				for (const scheme of fileSchemes.supportedSchemes) {
-					this._documentSelector.push({ language, scheme });
-				}
+		const documentSelector = [];
+		for (const language of this.description.modeIds) {
+			for (const scheme of fileSchemes.supportedSchemes) {
+				documentSelector.push({ language, scheme });
 			}
 		}
-		return this._documentSelector;
+		return documentSelector;
 	}
 
 	private async registerProviders(
@@ -125,6 +116,15 @@ export default class LanguageProvider {
 		this.disposables.push(languages.registerRenameProvider(selector, new (await import('./features/renameProvider')).default(client)));
 		this.disposables.push(languages.registerCodeActionsProvider(selector, new (await import('./features/quickFixProvider')).default(client, this.formattingOptionsManager, commandManager, this.diagnosticsManager)));
 		this.disposables.push(languages.registerCodeActionsProvider(selector, new (await import('./features/refactorProvider')).default(client, this.formattingOptionsManager, commandManager)));
+
+		await this.initFoldingProvider();
+		this.disposables.push(workspace.onDidChangeConfiguration(c => {
+			if (c.affectsConfiguration(foldingSetting)) {
+				this.initFoldingProvider();
+			}
+		}));
+		this.disposables.push({ dispose: () => this.foldingProviderRegistration && this.foldingProviderRegistration.dispose() });
+
 		this.registerVersionDependentProviders();
 
 		const cachedResponse = new CachedNavTreeResponse();
@@ -148,6 +148,20 @@ export default class LanguageProvider {
 		}
 	}
 
+	private async initFoldingProvider(): Promise<void> {
+		let enable = workspace.getConfiguration().get(foldingSetting, false);
+		if (enable) {
+			if (!this.foldingProviderRegistration) {
+				this.foldingProviderRegistration = languages.registerFoldingProvider(this.documentSelector, new (await import('./features/folderingProvider')).default(this.client));
+			}
+		} else {
+			if (this.foldingProviderRegistration) {
+				this.foldingProviderRegistration.dispose();
+				this.foldingProviderRegistration = void 0;
+			}
+		}
+	}
+
 	private configurationChanged(): void {
 		const config = workspace.getConfiguration(this.id);
 		this.updateValidate(config.get(validateSetting, true));
@@ -157,20 +171,20 @@ export default class LanguageProvider {
 		}
 	}
 
-	public handles(file: string, doc: TextDocument): boolean {
+	public handles(resource: Uri, doc: TextDocument): boolean {
 		if (doc && this.description.modeIds.indexOf(doc.languageId) >= 0) {
 			return true;
 		}
 
-		if (this.bufferSyncSupport.handles(file)) {
+		if (this.bufferSyncSupport.handles(resource)) {
 			return true;
 		}
 
-		const base = basename(file);
+		const base = basename(resource.fsPath);
 		return !!base && base === this.description.configFile;
 	}
 
-	public get id(): string {
+	private get id(): string {
 		return this.description.id;
 	}
 
@@ -199,12 +213,7 @@ export default class LanguageProvider {
 	}
 
 	private async registerVersionDependentProviders(): Promise<void> {
-		while (this.versionDependentDisposables.length) {
-			const obj = this.versionDependentDisposables.pop();
-			if (obj) {
-				obj.dispose();
-			}
-		}
+		disposeAll(this.versionDependentDisposables);
 
 		if (!this.client) {
 			return;

@@ -255,8 +255,8 @@ export class MainThreadLanguageFeatures implements MainThreadLanguageFeaturesSha
 			provideRenameEdits: (model: ITextModel, position: EditorPosition, newName: string, token: CancellationToken): Thenable<modes.WorkspaceEdit> => {
 				return wireCancellationToken(token, this._proxy.$provideRenameEdits(handle, model.uri, position, newName)).then(reviveWorkspaceEditDto);
 			},
-			resolveInitialRenameValue: supportsResolveInitialValues
-				? (model: ITextModel, position: EditorPosition, token: CancellationToken): Thenable<modes.RenameInitialValue> => wireCancellationToken(token, this._proxy.$resolveInitialRenameValue(handle, model.uri, position))
+			resolveRenameContext: supportsResolveInitialValues
+				? (model: ITextModel, position: EditorPosition, token: CancellationToken): Thenable<modes.RenameContext> => wireCancellationToken(token, this._proxy.$resolveRenameContext(handle, model.uri, position))
 				: undefined
 		});
 	}
@@ -341,6 +341,17 @@ export class MainThreadLanguageFeatures implements MainThreadLanguageFeaturesSha
 					color: [colorInfo.color.red, colorInfo.color.green, colorInfo.color.blue, colorInfo.color.alpha],
 					range: colorInfo.range
 				}));
+			}
+		});
+	}
+
+	// --- folding
+
+	$registerFoldingProvider(handle: number, selector: ISerializedDocumentFilter[]): void {
+		const proxy = this._proxy;
+		this._registrations[handle] = modes.FoldingProviderRegistry.register(toLanguageSelector(selector), <modes.FoldingProvider>{
+			provideFoldingRanges: (model, context, token) => {
+				return wireCancellationToken(token, proxy.$provideFoldingRanges(handle, model.uri, context));
 			}
 		});
 	}

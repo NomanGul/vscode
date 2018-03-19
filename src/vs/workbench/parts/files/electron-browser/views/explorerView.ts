@@ -4,15 +4,15 @@
  *--------------------------------------------------------------------------------------------*/
 'use strict';
 
-import nls = require('vs/nls');
+import * as nls from 'vs/nls';
 import { TPromise } from 'vs/base/common/winjs.base';
 import { Builder, $ } from 'vs/base/browser/builder';
 import URI from 'vs/base/common/uri';
 import { ThrottledDelayer, Delayer } from 'vs/base/common/async';
-import errors = require('vs/base/common/errors');
-import paths = require('vs/base/common/paths');
-import resources = require('vs/base/common/resources');
-import glob = require('vs/base/common/glob');
+import * as errors from 'vs/base/common/errors';
+import * as paths from 'vs/base/common/paths';
+import * as resources from 'vs/base/common/resources';
+import * as glob from 'vs/base/common/glob';
 import { Action, IAction } from 'vs/base/common/actions';
 import { memoize } from 'vs/base/common/decorators';
 import { IFilesConfiguration, ExplorerFolderContext, FilesExplorerFocusedContext, ExplorerFocusedContext, SortOrderConfiguration, SortOrder, IExplorerView, ExplorerRootContext } from 'vs/workbench/parts/files/common/files';
@@ -35,7 +35,6 @@ import { IKeybindingService } from 'vs/platform/keybinding/common/keybinding';
 import { IInstantiationService } from 'vs/platform/instantiation/common/instantiation';
 import { IProgressService } from 'vs/platform/progress/common/progress';
 import { IContextMenuService } from 'vs/platform/contextview/browser/contextView';
-import { IMessageService, Severity } from 'vs/platform/message/common/message';
 import { IContextKeyService, IContextKey } from 'vs/platform/contextkey/common/contextkey';
 import { ResourceContextKey } from 'vs/workbench/common/resources';
 import { ResourceGlobMatcher } from 'vs/workbench/electron-browser/resources';
@@ -43,6 +42,8 @@ import { isLinux } from 'vs/base/common/platform';
 import { IDecorationsService } from 'vs/workbench/services/decorations/browser/decorations';
 import { WorkbenchTree } from 'vs/platform/list/browser/listService';
 import { DelayedDragHandler } from 'vs/base/browser/dnd';
+import { Schemas } from 'vs/base/common/network';
+import { INotificationService } from 'vs/platform/notification/common/notification';
 
 export interface IExplorerViewOptions extends IViewletViewOptions {
 	viewletState: FileViewletState;
@@ -50,7 +51,7 @@ export interface IExplorerViewOptions extends IViewletViewOptions {
 
 export class ExplorerView extends TreeViewsViewletPanel implements IExplorerView {
 
-	public static ID: string = 'workbench.explorer.fileView';
+	public static readonly ID: string = 'workbench.explorer.fileView';
 	private static readonly EXPLORER_FILE_CHANGES_REACT_DELAY = 500; // delay in ms to react to file changes to give our internal events a chance to react first
 	private static readonly EXPLORER_FILE_CHANGES_REFRESH_DELAY = 100; // delay in ms to refresh the explorer from disk file changes
 
@@ -81,7 +82,7 @@ export class ExplorerView extends TreeViewsViewletPanel implements IExplorerView
 
 	constructor(
 		options: IExplorerViewOptions,
-		@IMessageService private messageService: IMessageService,
+		@INotificationService private notificationService: INotificationService,
 		@IContextMenuService contextMenuService: IContextMenuService,
 		@IInstantiationService private instantiationService: IInstantiationService,
 		@IEditorGroupService private editorGroupService: IEditorGroupService,
@@ -92,10 +93,10 @@ export class ExplorerView extends TreeViewsViewletPanel implements IExplorerView
 		@IPartService private partService: IPartService,
 		@IKeybindingService keybindingService: IKeybindingService,
 		@IContextKeyService contextKeyService: IContextKeyService,
-		@IConfigurationService private configurationService: IConfigurationService,
+		@IConfigurationService configurationService: IConfigurationService,
 		@IDecorationsService decorationService: IDecorationsService
 	) {
-		super({ ...(options as IViewOptions), ariaHeaderLabel: nls.localize('explorerSection', "Files Explorer Section") }, keybindingService, contextMenuService);
+		super({ ...(options as IViewOptions), ariaHeaderLabel: nls.localize('explorerSection', "Files Explorer Section") }, keybindingService, contextMenuService, configurationService);
 
 		this.settings = options.viewletSettings;
 		this.viewletState = options.viewletState;
@@ -238,7 +239,7 @@ export class ExplorerView extends TreeViewsViewletPanel implements IExplorerView
 
 		// Handle closed or untitled file (convince explorer to not reopen any file when getting visible)
 		const activeInput = this.editorService.getActiveEditorInput();
-		if (!activeInput || toResource(activeInput, { supportSideBySide: true, filter: 'untitled' })) {
+		if (!activeInput || toResource(activeInput, { supportSideBySide: true, filter: Schemas.untitled })) {
 			this.settings[ExplorerView.MEMENTO_LAST_ACTIVE_FILE_RESOURCE] = void 0;
 			clearFocus = true;
 		}
@@ -298,7 +299,7 @@ export class ExplorerView extends TreeViewsViewletPanel implements IExplorerView
 			}
 
 			// Pass Focus to Viewer
-			this.explorerViewer.DOMFocus();
+			this.explorerViewer.domFocus();
 			keepFocus = true;
 		}
 
@@ -517,10 +518,13 @@ export class ExplorerView extends TreeViewsViewletPanel implements IExplorerView
 				restoreFocus = true;
 			}
 
+			let isExpanded = false;
 			// Handle Rename
 			if (oldParentResource && newParentResource && oldParentResource.toString() === newParentResource.toString()) {
 				const modelElements = this.model.findAll(oldResource);
 				modelElements.forEach(modelElement => {
+					//Check if element is expanded
+					isExpanded = this.explorerViewer.isExpanded(modelElement);
 					// Rename File (Model)
 					modelElement.rename(newElement);
 
@@ -530,6 +534,10 @@ export class ExplorerView extends TreeViewsViewletPanel implements IExplorerView
 						// Select in Viewer if set
 						if (restoreFocus) {
 							this.explorerViewer.setFocus(modelElement);
+						}
+						//Expand the element again
+						if (isExpanded) {
+							this.explorerViewer.expand(modelElement);
 						}
 					}, errors.onUnexpectedError);
 				});
@@ -572,7 +580,7 @@ export class ExplorerView extends TreeViewsViewletPanel implements IExplorerView
 
 						// Ensure viewer has keyboard focus if event originates from viewer
 						if (restoreFocus) {
-							this.explorerViewer.DOMFocus();
+							this.explorerViewer.domFocus();
 						}
 					}, errors.onUnexpectedError);
 				}
@@ -721,7 +729,7 @@ export class ExplorerView extends TreeViewsViewletPanel implements IExplorerView
 		}
 
 		// Focus
-		this.explorerViewer.DOMFocus();
+		this.explorerViewer.domFocus();
 
 		// Find resource to focus from active editor input if set
 		let resourceToFocus: URI;
@@ -927,7 +935,7 @@ export class ExplorerView extends TreeViewsViewletPanel implements IExplorerView
 			// Select and Reveal
 			return this.explorerViewer.refresh(root).then(() => this.doSelect(root.find(resource), reveal));
 
-		}, e => { this.messageService.show(Severity.Error, e); });
+		}, e => { this.notificationService.error(e); });
 	}
 
 	private hasSingleSelection(resource: URI): FileStat {

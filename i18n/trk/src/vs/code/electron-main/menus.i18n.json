@@ -93,6 +93,7 @@
 	"miOpenView": "&&Görünümü Aç...",
 	"miToggleFullScreen": "Tam Ekra&&nı Aç/Kapat",
 	"miToggleZenMode": "Zen Modunu Aç/Kapat",
+	"miToggleCenteredLayout": "Ortalanmış Düzeni Aç/Kapat",
 	"miToggleMenuBar": "&&Menü Çubuğunu Gizle/Göster",
 	"miSplitEditor": "Düzenleyiciyi &&Böl",
 	"miToggleEditorLayout": "Dü&&zenleyici Grubu Düzenini Değiştir",
@@ -187,8 +188,5 @@
 	"miDownloadingUpdate": "Güncelleştirme İndiriliyor...",
 	"miInstallUpdate": "Güncelleştirmeyi Yükle...",
 	"miInstallingUpdate": "Güncelleştirme Yükleniyor...",
-	"miRestartToUpdate": "Güncelleştirmek için Yeniden Başlat...",
-	"aboutDetail": "Sürüm {0}\nCommit {1}\nTarih {2}\nKabuk {3}\nRender Alan {4}\nNode {5}\nMimari {6}",
-	"okButton": "Tamam",
-	"copy": "K&&opyala"
+	"miRestartToUpdate": "Güncelleştirmek için Yeniden Başlat..."
 }

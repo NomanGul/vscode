@@ -5,20 +5,24 @@
 
 'use strict';
 
-import Event, { mapEvent, chain, echo, Emitter, anyEvent, fromNodeEventEmitter } from 'vs/base/common/event';
+import { Event, mapEvent, chain, echo, Emitter, anyEvent, fromNodeEventEmitter } from 'vs/base/common/event';
 import { IURLService } from 'vs/platform/url/common/url';
 import product from 'vs/platform/node/product';
 import { app } from 'electron';
 import URI from 'vs/base/common/uri';
+import { ILogService } from 'vs/platform/log/common/log';
 
 export class URLService implements IURLService {
 
 	_serviceBrand: any;
 
-	private openUrlEmitter: Emitter<string> = new Emitter<string>();
+	private readonly openUrlEmitter: Emitter<string> = new Emitter<string>();
 	onOpenURL: Event<URI>;
 
-	constructor(initial: string | string[] = []) {
+	constructor(
+		initial: string | string[],
+		@ILogService private logService: ILogService
+	) {
 		const globalBuffer = (global.getOpenUrls() || []) as string[];
 		const initialBuffer = [
 			...(typeof initial === 'string' ? [initial] : initial),
@@ -51,6 +55,7 @@ export class URLService implements IURLService {
 	}
 
 	open(url: string): void {
+		this.logService.trace('urlService#open', url);
 		this.openUrlEmitter.fire(url);
 	}
 }

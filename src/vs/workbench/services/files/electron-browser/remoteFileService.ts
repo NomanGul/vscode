@@ -8,7 +8,7 @@ import URI from 'vs/base/common/uri';
 import { FileService } from 'vs/workbench/services/files/electron-browser/fileService';
 import { IContent, IStreamContent, IFileStat, IResolveContentOptions, IUpdateContentOptions, IResolveFileOptions, IResolveFileResult, FileOperationEvent, FileOperation, IFileSystemProvider, IStat, FileType, IImportResult, FileChangesEvent, ICreateFileOptions, FileOperationError, FileOperationResult, ITextSnapshot, snapshotToString } from 'vs/platform/files/common/files';
 import { TPromise } from 'vs/base/common/winjs.base';
-import { basename, join } from 'path';
+import { posix } from 'path';
 import { IDisposable } from 'vs/base/common/lifecycle';
 import { isFalsyOrEmpty, distinct } from 'vs/base/common/arrays';
 import { Schemas } from 'vs/base/common/network';
@@ -19,20 +19,21 @@ import { IConfigurationService } from 'vs/platform/configuration/common/configur
 import { IWorkspaceContextService } from 'vs/platform/workspace/common/workspace';
 import { IEnvironmentService } from 'vs/platform/environment/common/environment';
 import { ILifecycleService } from 'vs/platform/lifecycle/common/lifecycle';
-import { IMessageService } from 'vs/platform/message/common/message';
 import { IStorageService } from 'vs/platform/storage/common/storage';
 import { ITextResourceConfigurationService } from 'vs/editor/common/services/resourceConfiguration';
-import { IExtensionService } from 'vs/platform/extensions/common/extensions';
+import { IExtensionService } from 'vs/workbench/services/extensions/common/extensions';
 import { maxBufferLen, detectMimeAndEncodingFromBuffer } from 'vs/base/node/mime';
 import { MIME_BINARY } from 'vs/base/common/mime';
 import { localize } from 'vs/nls';
+import { INotificationService } from 'vs/platform/notification/common/notification';
 
 function toIFileStat(provider: IFileSystemProvider, tuple: [URI, IStat], recurse?: (tuple: [URI, IStat]) => boolean): TPromise<IFileStat> {
 	const [resource, stat] = tuple;
 	const fileStat: IFileStat = {
 		isDirectory: false,
+		isSymbolicLink: stat.type === FileType.Symlink,
 		resource: resource,
-		name: basename(resource.path),
+		name: posix.basename(resource.path),
 		mtime: stat.mtime,
 		size: stat.size,
 		etag: stat.mtime.toString(29) + stat.size.toString(31),
@@ -85,7 +86,7 @@ export class RemoteFileService extends FileService {
 		@IWorkspaceContextService contextService: IWorkspaceContextService,
 		@IEnvironmentService environmentService: IEnvironmentService,
 		@ILifecycleService lifecycleService: ILifecycleService,
-		@IMessageService messageService: IMessageService,
+		@INotificationService notificationService: INotificationService,
 		@ITextResourceConfigurationService textResourceConfigurationService: ITextResourceConfigurationService,
 	) {
 		super(
@@ -93,7 +94,7 @@ export class RemoteFileService extends FileService {
 			contextService,
 			environmentService,
 			lifecycleService,
-			messageService,
+			notificationService,
 			_storageService,
 			textResourceConfigurationService,
 		);
@@ -423,7 +424,7 @@ export class RemoteFileService extends FileService {
 		if (resource.scheme === Schemas.file) {
 			return super.rename(resource, newName);
 		} else {
-			const target = resource.with({ path: join(resource.path, '..', newName) });
+			const target = resource.with({ path: posix.join(resource.path, '..', newName) });
 			return this._doMoveWithInScheme(resource, target, false);
 		}
 	}
@@ -469,7 +470,7 @@ export class RemoteFileService extends FileService {
 		if (source.scheme === targetFolder.scheme && source.scheme === Schemas.file) {
 			return super.importFile(source, targetFolder);
 		} else {
-			const target = targetFolder.with({ path: join(targetFolder.path, basename(source.path)) });
+			const target = targetFolder.with({ path: posix.join(targetFolder.path, posix.basename(source.path)) });
 			return this.copyFile(source, target, false).then(stat => ({ stat, isNew: false }));
 		}
 	}

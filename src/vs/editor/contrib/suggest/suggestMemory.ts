@@ -177,7 +177,7 @@ export class SuggestMemories {
 
 	constructor(
 		mode: MemMode,
-		@IStorageService private _storageService: IStorageService
+		@IStorageService private readonly _storageService: IStorageService
 	) {
 		this._persistSoon = new RunOnceScheduler(() => this._flush(), 3000);
 		this.setMode(mode);
@@ -192,7 +192,9 @@ export class SuggestMemories {
 
 		try {
 			const raw = this._storageService.get(`${this._storagePrefix}/${this._mode}`, StorageScope.WORKSPACE);
-			this._strategy.fromJSON(JSON.parse(raw));
+			if (raw) {
+				this._strategy.fromJSON(JSON.parse(raw));
+			}
 		} catch (e) {
 			// things can go wrong with JSON...
 		}

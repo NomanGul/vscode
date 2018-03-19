@@ -139,10 +139,12 @@ export function getHashedRemotesFromConfig(text: string, stripEndingDotGit: bool
 export function getHashedRemotesFromUri(workspaceUri: URI, fileService: IFileService, stripEndingDotGit: boolean = false): TPromise<string[]> {
 	let path = workspaceUri.path;
 	let uri = workspaceUri.with({ path: `${path !== '/' ? path : ''}/.git/config` });
-	return fileService.resolveContent(uri, { acceptTextOnly: true }).then(
-		content => getHashedRemotesFromConfig(content.value, stripEndingDotGit),
-		err => [] // ignore missing or binary file
-	);
+	return fileService.resolveFile(uri).then(() => {
+		return fileService.resolveContent(uri, { acceptTextOnly: true }).then(
+			content => getHashedRemotesFromConfig(content.value, stripEndingDotGit),
+			err => [] // ignore missing or binary file
+		);
+	}, err => []);
 }
 
 export class WorkspaceStats implements IWorkbenchContribution {
@@ -163,31 +165,31 @@ export class WorkspaceStats implements IWorkbenchContribution {
 
 	/* __GDPR__FRAGMENT__
 		"WorkspaceTags" : {
-			"workbench.filesToOpen" : { "classification": "SystemMetaData", "purpose": "FeatureInsight" },
-			"workbench.filesToCreate" : { "classification": "SystemMetaData", "purpose": "FeatureInsight" },
-			"workbench.filesToDiff" : { "classification": "SystemMetaData", "purpose": "FeatureInsight" },
-			"workspace.id" : { "classification": "CustomerContent", "purpose": "FeatureInsight" },
-			"workspace.roots" : { "classification": "CustomerContent", "purpose": "FeatureInsight" },
-			"workspace.empty" : { "classification": "CustomerContent", "purpose": "FeatureInsight" },
-			"workspace.grunt" : { "classification": "CustomerContent", "purpose": "FeatureInsight" },
-			"workspace.gulp" : { "classification": "CustomerContent", "purpose": "FeatureInsight" },
-			"workspace.jake" : { "classification": "CustomerContent", "purpose": "FeatureInsight" },
-			"workspace.tsconfig" : { "classification": "CustomerContent", "purpose": "FeatureInsight" },
-			"workspace.jsconfig" : { "classification": "CustomerContent", "purpose": "FeatureInsight" },
-			"workspace.config.xml" : { "classification": "CustomerContent", "purpose": "FeatureInsight" },
-			"workspace.vsc.extension" : { "classification": "CustomerContent", "purpose": "FeatureInsight" },
-			"workspace.ASP5" : { "classification": "CustomerContent", "purpose": "FeatureInsight" },
-			"workspace.sln" : { "classification": "CustomerContent", "purpose": "FeatureInsight" },
-			"workspace.unity" : { "classification": "CustomerContent", "purpose": "FeatureInsight" },
-			"workspace.npm" : { "classification": "CustomerContent", "purpose": "FeatureInsight" },
-			"workspace.bower" : { "classification": "CustomerContent", "purpose": "FeatureInsight" },
-			"workspace.yeoman.code.ext" : { "classification": "CustomerContent", "purpose": "FeatureInsight" },
-			"workspace.cordova.high" : { "classification": "CustomerContent", "purpose": "FeatureInsight" },
-			"workspace.cordova.low" : { "classification": "CustomerContent", "purpose": "FeatureInsight" },
-			"workspace.xamarin.android" : { "classification": "CustomerContent", "purpose": "FeatureInsight" },
-			"workspace.xamarin.ios" : { "classification": "CustomerContent", "purpose": "FeatureInsight" },
-			"workspace.android.cpp" : { "classification": "CustomerContent", "purpose": "FeatureInsight" },
-			"workspace.reactNative" : { "classification": "CustomerContent", "purpose": "FeatureInsight" }
+			"workbench.filesToOpen" : { "classification": "SystemMetaData", "purpose": "FeatureInsight", "isMeasurement": true },
+			"workbench.filesToCreate" : { "classification": "SystemMetaData", "purpose": "FeatureInsight", "isMeasurement": true },
+			"workbench.filesToDiff" : { "classification": "SystemMetaData", "purpose": "FeatureInsight", "isMeasurement": true },
+			"workspace.id" : { "classification": "SystemMetaData", "purpose": "FeatureInsight" },
+			"workspace.roots" : { "classification": "SystemMetaData", "purpose": "FeatureInsight", "isMeasurement": true },
+			"workspace.empty" : { "classification": "SystemMetaData", "purpose": "FeatureInsight", "isMeasurement": true },
+			"workspace.grunt" : { "classification": "SystemMetaData", "purpose": "FeatureInsight", "isMeasurement": true },
+			"workspace.gulp" : { "classification": "SystemMetaData", "purpose": "FeatureInsight", "isMeasurement": true },
+			"workspace.jake" : { "classification": "SystemMetaData", "purpose": "FeatureInsight", "isMeasurement": true },
+			"workspace.tsconfig" : { "classification": "SystemMetaData", "purpose": "FeatureInsight", "isMeasurement": true },
+			"workspace.jsconfig" : { "classification": "SystemMetaData", "purpose": "FeatureInsight", "isMeasurement": true },
+			"workspace.config.xml" : { "classification": "SystemMetaData", "purpose": "FeatureInsight", "isMeasurement": true },
+			"workspace.vsc.extension" : { "classification": "SystemMetaData", "purpose": "FeatureInsight", "isMeasurement": true },
+			"workspace.asp<NUMBER>" : { "classification": "SystemMetaData", "purpose": "FeatureInsight", "isMeasurement": true },
+			"workspace.sln" : { "classification": "SystemMetaData", "purpose": "FeatureInsight", "isMeasurement": true },
+			"workspace.unity" : { "classification": "SystemMetaData", "purpose": "FeatureInsight", "isMeasurement": true },
+			"workspace.npm" : { "classification": "SystemMetaData", "purpose": "FeatureInsight", "isMeasurement": true },
+			"workspace.bower" : { "classification": "SystemMetaData", "purpose": "FeatureInsight", "isMeasurement": true },
+			"workspace.yeoman.code.ext" : { "classification": "SystemMetaData", "purpose": "FeatureInsight", "isMeasurement": true },
+			"workspace.cordova.high" : { "classification": "SystemMetaData", "purpose": "FeatureInsight", "isMeasurement": true },
+			"workspace.cordova.low" : { "classification": "SystemMetaData", "purpose": "FeatureInsight", "isMeasurement": true },
+			"workspace.xamarin.android" : { "classification": "SystemMetaData", "purpose": "FeatureInsight", "isMeasurement": true },
+			"workspace.xamarin.ios" : { "classification": "SystemMetaData", "purpose": "FeatureInsight", "isMeasurement": true },
+			"workspace.android.cpp" : { "classification": "SystemMetaData", "purpose": "FeatureInsight", "isMeasurement": true },
+			"workspace.reactNative" : { "classification": "SystemMetaData", "purpose": "FeatureInsight", "isMeasurement": true }
 		}
 	*/
 	private getWorkspaceTags(configuration: IWindowConfiguration): TPromise<Tags> {
@@ -274,8 +276,30 @@ export class WorkspaceStats implements IWorkbenchContribution {
 					tags['workspace.android.cpp'] = true;
 				}
 
-				tags['workspace.reactNative'] = nameSet.has('android') && nameSet.has('ios') &&
-					nameSet.has('index.android.js') && nameSet.has('index.ios.js');
+				if (nameSet.has('package.json')) {
+					return TPromise.join(folders.map(workspaceUri => {
+						const uri = workspaceUri.with({ path: `${workspaceUri.path !== '/' ? workspaceUri.path : ''}/package.json` });
+						return this.fileService.resolveFile(uri).then(stats => {
+							return this.fileService.resolveContent(uri, { acceptTextOnly: true }).then(
+								content => {
+									try {
+										const packageJsonContents = JSON.parse(content.value);
+										return !!(packageJsonContents['dependencies'] && packageJsonContents['dependencies']['react-native']);
+									} catch (e) {
+
+									}
+									return false;
+								},
+								err => false
+							);
+						}, err => false);
+					})).then(reactNatives => {
+						if (reactNatives.indexOf(true) !== -1) {
+							tags['workspace.reactNative'] = true;
+						}
+						return tags;
+					});
+				}
 
 				return tags;
 			}, error => { onUnexpectedError(error); return null; });
@@ -323,10 +347,12 @@ export class WorkspaceStats implements IWorkbenchContribution {
 		TPromise.join<string[]>(workspaceUris.map(workspaceUri => {
 			const path = workspaceUri.path;
 			const uri = workspaceUri.with({ path: `${path !== '/' ? path : ''}/.git/config` });
-			return this.fileService.resolveContent(uri, { acceptTextOnly: true }).then(
-				content => getDomainsOfRemotes(content.value, SecondLevelDomainWhitelist),
-				err => [] // ignore missing or binary file
-			);
+			return this.fileService.resolveFile(uri).then(() => {
+				return this.fileService.resolveContent(uri, { acceptTextOnly: true }).then(
+					content => getDomainsOfRemotes(content.value, SecondLevelDomainWhitelist),
+					err => [] // ignore missing or binary file
+				);
+			}, err => []);
 		})).then(domains => {
 			const set = domains.reduce((set, list) => list.reduce((set, item) => set.add(item), set), new Set<string>());
 			const list: string[] = [];
@@ -346,7 +372,7 @@ export class WorkspaceStats implements IWorkbenchContribution {
 		})).then(hashedRemotes => {
 			/* __GDPR__
 					"workspace.hashedRemotes" : {
-						"remotes" : { "classification": "CustomerContent", "purpose": "FeatureInsight" }
+						"remotes" : { "classification": "SystemMetaData", "purpose": "FeatureInsight" }
 					}
 				*/
 			this.telemetryService.publicLog('workspace.hashedRemotes', { remotes: hashedRemotes });
@@ -355,7 +381,7 @@ export class WorkspaceStats implements IWorkbenchContribution {
 
 	/* __GDPR__FRAGMENT__
 		"AzureTags" : {
-			"node" : { "classification": "SystemMetaData", "purpose": "FeatureInsight" }
+			"node" : { "classification": "SystemMetaData", "purpose": "FeatureInsight", "isMeasurement": true }
 		}
 	*/
 	private reportAzureNode(workspaceUris: URI[], tags: Tags): TPromise<Tags> {
@@ -381,17 +407,19 @@ export class WorkspaceStats implements IWorkbenchContribution {
 
 	/* __GDPR__FRAGMENT__
 		"AzureTags" : {
-			"java" : { "classification": "SystemMetaData", "purpose": "FeatureInsight" }
+			"java" : { "classification": "SystemMetaData", "purpose": "FeatureInsight", "isMeasurement": true }
 		}
 	*/
 	private reportAzureJava(workspaceUris: URI[], tags: Tags): TPromise<Tags> {
 		return TPromise.join(workspaceUris.map(workspaceUri => {
 			const path = workspaceUri.path;
 			const uri = workspaceUri.with({ path: `${path !== '/' ? path : ''}/pom.xml` });
-			return this.fileService.resolveContent(uri, { acceptTextOnly: true }).then(
-				content => !!content.value.match(/azure/i),
-				err => false
-			);
+			return this.fileService.resolveFile(uri).then(stats => {
+				return this.fileService.resolveContent(uri, { acceptTextOnly: true }).then(
+					content => !!content.value.match(/azure/i),
+					err => false
+				);
+			}, err => false);
 		})).then(javas => {
 			if (javas.indexOf(true) !== -1) {
 				tags['java'] = true;

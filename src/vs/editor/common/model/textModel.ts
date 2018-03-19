@@ -5,7 +5,7 @@
 'use strict';
 
 import URI from 'vs/base/common/uri';
-import Event, { Emitter } from 'vs/base/common/event';
+import { Event, Emitter } from 'vs/base/common/event';
 import * as model from 'vs/editor/common/model';
 import { LanguageIdentifier, TokenizationRegistry, LanguageId } from 'vs/editor/common/modes';
 import { EditStack } from 'vs/editor/common/model/editStack';
@@ -30,7 +30,7 @@ import { getWordAtText } from 'vs/editor/common/model/wordHelper';
 import { ModelLinesTokens, ModelTokensChangedEventBuilder } from 'vs/editor/common/model/textModelTokens';
 import { guessIndentation } from 'vs/editor/common/model/indentationGuesser';
 import { EDITOR_MODEL_DEFAULTS } from 'vs/editor/common/config/editorOptions';
-import { TextModelSearch, SearchParams } from 'vs/editor/common/model/textModelSearch';
+import { TextModelSearch, SearchParams, SearchData } from 'vs/editor/common/model/textModelSearch';
 import { TPromise } from 'vs/base/common/winjs.base';
 import { IStringStream, ITextSnapshot } from 'vs/platform/files/common/files';
 import { LinesTextBufferBuilder } from 'vs/editor/common/model/linesTextBuffer/linesTextBufferBuilder';
@@ -44,7 +44,7 @@ export enum TextBufferType {
 }
 // Here is the master switch for the text buffer implementation:
 export const OPTIONS = {
-	TEXT_BUFFER_IMPLEMENTATION: TextBufferType.LinesArray
+	TEXT_BUFFER_IMPLEMENTATION: TextBufferType.PieceTree
 };
 
 function createTextBufferBuilder() {
@@ -773,7 +773,7 @@ export class TextModel extends Disposable implements model.ITextModel {
 	public getLineContent(lineNumber: number): string {
 		this._assertNotDisposed();
 		if (lineNumber < 1 || lineNumber > this.getLineCount()) {
-			throw new Error('Illegal value ' + lineNumber + ' for `lineNumber`');
+			throw new Error('Illegal value for lineNumber');
 		}
 
 		return this._buffer.getLineContent(lineNumber);
@@ -797,7 +797,7 @@ export class TextModel extends Disposable implements model.ITextModel {
 	public getLineMaxColumn(lineNumber: number): number {
 		this._assertNotDisposed();
 		if (lineNumber < 1 || lineNumber > this.getLineCount()) {
-			throw new Error('Illegal value ' + lineNumber + ' for `lineNumber`');
+			throw new Error('Illegal value for lineNumber');
 		}
 		return this._buffer.getLineLength(lineNumber) + 1;
 	}
@@ -805,7 +805,7 @@ export class TextModel extends Disposable implements model.ITextModel {
 	public getLineFirstNonWhitespaceColumn(lineNumber: number): number {
 		this._assertNotDisposed();
 		if (lineNumber < 1 || lineNumber > this.getLineCount()) {
-			throw new Error('Illegal value ' + lineNumber + ' for `lineNumber`');
+			throw new Error('Illegal value for lineNumber');
 		}
 		return this._buffer.getLineFirstNonWhitespaceColumn(lineNumber);
 	}
@@ -813,7 +813,7 @@ export class TextModel extends Disposable implements model.ITextModel {
 	public getLineLastNonWhitespaceColumn(lineNumber: number): number {
 		this._assertNotDisposed();
 		if (lineNumber < 1 || lineNumber > this.getLineCount()) {
-			throw new Error('Illegal value ' + lineNumber + ' for `lineNumber`');
+			throw new Error('Illegal value for lineNumber');
 		}
 		return this._buffer.getLineLastNonWhitespaceColumn(lineNumber);
 	}
@@ -983,6 +983,10 @@ export class TextModel extends Disposable implements model.ITextModel {
 		return new Range(1, 1, lineCount, this.getLineMaxColumn(lineCount));
 	}
 
+	private findMatchesLineByLine(searchRange: Range, searchData: SearchData, captureMatches: boolean, limitResultCount: number): model.FindMatch[] {
+		return this._buffer.findMatchesLineByLine(searchRange, searchData, captureMatches, limitResultCount);
+	}
+
 	public findMatches(searchString: string, rawSearchScope: any, isRegex: boolean, matchCase: boolean, wordSeparators: string, captureMatches: boolean, limitResultCount: number = LIMIT_FIND_COUNT): model.FindMatch[] {
 		this._assertNotDisposed();
 
@@ -991,6 +995,18 @@ export class TextModel extends Disposable implements model.ITextModel {
 			searchRange = this.validateRange(rawSearchScope);
 		} else {
 			searchRange = this.getFullModelRange();
+		}
+
+		if (!isRegex && searchString.indexOf('\n') < 0 && OPTIONS.TEXT_BUFFER_IMPLEMENTATION === TextBufferType.PieceTree) {
+			// not regex, not multi line
+			const searchParams = new SearchParams(searchString, isRegex, matchCase, wordSeparators);
+			const searchData = searchParams.parseSearchRequest();
+
+			if (!searchData) {
+				return [];
+			}
+
+			return this.findMatchesLineByLine(searchRange, searchData, captureMatches, limitResultCount);
 		}
 
 		return TextModelSearch.findMatches(this, new SearchParams(searchString, isRegex, matchCase, wordSeparators), searchRange, captureMatches, limitResultCount);
@@ -1018,12 +1034,12 @@ export class TextModel extends Disposable implements model.ITextModel {
 
 	public pushEditOperations(beforeCursorState: Selection[], editOperations: model.IIdentifiedSingleEditOperation[], cursorStateComputer: model.ICursorStateComputer): Selection[] {
 		try {
-			this._eventEmitter.beginDeferredEmit();
 			this._onDidChangeDecorations.beginDeferredEmit();
+			this._eventEmitter.beginDeferredEmit();
 			return this._pushEditOperations(beforeCursorState, editOperations, cursorStateComputer);
 		} finally {
-			this._onDidChangeDecorations.endDeferredEmit();
 			this._eventEmitter.endDeferredEmit();
+			this._onDidChangeDecorations.endDeferredEmit();
 		}
 	}
 
@@ -1108,12 +1124,12 @@ export class TextModel extends Disposable implements model.ITextModel {
 
 	public applyEdits(rawOperations: model.IIdentifiedSingleEditOperation[]): model.IIdentifiedSingleEditOperation[] {
 		try {
-			this._eventEmitter.beginDeferredEmit();
 			this._onDidChangeDecorations.beginDeferredEmit();
+			this._eventEmitter.beginDeferredEmit();
 			return this._applyEdits(rawOperations);
 		} finally {
-			this._onDidChangeDecorations.endDeferredEmit();
 			this._eventEmitter.endDeferredEmit();
+			this._onDidChangeDecorations.endDeferredEmit();
 		}
 	}
 
@@ -1250,12 +1266,12 @@ export class TextModel extends Disposable implements model.ITextModel {
 
 	public undo(): Selection[] {
 		try {
-			this._eventEmitter.beginDeferredEmit();
 			this._onDidChangeDecorations.beginDeferredEmit();
+			this._eventEmitter.beginDeferredEmit();
 			return this._undo();
 		} finally {
-			this._onDidChangeDecorations.endDeferredEmit();
 			this._eventEmitter.endDeferredEmit();
+			this._onDidChangeDecorations.endDeferredEmit();
 		}
 	}
 
@@ -1275,12 +1291,12 @@ export class TextModel extends Disposable implements model.ITextModel {
 
 	public redo(): Selection[] {
 		try {
-			this._eventEmitter.beginDeferredEmit();
 			this._onDidChangeDecorations.beginDeferredEmit();
+			this._eventEmitter.beginDeferredEmit();
 			return this._redo();
 		} finally {
-			this._onDidChangeDecorations.endDeferredEmit();
 			this._eventEmitter.endDeferredEmit();
+			this._onDidChangeDecorations.endDeferredEmit();
 		}
 	}
 
@@ -1586,7 +1602,7 @@ export class TextModel extends Disposable implements model.ITextModel {
 
 	public forceTokenization(lineNumber: number): void {
 		if (lineNumber < 1 || lineNumber > this.getLineCount()) {
-			throw new Error('Illegal value ' + lineNumber + ' for `lineNumber`');
+			throw new Error('Illegal value for lineNumber');
 		}
 
 		const eventBuilder = new ModelTokensChangedEventBuilder();
@@ -1611,7 +1627,7 @@ export class TextModel extends Disposable implements model.ITextModel {
 
 	public getLineTokens(lineNumber: number): LineTokens {
 		if (lineNumber < 1 || lineNumber > this.getLineCount()) {
-			throw new Error('Illegal value ' + lineNumber + ' for `lineNumber`');
+			throw new Error('Illegal value for lineNumber');
 		}
 
 		return this._getLineTokens(lineNumber);
@@ -2163,10 +2179,10 @@ export class TextModel extends Disposable implements model.ITextModel {
 		const lineCount = this.getLineCount();
 
 		if (startLineNumber < 1 || startLineNumber > lineCount) {
-			throw new Error('Illegal value ' + startLineNumber + ' for `startLineNumber`');
+			throw new Error('Illegal value for startLineNumber');
 		}
 		if (endLineNumber < 1 || endLineNumber > lineCount) {
-			throw new Error('Illegal value ' + endLineNumber + ' for `endLineNumber`');
+			throw new Error('Illegal value for endLineNumber');
 		}
 
 		const foldingRules = LanguageConfigurationRegistry.getFoldingRules(this._languageIdentifier.id);
@@ -2469,12 +2485,12 @@ export class DidChangeContentEmitter extends Disposable {
 	public readonly event: Event<InternalModelContentChangeEvent> = this._actual.event;
 
 	private _deferredCnt: number;
-	private _deferredEvents: InternalModelContentChangeEvent[];
+	private _deferredEvent: InternalModelContentChangeEvent;
 
 	constructor() {
 		super();
 		this._deferredCnt = 0;
-		this._deferredEvents = [];
+		this._deferredEvent = null;
 	}
 
 	public beginDeferredEmit(): void {
@@ -2484,15 +2500,21 @@ export class DidChangeContentEmitter extends Disposable {
 	public endDeferredEmit(): void {
 		this._deferredCnt--;
 		if (this._deferredCnt === 0) {
-			while (this._deferredEvents.length > 0) {
-				this._actual.fire(this._deferredEvents.shift());
+			if (this._deferredEvent !== null) {
+				const e = this._deferredEvent;
+				this._deferredEvent = null;
+				this._actual.fire(e);
 			}
 		}
 	}
 
 	public fire(e: InternalModelContentChangeEvent): void {
 		if (this._deferredCnt > 0) {
-			this._deferredEvents.push(e);
+			if (this._deferredEvent) {
+				this._deferredEvent = this._deferredEvent.merge(e);
+			} else {
+				this._deferredEvent = e;
+			}
 			return;
 		}
 		this._actual.fire(e);

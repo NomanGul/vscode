@@ -5,7 +5,7 @@
 
 import * as nls from 'vs/nls';
 import * as platform from 'vs/base/common/platform';
-import cp = require('child_process');
+import * as cp from 'child_process';
 import { IDisposable } from 'vs/base/common/lifecycle';
 import { TPromise } from 'vs/base/common/winjs.base';
 import { ITerminalService, ITerminalInstance, ITerminalConfiguration } from 'vs/workbench/parts/terminal/common/terminal';
@@ -43,23 +43,42 @@ export class TerminalSupport {
 		terminalService.showPanel(true);
 
 		const command = this.prepareCommand(args, configurationService);
-		t.sendText(command, true);
 
-		return TPromise.as(void 0);
+		return new TPromise((resolve, error) => {
+			setTimeout(_ => {
+				t.sendText(command, true);
+				resolve(void 0);
+			}, 500);
+		});
 	}
 
 	private static isBusy(t: ITerminalInstance): boolean {
 		if (t.processId) {
-			// if shell has at least one child process, assume that shell is busy
-			if (platform.isWindows) {
-				const result = cp.spawnSync('wmic', ['process', 'get', 'ParentProcessId']);
-				const pids = result.stdout.toString().split('\r\n');
-				return pids.some(p => parseInt(p) === t.processId);
-			} else {
-				const result = cp.spawnSync('/usr/bin/pgrep', ['-P', String(t.processId)]);
-				return result.stdout.toString().trim().length > 0;
+			try {
+				// if shell has at least one child process, assume that shell is busy
+				if (platform.isWindows) {
+					const result = cp.spawnSync('wmic', ['process', 'get', 'ParentProcessId']);
+					if (result.stdout) {
+						const pids = result.stdout.toString().split('\r\n');
+						if (!pids.some(p => parseInt(p) === t.processId)) {
+							return false;
+						}
+					}
+				} else {
+					const result = cp.spawnSync('/usr/bin/pgrep', ['-lP', String(t.processId)]);
+					if (result.stdout) {
+						const r = result.stdout.toString().trim();
+						if (r.length === 0 || r.indexOf(' tmux') >= 0) { // ignore 'tmux'; see #43683
+							return false;
+						}
+					}
+				}
+			}
+			catch (e) {
+				// silently ignore
 			}
 		}
+		// fall back to safe side
 		return true;
 	}
 

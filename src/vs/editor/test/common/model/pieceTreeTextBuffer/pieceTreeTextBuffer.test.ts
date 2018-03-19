@@ -12,6 +12,10 @@ import { DefaultEndOfLine } from 'vs/editor/common/model';
 import { PieceTreeBase } from 'vs/editor/common/model/pieceTreeTextBuffer/pieceTreeBase';
 import { SENTINEL, NodeColor, TreeNode } from 'vs/editor/common/model/pieceTreeTextBuffer/rbTreeBase';
 import { PieceTreeTextBuffer } from 'vs/editor/common/model/pieceTreeTextBuffer/pieceTreeTextBuffer';
+import { TextModel } from 'vs/editor/common/model/textModel';
+import { ITextSnapshot } from 'vs/platform/files/common/files';
+import { SearchData } from 'vs/editor/common/model/textModelSearch';
+import { WordCharacterClassifier } from 'vs/editor/common/controller/wordCharacterClassifier';
 
 const alphabet = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ\r\n';
 
@@ -1441,7 +1445,8 @@ suite('centralized lineStarts with CRLF', () => {
 });
 
 suite('random is unsupervised', () => {
-	test('random insert delete', () => {
+	test('random insert delete', function () {
+		this.timeout(500000);
 		let str = '';
 		let pieceTable = createTextBuffer([str], false);
 
@@ -1471,7 +1476,8 @@ suite('random is unsupervised', () => {
 		assertTreeInvariants(pieceTable);
 	});
 
-	test('random chunks', () => {
+	test('random chunks', function () {
+		this.timeout(500000);
 		let chunks = [];
 		for (let i = 0; i < 5; i++) {
 			chunks.push(randomStr(1000));
@@ -1497,6 +1503,40 @@ suite('random is unsupervised', () => {
 				pieceTable.delete(pos, length);
 				str = str.substring(0, pos) + str.substring(pos + length);
 			}
+		}
+
+		assert.equal(pieceTable.getLinesRawContent(), str);
+		testLineStarts(str, pieceTable);
+		testLinesContent(str, pieceTable);
+		assertTreeInvariants(pieceTable);
+	});
+
+	test('random chunks 2', function () {
+		this.timeout(500000);
+		let chunks = [];
+		chunks.push(randomStr(1000));
+
+		let pieceTable = createTextBuffer(chunks, false);
+		let str = chunks.join('');
+
+		for (let i = 0; i < 50; i++) {
+			if (Math.random() < 0.6) {
+				// insert
+				let text = randomStr(30);
+				let pos = randomInt(str.length + 1);
+				pieceTable.insert(pos, text);
+				str = str.substring(0, pos) + text + str.substring(pos);
+			} else {
+				// delete
+				let pos = randomInt(str.length);
+				let length = Math.min(
+					str.length - pos,
+					Math.floor(Math.random() * 10)
+				);
+				pieceTable.delete(pos, length);
+				str = str.substring(0, pos) + str.substring(pos + length);
+			}
+			testLinesContent(str, pieceTable);
 		}
 
 		assert.equal(pieceTable.getLinesRawContent(), str);
@@ -1588,5 +1628,186 @@ suite('search offset cache', () => {
 
 		var content = pieceTable.getLinesRawContent();
 		assert(content === str);
+	});
+
+	test('Line breaks replacement is not necessary when EOL is normalized', () => {
+		let pieceTable = createTextBuffer(['abc']);
+		let str = 'abc';
+
+		pieceTable.insert(3, 'def\nabc');
+		str = str + 'def\nabc';
+
+		testLineStarts(str, pieceTable);
+		testLinesContent(str, pieceTable);
+		assertTreeInvariants(pieceTable);
+	});
+
+	test('Line breaks replacement is not necessary when EOL is normalized 2', () => {
+		let pieceTable = createTextBuffer(['abc\n']);
+		let str = 'abc\n';
+
+		pieceTable.insert(4, 'def\nabc');
+		str = str + 'def\nabc';
+
+		testLineStarts(str, pieceTable);
+		testLinesContent(str, pieceTable);
+		assertTreeInvariants(pieceTable);
+	});
+
+	test('Line breaks replacement is not necessary when EOL is normalized 3', () => {
+		let pieceTable = createTextBuffer(['abc\n']);
+		let str = 'abc\n';
+
+		pieceTable.insert(2, 'def\nabc');
+		str = str.substring(0, 2) + 'def\nabc' + str.substring(2);
+
+		testLineStarts(str, pieceTable);
+		testLinesContent(str, pieceTable);
+		assertTreeInvariants(pieceTable);
+	});
+
+	test('Line breaks replacement is not necessary when EOL is normalized 4', () => {
+		let pieceTable = createTextBuffer(['abc\n']);
+		let str = 'abc\n';
+
+		pieceTable.insert(3, 'def\nabc');
+		str = str.substring(0, 3) + 'def\nabc' + str.substring(3);
+
+		testLineStarts(str, pieceTable);
+		testLinesContent(str, pieceTable);
+		assertTreeInvariants(pieceTable);
+	});
+
+});
+
+function getValueInSnapshot(snapshot: ITextSnapshot) {
+	let ret = '';
+	let tmp = snapshot.read();
+
+	while (tmp !== null) {
+		ret += tmp;
+		tmp = snapshot.read();
+	}
+
+	return ret;
+}
+suite('snapshot', () => {
+	test('bug #45564, piece tree pieces should be immutable', () => {
+		const model = TextModel.createFromString('\n');
+		model.applyEdits([
+			{
+				range: new Range(2, 1, 2, 1),
+				text: '!'
+			}
+		]);
+		const snapshot = model.createSnapshot();
+		const snapshot1 = model.createSnapshot();
+		assert.equal(model.getLinesContent().join('\n'), getValueInSnapshot(snapshot));
+
+		model.applyEdits([
+			{
+				range: new Range(2, 1, 2, 2),
+				text: ''
+			}
+		]);
+		model.applyEdits([
+			{
+				range: new Range(2, 1, 2, 1),
+				text: '!'
+			}
+		]);
+
+		assert.equal(model.getLinesContent().join('\n'), getValueInSnapshot(snapshot1));
+	});
+
+	test('immutable snapshot 1', () => {
+		const model = TextModel.createFromString('abc\ndef');
+		const snapshot = model.createSnapshot();
+		model.applyEdits([
+			{
+				range: new Range(2, 1, 2, 4),
+				text: ''
+			}
+		]);
+
+		model.applyEdits([
+			{
+				range: new Range(1, 1, 2, 1),
+				text: 'abc\ndef'
+			}
+		]);
+
+		assert.equal(model.getLinesContent().join('\n'), getValueInSnapshot(snapshot));
+	});
+
+	test('immutable snapshot 2', () => {
+		const model = TextModel.createFromString('abc\ndef');
+		const snapshot = model.createSnapshot();
+		model.applyEdits([
+			{
+				range: new Range(2, 1, 2, 1),
+				text: '!'
+			}
+		]);
+
+		model.applyEdits([
+			{
+				range: new Range(2, 1, 2, 2),
+				text: ''
+			}
+		]);
+
+		assert.equal(model.getLinesContent().join('\n'), getValueInSnapshot(snapshot));
+	});
+
+	test('immutable snapshot 3', () => {
+		const model = TextModel.createFromString('abc\ndef');
+		model.applyEdits([
+			{
+				range: new Range(2, 4, 2, 4),
+				text: '!'
+			}
+		]);
+		const snapshot = model.createSnapshot();
+		model.applyEdits([
+			{
+				range: new Range(2, 5, 2, 5),
+				text: '!'
+			}
+		]);
+
+		assert.notEqual(model.getLinesContent().join('\n'), getValueInSnapshot(snapshot));
+	});
+});
+
+suite('chunk based search', () => {
+	test('#45892. For some cases, the buffer is empty but we still try to search', () => {
+		let pieceTree = createTextBuffer(['']);
+		pieceTree.delete(0, 1);
+		let ret = pieceTree.findMatchesLineByLine(new Range(1, 1, 1, 1), new SearchData(/abc/, new WordCharacterClassifier(',./'), 'abc'), true, 1000);
+		assert.equal(ret.length, 0);
+	});
+
+	test('#45770. FindInNode should not cross node boundary.', () => {
+		let pieceTree = createTextBuffer([
+			[
+				'balabalababalabalababalabalaba',
+				'balabalababalabalababalabalaba',
+				'',
+				'* [ ] task1',
+				'* [x] task2 balabalaba',
+				'* [ ] task 3'
+			].join('\n')
+		]);
+		pieceTree.delete(0, 62);
+		pieceTree.delete(16, 1);
+
+		pieceTree.insert(16, ' ');
+		let ret = pieceTree.findMatchesLineByLine(new Range(1, 1, 4, 13), new SearchData(/\[/gi, new WordCharacterClassifier(',./'), '['), true, 1000);
+		assert.equal(ret.length, 3);
+
+		assert.deepEqual(ret[0].range, new Range(2, 3, 2, 4));
+		assert.deepEqual(ret[1].range, new Range(3, 3, 3, 4));
+		assert.deepEqual(ret[2].range, new Range(4, 3, 4, 4));
 	});
 });

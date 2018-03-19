@@ -19,7 +19,7 @@ import { IContentWidget, ICodeEditor, IContentWidgetPosition, ContentWidgetPosit
 import { IInstantiationService } from 'vs/platform/instantiation/common/instantiation';
 import { IDebugService, IExpression, IExpressionContainer } from 'vs/workbench/parts/debug/common/debug';
 import { Expression } from 'vs/workbench/parts/debug/common/debugModel';
-import { renderExpressionValue } from 'vs/workbench/parts/debug/electron-browser/baseDebugView';
+import { renderExpressionValue } from 'vs/workbench/parts/debug/browser/baseDebugView';
 import { VariablesDataSource, VariablesRenderer } from 'vs/workbench/parts/debug/electron-browser/variablesView';
 import { DomScrollableElement } from 'vs/base/browser/ui/scrollbar/scrollableElement';
 import { attachStylerCallback } from 'vs/platform/theme/common/styler';
@@ -89,7 +89,11 @@ export class DebugHoverWidget implements IContentWidget {
 		this.editor.applyFontInfo(this.domNode);
 
 		this.toDispose.push(attachStylerCallback(this.themeService, { editorHoverBackground, editorHoverBorder }, colors => {
-			this.domNode.style.backgroundColor = colors.editorHoverBackground;
+			if (colors.editorHoverBackground) {
+				this.domNode.style.backgroundColor = colors.editorHoverBackground.toString();
+			} else {
+				this.domNode.style.backgroundColor = null;
+			}
 			if (colors.editorHoverBorder) {
 				this.domNode.style.border = `1px solid ${colors.editorHoverBorder}`;
 			} else {
@@ -281,7 +285,7 @@ export class DebugHoverWidget implements IContentWidget {
 			this.scrollbar.scanDomNode();
 			if (focus) {
 				this.editor.render();
-				this.tree.DOMFocus();
+				this.tree.domFocus();
 			}
 		});
 	}
