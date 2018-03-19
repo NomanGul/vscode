@@ -2,7 +2,6 @@
 	"name": "vscode-remote",
 	"version": "0.0.0",
 	"devDependencies": {
-		"gc-signals": "^0.0.1",
 		"native-watchdog": "0.3.0",
 		"spdlog": "0.6.0"
 	}

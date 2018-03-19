@@ -174,8 +174,10 @@ class ExtensionHostConnection {
 			// Wait for the extension host to connect to our named pipe
 			// and wrap the socket in the message passing protocol
 			let handle = setTimeout(() => {
-				this._namedPipeServer.close();
-				this._namedPipeServer = null;
+				if (this._namedPipeServer) {
+					this._namedPipeServer.close();
+					this._namedPipeServer = null;
+				}
 				reject('timeout');
 			}, 60 * 1000);
 

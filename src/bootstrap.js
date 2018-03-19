@@ -8,6 +8,7 @@
 	const path = require('path');
 	const Module = require('module');
 	const NODE_MODULES_PATH = path.join(__dirname, '../node_modules');
+	const ALTERNATIVE_NODE_MODULES_PATH = path.join(__dirname, '../remote/node_modules');
 	const NODE_MODULES_ASAR_PATH = NODE_MODULES_PATH + '.asar';
 
 	const originalResolveLookupPaths = Module._resolveLookupPaths;
@@ -18,6 +19,10 @@
 		for (let i = 0, len = paths.length; i < len; i++) {
 			if (paths[i] === NODE_MODULES_PATH) {
 				paths.splice(i, 0, NODE_MODULES_ASAR_PATH);
+				// TODO@vs-remote: Look for native node modules in ./remote/node_modules
+				if (process.versions.node !== '7.9.0' && (request === 'native-watchdog' || request === 'spdlog')) {
+					paths.splice(i, 0, ALTERNATIVE_NODE_MODULES_PATH);
+				}
 				break;
 			}
 		}
