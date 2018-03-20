@@ -130,14 +130,14 @@ class ExtensionHostConnection {
 			this._extensionHostProcess.stderr.setEncoding('utf8');
 			const onStdout = fromNodeEventEmitter<string>(this._extensionHostProcess.stdout, 'data');
 			const onStderr = fromNodeEventEmitter<string>(this._extensionHostProcess.stderr, 'data');
-			onStdout((e) => console.log(`::::::::` + e));
-			onStderr((e) => console.log(`::::::::` + e));
+			onStdout((e) => console.log(`EXTHOST-STDOUT::::::::` + e));
+			onStderr((e) => console.log(`EXTHOST-STDERR::::::::` + e));
 
 
 			// Support logging from extension host
 			this._extensionHostProcess.on('message', msg => {
 				if (msg && (<IRemoteConsoleLog>msg).type === '__$console') {
-					console.log(`TODO!!!`);
+					console.log(`EXTHOST-LOG:::::`);
 					console.log((<IRemoteConsoleLog>msg).arguments);
 					// this._logExtensionHostMessage(<IRemoteConsoleLog>msg);
 				}

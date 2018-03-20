@@ -145,7 +145,7 @@ export class ExtensionHostRemoteProcess implements IExtensionHostStarter {
 					enableProposedApiFor: this._environmentService.args['enable-proposed-api'] || []
 				},
 				workspace: this._contextService.getWorkbenchState() === WorkbenchState.EMPTY ? null : <IWorkspaceData>this._contextService.getWorkspace(),
-				extensions: originalExtensionDescriptions,
+				extensions: extensionDescriptions,
 				// Send configurations scopes only in development mode.
 				configuration: !this._environmentService.isBuilt || this._environmentService.isExtensionDevelopment ? { ...configurationData, configurationScopes: getScopes() } : configurationData,
 				telemetryInfo,
