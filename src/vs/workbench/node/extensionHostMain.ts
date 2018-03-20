@@ -21,7 +21,6 @@ import * as watchdog from 'native-watchdog';
 import * as glob from 'vs/base/common/glob';
 import * as platform from 'vs/base/common/platform';
 import { ExtensionActivatedByEvent } from 'vs/workbench/api/node/extHostExtensionActivator';
-import { EnvironmentService } from 'vs/platform/environment/node/environmentService';
 import { IDisposable, dispose } from 'vs/base/common/lifecycle';
 import { IMessagePassingProtocol } from 'vs/base/parts/ipc/common/ipc';
 import { RPCProtocol, IURITransformer } from 'vs/workbench/services/extensions/node/rpcProtocol';
@@ -122,8 +121,7 @@ export class ExtensionHostMain {
 			};
 		}
 		const rpcProtocol = new RPCProtocol(protocol, uriTransformer);
-		const environmentService = new EnvironmentService(initData.args, initData.execPath);
-		this._extHostLogService = new ExtHostLogService(initData.windowId, initData.logLevel, environmentService);
+		this._extHostLogService = new ExtHostLogService(initData.windowId, initData.logLevel, initData.logsPath);
 		this.disposables.push(this._extHostLogService);
 		const extHostWorkspace = new ExtHostWorkspace(rpcProtocol, initData.workspace, this._extHostLogService);
 
@@ -131,7 +129,7 @@ export class ExtensionHostMain {
 		this._extHostLogService.trace('initData', initData);
 
 		this._extHostConfiguration = new ExtHostConfiguration(rpcProtocol.getProxy(MainContext.MainThreadConfiguration), extHostWorkspace, initData.configuration);
-		this._extensionService = new ExtHostExtensionService(initData, rpcProtocol, extHostWorkspace, this._extHostConfiguration, this._extHostLogService, environmentService);
+		this._extensionService = new ExtHostExtensionService(initData, rpcProtocol, extHostWorkspace, this._extHostConfiguration, this._extHostLogService);
 
 		// error forwarding and stack trace scanning
 		Error.stackTraceLimit = 100; // increase number of stack frames (from 10, https://github.com/v8/v8/wiki/Stack-Trace-API)

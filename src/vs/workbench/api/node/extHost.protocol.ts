@@ -44,7 +44,6 @@ import { IDisposable } from 'vs/base/common/lifecycle';
 import { SerializedError } from 'vs/base/common/errors';
 import { IStat, FileChangeType } from 'vs/platform/files/common/files';
 import { ConfigurationScope } from 'vs/platform/configuration/common/configurationRegistry';
-import { ParsedArgs } from 'vs/platform/environment/common/environment';
 import { CommentRule, CharacterPair, EnterAction } from 'vs/editor/common/modes/languageConfiguration';
 import { ISingleEditOperation } from 'vs/editor/common/model';
 import { ILineMatch, IPatternInfo } from 'vs/platform/search/common/search';
@@ -57,7 +56,6 @@ export interface IEnvironment {
 	appRoot: string;
 	appSettingsHome: string;
 	disableExtensions: boolean;
-	userExtensionsHome: string;
 	extensionDevelopmentPath: string;
 	extensionTestsPath: string;
 }
@@ -83,10 +81,8 @@ export interface IInitData {
 	configuration: IConfigurationInitData;
 	telemetryInfo: ITelemetryInfo;
 	windowId: number;
-	args: ParsedArgs;
-	execPath: string;
 	logLevel: LogLevel;
-
+	logsPath: string;
 	/**
 	 * The remote information.
 	 */
@@ -391,9 +387,9 @@ export interface IFileChangeDto {
 
 export interface MainThreadFileSystemShape extends IDisposable {
 	$registerFileSystemProvider(handle: number, scheme: string): void;
-	$unregisterFileSystemProvider(handle: number): void;
+	$registerSearchProvider(handle: number, scheme: string): void;
+	$unregisterProvider(handle: number): void;
 
-	$onDidAddFileSystemRoot(root: UriComponents): void;
 	$onFileSystemChange(handle: number, resource: IFileChangeDto[]): void;
 	$reportFileChunk(handle: number, session: number, chunk: number[] | null): void;
 
@@ -577,7 +573,7 @@ export interface ExtHostFileSystemShape {
 	$mkdir(handle: number, resource: UriComponents): TPromise<IStat>;
 	$readdir(handle: number, resource: UriComponents): TPromise<[UriComponents, IStat][]>;
 	$rmdir(handle: number, resource: UriComponents): TPromise<void>;
-	$findFiles(handle: number, session: number, query: string): TPromise<void>;
+	$provideFileSearchResults(handle: number, session: number, query: string): TPromise<void>;
 	$provideTextSearchResults(handle: number, session: number, pattern: IPatternInfo, options: { includes: string[], excludes: string[] }): TPromise<void>;
 }
 
@@ -710,7 +706,7 @@ export interface ExtHostLanguageFeaturesShape {
 	$resolveWorkspaceSymbol(handle: number, symbol: SymbolInformationDto): TPromise<SymbolInformationDto>;
 	$releaseWorkspaceSymbols(handle: number, id: number): void;
 	$provideRenameEdits(handle: number, resource: UriComponents, position: IPosition, newName: string): TPromise<WorkspaceEditDto>;
-	$resolveRenameContext(handle: number, resource: UriComponents, position: IPosition): TPromise<modes.RenameContext>;
+	$resolveRenameLocation(handle: number, resource: UriComponents, position: IPosition): TPromise<modes.RenameContext>;
 	$provideCompletionItems(handle: number, resource: UriComponents, position: IPosition, context: modes.SuggestContext): TPromise<SuggestResultDto>;
 	$resolveCompletionItem(handle: number, resource: UriComponents, position: IPosition, suggestion: modes.ISuggestion): TPromise<modes.ISuggestion>;
 	$releaseCompletionItems(handle: number, id: number): void;
