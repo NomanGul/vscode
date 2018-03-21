@@ -48,6 +48,7 @@ import { CommentRule, CharacterPair, EnterAction } from 'vs/editor/common/modes/
 import { ISingleEditOperation } from 'vs/editor/common/model';
 import { ILineMatch, IPatternInfo } from 'vs/platform/search/common/search';
 import { LogLevel } from 'vs/platform/log/common/log';
+import { TaskExecutionDTO, TaskDTO, TaskHandleDTO } from 'vs/workbench/api/shared/tasks';
 
 export interface IEnvironment {
 	isExtensionDevelopmentDebug: boolean;
@@ -359,9 +360,9 @@ export interface MainThreadTelemetryShape extends IDisposable {
 export type WebviewHandle = number;
 
 export interface MainThreadWebviewsShape extends IDisposable {
-	$createWebview(handle: WebviewHandle, uri: URI, title: string, column: EditorPosition, options: vscode.WebviewOptions, extensionFolderPath: string): void;
+	$createWebview(handle: WebviewHandle, viewType: string, title: string, column: EditorPosition, options: vscode.WebviewOptions, extensionFolderPath: string): void;
 	$disposeWebview(handle: WebviewHandle): void;
-	$show(handle: WebviewHandle, column: EditorPosition): void;
+	$reveal(handle: WebviewHandle, column: EditorPosition): void;
 	$setTitle(handle: WebviewHandle, value: string): void;
 	$setHtml(handle: WebviewHandle, value: string): void;
 	$sendMessage(handle: WebviewHandle, value: any): Thenable<boolean>;
@@ -398,6 +399,9 @@ export interface MainThreadFileSystemShape extends IDisposable {
 
 export interface MainThreadTaskShape extends IDisposable {
 	$registerTaskProvider(handle: number): TPromise<void>;
+	$executeTaskProvider(): TPromise<TaskDTO[]>;
+	$executeTask(task: TaskHandleDTO | TaskDTO): TPromise<TaskExecutionDTO>;
+	$terminateTask(task: TaskExecutionDTO): TPromise<void>;
 	$unregisterTaskProvider(handle: number): TPromise<void>;
 }
 
@@ -737,6 +741,8 @@ export interface ExtHostSCMShape {
 
 export interface ExtHostTaskShape {
 	$provideTasks(handle: number): TPromise<TaskSet>;
+	$taskStarted(execution: TaskExecutionDTO): void;
+	$taskEnded(execution: TaskExecutionDTO): void;
 }
 
 export interface IBreakpointDto {

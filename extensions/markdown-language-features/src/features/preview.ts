@@ -18,10 +18,8 @@ const localize = nls.loadMessageBundle();
 
 export class MarkdownPreview {
 
-	public static previewScheme = 'vscode-markdown-preview';
-	private static previewCount = 0;
+	public static previewViewType = 'markdown.preview';
 
-	public readonly uri: vscode.Uri;
 	private readonly webview: vscode.Webview;
 	private throttleTimer: any;
 	private initialLine: number | undefined = undefined;
@@ -41,9 +39,8 @@ export class MarkdownPreview {
 		topmostLineMonitor: MarkdownFileTopmostLineMonitor,
 		private readonly contributions: MarkdownContributions
 	) {
-		this.uri = vscode.Uri.parse(`${MarkdownPreview.previewScheme}:${MarkdownPreview.previewCount++}`);
 		this.webview = vscode.window.createWebview(
-			this.uri,
+			MarkdownPreview.previewViewType,
 			this.getPreviewTitle(this._resource),
 			previewColumn, {
 				enableScripts: true,
@@ -56,8 +53,8 @@ export class MarkdownPreview {
 			this.dispose();
 		}, null, this.disposables);
 
-		this.webview.onDidChangeViewColumn(() => {
-			this._onDidChangeViewColumnEmitter.fire();
+		this.webview.onDidChangeViewState(e => {
+			this._onDidChangeViewStateEmitter.fire(e);
 		}, null, this.disposables);
 
 		this.webview.onDidReceiveMessage(e => {
@@ -107,8 +104,8 @@ export class MarkdownPreview {
 	private readonly _onDisposeEmitter = new vscode.EventEmitter<void>();
 	public readonly onDispose = this._onDisposeEmitter.event;
 
-	private readonly _onDidChangeViewColumnEmitter = new vscode.EventEmitter<vscode.ViewColumn>();
-	public readonly onDidChangeViewColumn = this._onDidChangeViewColumnEmitter.event;
+	private readonly _onDidChangeViewStateEmitter = new vscode.EventEmitter<vscode.WebViewOnDidChangeViewStateEvent>();
+	public readonly onDidChangeViewState = this._onDidChangeViewStateEmitter.event;
 
 	public get resource(): vscode.Uri {
 		return this._resource;
@@ -118,7 +115,7 @@ export class MarkdownPreview {
 		this._onDisposeEmitter.fire();
 
 		this._onDisposeEmitter.dispose();
-		this._onDidChangeViewColumnEmitter.dispose();
+		this._onDidChangeViewStateEmitter.dispose();
 		this.webview.dispose();
 
 		disposeAll(this.disposables);
@@ -192,8 +189,8 @@ export class MarkdownPreview {
 		return this.matchesResource(otherPreview._resource, otherPreview.viewColumn, otherPreview.locked);
 	}
 
-	public show(viewColumn: vscode.ViewColumn) {
-		this.webview.show(viewColumn);
+	public reveal(viewColumn: vscode.ViewColumn) {
+		this.webview.reveal(viewColumn);
 	}
 
 	public toggleLock() {

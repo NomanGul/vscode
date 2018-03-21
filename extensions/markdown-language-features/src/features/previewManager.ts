@@ -28,15 +28,8 @@ export class MarkdownPreviewManager {
 		private readonly logger: Logger,
 		private readonly contributions: MarkdownContributions
 	) {
-		vscode.window.onDidChangeActiveEditor(editor => {
-			vscode.commands.executeCommand('setContext', MarkdownPreviewManager.markdownPreviewActiveContextKey,
-				editor && editor.editorType === 'webview' && editor.uri.scheme === MarkdownPreview.previewScheme);
-
-			this.activePreview = editor && editor.editorType === 'webview'
-				? this.previews.find(preview => editor.uri.toString() === preview.uri.toString())
-				: undefined;
-
-			if (editor && editor.editorType === 'texteditor') {
+		vscode.window.onDidChangeActiveTextEditor(editor => {
+			if (editor) {
 				if (isMarkdownFile(editor.document)) {
 					for (const preview of this.previews.filter(preview => !preview.locked)) {
 						preview.update(editor.document.uri);
@@ -44,6 +37,7 @@ export class MarkdownPreviewManager {
 				}
 			}
 		}, null, this.disposables);
+
 	}
 
 	public dispose(): void {
@@ -69,7 +63,7 @@ export class MarkdownPreviewManager {
 	): void {
 		let preview = this.getExistingPreview(resource, previewSettings);
 		if (preview) {
-			preview.show(previewSettings.previewColumn);
+			preview.reveal(previewSettings.previewColumn);
 		} else {
 			preview = this.createNewPreview(resource, previewSettings);
 			this.previews.push(preview);
@@ -82,13 +76,8 @@ export class MarkdownPreviewManager {
 		return this.activePreview && this.activePreview.resource;
 	}
 
-	public getResourceForPreview(previewUri: vscode.Uri): vscode.Uri | undefined {
-		const preview = this.getPreviewWithUri(previewUri);
-		return preview && preview.resource;
-	}
-
-	public toggleLock(previewUri?: vscode.Uri) {
-		const preview = previewUri ? this.getPreviewWithUri(previewUri) : this.activePreview;
+	public toggleLock() {
+		const preview = this.activePreview;
 		if (preview) {
 			preview.toggleLock();
 
@@ -107,10 +96,6 @@ export class MarkdownPreviewManager {
 	): MarkdownPreview | undefined {
 		return this.previews.find(preview =>
 			preview.matchesResource(resource, previewSettings.previewColumn, previewSettings.locked));
-	}
-
-	private getPreviewWithUri(previewUri: vscode.Uri): MarkdownPreview | undefined {
-		return this.previews.find(preview => preview.uri.toString() === previewUri.toString());
 	}
 
 	private createNewPreview(
@@ -134,8 +119,13 @@ export class MarkdownPreviewManager {
 			}
 		});
 
-		preview.onDidChangeViewColumn(() => {
+		preview.onDidChangeViewState(({ active }) => {
 			disposeAll(this.previews.filter(otherPreview => preview !== otherPreview && preview!.matches(otherPreview)));
+
+			vscode.commands.executeCommand('setContext', MarkdownPreviewManager.markdownPreviewActiveContextKey,
+				active);
+
+			this.activePreview = active ? preview : undefined;
 		});
 
 		return preview;
