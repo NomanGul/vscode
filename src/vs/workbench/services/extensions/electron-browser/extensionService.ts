@@ -27,7 +27,7 @@ import { ITelemetryService } from 'vs/platform/telemetry/common/telemetry';
 import { IEnvironmentService } from 'vs/platform/environment/common/environment';
 import { IStorageService } from 'vs/platform/storage/common/storage';
 import { IInstantiationService } from 'vs/platform/instantiation/common/instantiation';
-import { ExtensionHostProcessWorker, ExtensionHostRemoteProcess, IExtensionHostStarter } from 'vs/workbench/services/extensions/electron-browser/extensionHost';
+import { ExtensionHostProcessWorker, ExtensionHostRemoteProcess, IExtensionHostStarter, IRuntimeRemoteOptions, IRuntimeRemoteOptionsProvider } from 'vs/workbench/services/extensions/electron-browser/extensionHost';
 import { IMessagePassingProtocol } from 'vs/base/parts/ipc/common/ipc';
 import { ExtHostCustomersRegistry } from 'vs/workbench/api/electron-browser/extHostCustomers';
 import { IWindowService } from 'vs/platform/windows/common/windows';
@@ -44,6 +44,7 @@ import { IRequestService } from 'vs/platform/request/node/request';
 import { asJson } from 'vs/base/node/request';
 import { IWorkspaceContextService, IWorkspaceFolder } from 'vs/platform/workspace/common/workspace';
 import { INotificationService, Severity } from 'vs/platform/notification/common/notification';
+import { IAgentScanExtensionsResponse } from 'vs/workbench/node/remoteExtensionHostAgent';
 
 let _SystemExtensionsRoot: string = null;
 function getSystemExtensionsRoot(): string {
@@ -113,10 +114,11 @@ function messageWithSource2(source: string, message: string): string {
 const hasOwnProperty = Object.hasOwnProperty;
 const NO_OP_VOID_PROMISE = TPromise.wrap<void>(void 0);
 
-export class ExtensionService extends Disposable implements IExtensionService {
+export class ExtensionService extends Disposable implements IExtensionService, IRuntimeRemoteOptionsProvider {
 	public _serviceBrand: any;
 
 	private _remoteOptions: IRemoteOptions;
+	private _runtimeRemoteOptions: IRuntimeRemoteOptions;
 
 	private readonly _onDidRegisterExtensions: Emitter<void>;
 
@@ -454,22 +456,28 @@ export class ExtensionService extends Disposable implements IExtensionService {
 
 	// --- impl
 
+	public getRuntimeRemoteOptions(): IRuntimeRemoteOptions {
+		return this._runtimeRemoteOptions;
+	}
+
 	private _scanAndHandleExtensions(): void {
 
 		let runtimeExtensionsPromise: TPromise<IExtensionDescription[]>;
 		if (this._remoteOptions) {
-			interface IScanExtensionsResponse {
-				extensions: IExtensionDescription[];
-				extensionsFolder: string;
-			}
 			const url = `http://${this._remoteOptions.host}:${this._remoteOptions.controlPort}/scan-extensions`;
 			runtimeExtensionsPromise = this._requestService.request({
 				url: url
 			}).then((ctx) => {
-				return asJson<IScanExtensionsResponse>(ctx);
+				return asJson<IAgentScanExtensionsResponse>(ctx);
 			}).then((resp) => {
+				this._runtimeRemoteOptions = {
+					agentPid: resp.agentPid,
+					agentAppRoot: resp.agentAppRoot,
+					agentAppSettingsHome: resp.agentAppSettingsHome,
+					agentLogsPath: resp.agentLogsPath
+				};
 				const localExtensionsFolder = path.join(os.homedir(), '.vscode-remote', 'extensions');
-				const remoteExtensionsFolder = resp.extensionsFolder;
+				const remoteExtensionsFolder = resp.agentExtensionsFolder;
 				const extensions = resp.extensions;
 				extensions.forEach((extension) => {
 					(<any>extension).remoteExtensionFolderPath = extension.extensionFolderPath;

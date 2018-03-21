@@ -45,6 +45,17 @@ export interface IExtensionHostStarter {
 	dispose(): void;
 }
 
+export interface IRuntimeRemoteOptions {
+	agentPid: number;
+	agentAppRoot: string;
+	agentAppSettingsHome: string;
+	agentLogsPath: string;
+}
+
+export interface IRuntimeRemoteOptionsProvider {
+	getRuntimeRemoteOptions(): IRuntimeRemoteOptions;
+}
+
 export class ExtensionHostRemoteProcess implements IExtensionHostStarter {
 
 	private _onCrashed: Emitter<[number, string]> = new Emitter<[number, string]>();
@@ -55,7 +66,7 @@ export class ExtensionHostRemoteProcess implements IExtensionHostStarter {
 
 	constructor(
 		private readonly _options: IRemoteOptions,
-		/* intentionally not injected */private readonly _extensionService: IExtensionService,
+		/* intentionally not injected */private readonly _extensionService: IExtensionService & IRuntimeRemoteOptionsProvider,
 		@IWorkspaceContextService private readonly _contextService: IWorkspaceContextService,
 		@IWindowService private readonly _windowService: IWindowService,
 		@IEnvironmentService private readonly _environmentService: IEnvironmentService,
@@ -122,6 +133,8 @@ export class ExtensionHostRemoteProcess implements IExtensionHostStarter {
 	private _createExtHostInitData(): TPromise<IInitData> {
 		return TPromise.join<any>([this._telemetryService.getTelemetryInfo(), this._extensionService.getExtensions()]).then(([telemetryInfo, originalExtensionDescriptions]) => {
 
+			const runtimeRemoteOptions = this._extensionService.getRuntimeRemoteOptions();
+
 			let extensionDescriptions: IExtensionDescription[] = [];
 			for (let i = 0; i < originalExtensionDescriptions.length; i++) {
 				const extension = objects.assign({}, originalExtensionDescriptions[i]);
@@ -131,11 +144,11 @@ export class ExtensionHostRemoteProcess implements IExtensionHostStarter {
 
 			const configurationData: IConfigurationInitData = { ...this._configurationService.getConfigurationData(), configurationScopes: {} };
 			const r: IInitData = {
-				parentPid: process.pid,
+				parentPid: runtimeRemoteOptions.agentPid,
 				environment: {
 					isExtensionDevelopmentDebug: false,// TODO@vs-remote this._isExtensionDevDebug,
-					appRoot: this._environmentService.appRoot,
-					appSettingsHome: this._environmentService.appSettingsHome,
+					appRoot: runtimeRemoteOptions.agentAppRoot,
+					appSettingsHome: runtimeRemoteOptions.agentAppSettingsHome,
 					disableExtensions: this._environmentService.disableExtensions,
 					extensionDevelopmentPath: this._environmentService.extensionDevelopmentPath,
 					extensionTestsPath: this._environmentService.extensionTestsPath,
@@ -150,7 +163,7 @@ export class ExtensionHostRemoteProcess implements IExtensionHostStarter {
 				telemetryInfo,
 				windowId: this._windowService.getCurrentWindowId(),
 				logLevel: this._logService.getLevel(),
-				logsPath: this._environmentService.logsPath,
+				logsPath: runtimeRemoteOptions.agentLogsPath,
 				remoteOptions: this._options
 			};
 			return r;

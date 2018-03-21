@@ -10,6 +10,7 @@ import * as objects from 'vs/base/common/objects';
 import * as cp from 'child_process';
 import * as os from 'os';
 import * as path from 'path';
+import * as fs from 'fs';
 import pkg from 'vs/platform/node/package';
 import { generateRandomPipeName } from 'vs/base/parts/ipc/node/ipc.net';
 import { TPromise } from 'vs/base/common/winjs.base';
@@ -17,8 +18,29 @@ import URI from 'vs/base/common/uri';
 import { fromNodeEventEmitter } from 'vs/base/common/event';
 import { IRemoteConsoleLog } from 'vs/base/node/console';
 import { ExtensionScanner, ExtensionScannerInput, ILog } from 'vs/workbench/services/extensions/node/extensionPoints';
+import { IExtensionDescription } from 'vs/workbench/services/extensions/common/extensions';
+import { toLocalISOString } from 'vs/base/common/date';
 
-const EXTENSION_FOLDER = path.join(os.homedir(), '.vscode-remote', 'extensions');
+export interface IAgentScanExtensionsResponse {
+	agentPid: number;
+	agentAppRoot: string;
+	agentAppSettingsHome: string;
+	agentLogsPath: string;
+	agentExtensionsFolder: string;
+	extensions: IExtensionDescription[];
+}
+
+const EXTENSION_FOLDER = path.join(os.homedir(), '.vscode-remote/extensions');
+const USER_DATA_FOLDER = path.join(os.homedir(), '.vscode-remote/data');
+const LOGS_FOLDER = path.join(os.homedir(), '.vscode-remote/logs');
+const APP_SETTINGS_HOME = path.join(USER_DATA_FOLDER, 'User');
+const APP_ROOT = path.dirname(URI.parse(require.toUrl('')).fsPath);
+
+try { fs.mkdirSync(path.join(os.homedir(), '.vscode-remote')); } catch (err) { }
+try { fs.mkdirSync(path.join(os.homedir(), '.vscode-remote/extensions')); } catch (err) { }
+try { fs.mkdirSync(path.join(os.homedir(), '.vscode-remote/data')); } catch (err) { }
+try { fs.mkdirSync(path.join(os.homedir(), '.vscode-remote/data/User')); } catch (err) { }
+try { fs.mkdirSync(path.join(os.homedir(), '.vscode-remote/logs')); } catch (err) { }
 
 const extHostServer = net.createServer((connection) => {
 	console.log(`received a connection`);
@@ -56,10 +78,15 @@ const httpServer = http.createServer((request, response) => {
 		};
 		ExtensionScanner.scanExtensions(input, logger).then((extensions) => {
 			response.writeHead(200);
-			response.end(JSON.stringify({
-				extensionsFolder: EXTENSION_FOLDER,
+			let r: IAgentScanExtensionsResponse = {
+				agentPid: process.pid,
+				agentAppRoot: APP_ROOT,
+				agentAppSettingsHome: APP_SETTINGS_HOME,
+				agentLogsPath: path.join(LOGS_FOLDER, toLocalISOString(new Date()).replace(/-|:|\.\d+Z$/g, '')),
+				agentExtensionsFolder: EXTENSION_FOLDER,
 				extensions: extensions
-			}));
+			};
+			response.end(JSON.stringify(r));
 		}, (err) => {
 			response.writeHead(500);
 			response.end(err);
