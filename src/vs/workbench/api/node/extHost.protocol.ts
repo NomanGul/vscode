@@ -819,6 +819,10 @@ export interface ExtHostLogServiceShape {
 	$setLevel(level: LogLevel);
 }
 
+export interface ExtHostProgressShape {
+	$acceptProgressCanceled(handle: number): void;
+}
+
 // --- proxy identifiers
 
 export const MainContext = {
@@ -876,5 +880,6 @@ export const ExtHostContext = {
 	ExtHostTask: createExtId<ExtHostTaskShape>('ExtHostTask'),
 	ExtHostWorkspace: createExtId<ExtHostWorkspaceShape>('ExtHostWorkspace'),
 	ExtHostWindow: createExtId<ExtHostWindowShape>('ExtHostWindow'),
-	ExtHostWebviews: createExtId<ExtHostWebviewsShape>('ExtHostWebviews')
+	ExtHostWebviews: createExtId<ExtHostWebviewsShape>('ExtHostWebviews'),
+	ExtHostProgress: createMainId<ExtHostProgressShape>('ExtHostProgress')
 };
