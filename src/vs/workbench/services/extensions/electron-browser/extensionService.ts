@@ -283,7 +283,8 @@ export class ExtensionService extends Disposable implements IExtensionService, I
 	public readonly onDidChangeExtensionsStatus: Event<string[]> = this._onDidChangeExtensionsStatus.event;
 
 	// --- Members used per extension host process
-	private _extensionHostProcessManager: ExtensionHostProcessManager;
+	private _localExtensionHostProcessManager: ExtensionHostProcessManager;
+	private _remoteExtensionHostProcessManager: ExtensionHostProcessManager;
 
 	constructor(
 		@IInstantiationService private readonly _instantiationService: IInstantiationService,
@@ -300,7 +301,7 @@ export class ExtensionService extends Disposable implements IExtensionService, I
 	) {
 		super();
 
-		// TOOO@vs-remote: Listen to folder added, removed, etc.
+		// TODO@vs-remote: Listen to folder added, removed, etc.
 		this._remoteOptions = this._findRemoteOptions(workspaceContextService.getWorkspace().folders);
 
 		this._registry = null;
@@ -311,7 +312,8 @@ export class ExtensionService extends Disposable implements IExtensionService, I
 
 		this._onDidRegisterExtensions = new Emitter<void>();
 
-		this._extensionHostProcessManager = null;
+		this._localExtensionHostProcessManager = null;
+		this._remoteExtensionHostProcessManager = null;
 		this.startDelayed(lifecycleService);
 	}
 
@@ -386,10 +388,16 @@ export class ExtensionService extends Disposable implements IExtensionService, I
 	private _stopExtensionHostProcess(): void {
 		let previouslyActivatedExtensionIds: string[] = [];
 
-		if (this._extensionHostProcessManager) {
-			previouslyActivatedExtensionIds = this._extensionHostProcessManager.getActivatedExtensionIds();
-			this._extensionHostProcessManager.dispose();
-			this._extensionHostProcessManager = null;
+		if (this._localExtensionHostProcessManager) {
+			previouslyActivatedExtensionIds = previouslyActivatedExtensionIds.concat(this._localExtensionHostProcessManager.getActivatedExtensionIds());
+			this._localExtensionHostProcessManager.dispose();
+			this._localExtensionHostProcessManager = null;
+		}
+
+		if (this._remoteExtensionHostProcessManager) {
+			previouslyActivatedExtensionIds = previouslyActivatedExtensionIds.concat(this._remoteExtensionHostProcessManager.getActivatedExtensionIds());
+			this._remoteExtensionHostProcessManager.dispose();
+			this._remoteExtensionHostProcessManager = null;
 		}
 
 		if (previouslyActivatedExtensionIds.length > 0) {
@@ -400,14 +408,15 @@ export class ExtensionService extends Disposable implements IExtensionService, I
 	private _startExtensionHostProcess(initialActivationEvents: string[]): void {
 		this._stopExtensionHostProcess();
 
-		let extHostProcessWorker:IExtensionHostStarter;
+		let localExtHostProcessWorker = this._instantiationService.createInstance(ExtensionHostProcessWorker, this);
+		this._localExtensionHostProcessManager = this._instantiationService.createInstance(ExtensionHostProcessManager, localExtHostProcessWorker, initialActivationEvents);
+		this._localExtensionHostProcessManager.onDidCrash(([code, signal]) => this._onExtensionHostCrashed(code, signal));
+
 		if (this._remoteOptions) {
-			extHostProcessWorker = this._instantiationService.createInstance(ExtensionHostRemoteProcess, this._remoteOptions, this);
-		} else {
-			extHostProcessWorker = this._instantiationService.createInstance(ExtensionHostProcessWorker, this);
+			let remoteExtHostProcessWorker = this._instantiationService.createInstance(ExtensionHostRemoteProcess, this._remoteOptions, this);
+			this._remoteExtensionHostProcessManager = this._instantiationService.createInstance(ExtensionHostProcessManager, remoteExtHostProcessWorker, initialActivationEvents);
+			this._remoteExtensionHostProcessManager.onDidCrash(([code, signal]) => this._onExtensionHostCrashed(code, signal));
 		}
-		this._extensionHostProcessManager = this._instantiationService.createInstance(ExtensionHostProcessManager, extHostProcessWorker, initialActivationEvents);
-		this._extensionHostProcessManager.onDidCrash(([code, signal]) => this._onExtensionHostCrashed(code, signal));
 	}
 
 	private _onExtensionHostCrashed(code: number, signal: string): void {
@@ -457,7 +466,9 @@ export class ExtensionService extends Disposable implements IExtensionService, I
 	}
 
 	private _activateByEvent(activationEvent: string): TPromise<void> {
-		return this._extensionHostProcessManager.activateByEvent(activationEvent);
+		let remoteActivateByEvent = (this._remoteExtensionHostProcessManager ? this._remoteExtensionHostProcessManager.activateByEvent(activationEvent) : TPromise.as(void 0));
+		let localActivateByEvent = (this._localExtensionHostProcessManager ? this._localExtensionHostProcessManager.activateByEvent(activationEvent) : TPromise.as(void 0));
+		return TPromise.join([remoteActivateByEvent, localActivateByEvent]).then(() => { });
 	}
 
 	public whenInstalledExtensionsRegistered(): TPromise<boolean> {
@@ -488,8 +499,18 @@ export class ExtensionService extends Disposable implements IExtensionService, I
 	}
 
 	public getExtensionsStatus(): { [id: string]: IExtensionsStatus; } {
-		const activationTimes = this._extensionHostProcessManager.getActivationTimes();
-		const runtimeErrors = this._extensionHostProcessManager.getRuntimeErrors();
+		const localActivationTimes = this._localExtensionHostProcessManager.getActivationTimes();
+		const localRuntimeErrors = this._localExtensionHostProcessManager.getRuntimeErrors();
+
+		let remoteActivationTimes: { [id: string]: ActivationTimes; };
+		let remoteRuntimeErrors: { [id: string]: Error[]; };
+		if (this._remoteExtensionHostProcessManager) {
+			remoteActivationTimes = this._remoteExtensionHostProcessManager.getActivationTimes();
+			remoteRuntimeErrors = this._remoteExtensionHostProcessManager.getRuntimeErrors();
+		} else {
+			remoteActivationTimes = Object.create(null);
+			remoteRuntimeErrors = Object.create(null);
+		}
 
 		let result: { [id: string]: IExtensionsStatus; } = Object.create(null);
 		if (this._registry) {
@@ -499,8 +520,8 @@ export class ExtensionService extends Disposable implements IExtensionService, I
 				const id = extension.id;
 				result[id] = {
 					messages: this._extensionsMessages[id],
-					activationTimes: activationTimes[id],
-					runtimeErrors: runtimeErrors[id],
+					activationTimes: localActivationTimes[id] || remoteActivationTimes[id],
+					runtimeErrors: localRuntimeErrors[id] || remoteRuntimeErrors[id],
 				};
 			}
 		}
@@ -508,12 +529,12 @@ export class ExtensionService extends Disposable implements IExtensionService, I
 	}
 
 	public canProfileExtensionHost(): boolean {
-		return this._extensionHostProcessManager.canProfileExtensionHost();
+		return this._localExtensionHostProcessManager.canProfileExtensionHost();
 	}
 
 	public startExtensionHostProfile(): TPromise<ProfileSession> {
-		if (this._extensionHostProcessManager) {
-			return this._extensionHostProcessManager.startExtensionHostProfile();
+		if (this._localExtensionHostProcessManager) {
+			return this._localExtensionHostProcessManager.startExtensionHostProfile();
 		}
 		throw new Error('Extension host not running or no inspect port available');
 	}
@@ -528,10 +549,10 @@ export class ExtensionService extends Disposable implements IExtensionService, I
 
 	private _scanAndHandleExtensions(): void {
 
-		let runtimeExtensionsPromise: TPromise<IExtensionDescription[]>;
+		let remoteExtensionsPromise: TPromise<IExtensionDescription[]>;
 		if (this._remoteOptions) {
 			const url = `http://${this._remoteOptions.host}:${this._remoteOptions.controlPort}/scan-extensions`;
-			runtimeExtensionsPromise = this._requestService.request({
+			remoteExtensionsPromise = this._requestService.request({
 				url: url
 			}).then((ctx) => {
 				return asJson<IAgentScanExtensionsResponse>(ctx);
@@ -546,38 +567,56 @@ export class ExtensionService extends Disposable implements IExtensionService, I
 				const remoteExtensionsFolder = resp.agentExtensionsFolder;
 				const extensions = resp.extensions;
 				extensions.forEach((extension) => {
+					extension.isRemote = true;
 					(<any>extension).remoteExtensionFolderPath = extension.extensionFolderPath;
 					(<any>extension).extensionFolderPath = localExtensionsFolder + path.sep + extension.extensionFolderPath.substr(remoteExtensionsFolder.length + 1);
 				});
 				return extensions;
 			});
 		} else {
-			runtimeExtensionsPromise = this._getRuntimeExtension();
+			remoteExtensionsPromise = TPromise.as([]);
 		}
 
-		runtimeExtensionsPromise
-			.then(runtimeExtensons => {
-				this._registry = new ExtensionDescriptionRegistry(runtimeExtensons);
+		TPromise.join([remoteExtensionsPromise, this._getRuntimeExtension()]).then(([remoteExtensions, runtimeExtensions]) => {
+			let isRemoteExtension: { [id: string]: boolean; } = Object.create(null);
+			let allExtensions: IExtensionDescription[] = [];
 
-				let availableExtensions = this._registry.getAllExtensionDescriptions();
-				let extensionPoints = ExtensionsRegistry.getExtensionPoints();
+			for (let i = 0, len = remoteExtensions.length; i < len; i++) {
+				const extension = remoteExtensions[i];
+				isRemoteExtension[extension.id] = true;
+				allExtensions.push(extension);
+			}
 
-				let messageHandler = (msg: IMessage) => this._handleExtensionPointMessage(msg);
-
-				for (let i = 0, len = extensionPoints.length; i < len; i++) {
-					const clock = time(`handleExtensionPoint:${extensionPoints[i].name}`);
-					try {
-						ExtensionService._handleExtensionPoint(extensionPoints[i], availableExtensions, messageHandler);
-					} finally {
-						clock.stop();
-					}
+			for (let i = 0, len = runtimeExtensions.length; i < len; i++) {
+				const extension = runtimeExtensions[i];
+				if (isRemoteExtension[extension.id]) {
+					// ignore, as we cannot run the same extension in both
+					continue;
 				}
+				allExtensions.push(extension);
+			}
 
-				mark('extensionHostReady');
-				this._installedExtensionsReady.open();
-				this._onDidRegisterExtensions.fire(void 0);
-				this._onDidChangeExtensionsStatus.fire(availableExtensions.map(e => e.id));
-			});
+			this._registry = new ExtensionDescriptionRegistry(allExtensions);
+
+			let availableExtensions = this._registry.getAllExtensionDescriptions();
+			let extensionPoints = ExtensionsRegistry.getExtensionPoints();
+
+			let messageHandler = (msg: IMessage) => this._handleExtensionPointMessage(msg);
+
+			for (let i = 0, len = extensionPoints.length; i < len; i++) {
+				const clock = time(`handleExtensionPoint:${extensionPoints[i].name}`);
+				try {
+					ExtensionService._handleExtensionPoint(extensionPoints[i], availableExtensions, messageHandler);
+				} finally {
+					clock.stop();
+				}
+			}
+
+			mark('extensionHostReady');
+			this._installedExtensionsReady.open();
+			this._onDidRegisterExtensions.fire(void 0);
+			this._onDidChangeExtensionsStatus.fire(availableExtensions.map(e => e.id));
+		});
 	}
 
 	private _getRuntimeExtension(): TPromise<IExtensionDescription[]> {
@@ -932,12 +971,22 @@ export class ExtensionService extends Disposable implements IExtensionService, I
 	}
 
 	public _onExtensionActivated(extensionId: string, startup: boolean, codeLoadingTime: number, activateCallTime: number, activateResolvedTime: number, activationEvent: string): void {
-		this._extensionHostProcessManager.onExtensionActivated(extensionId, startup, codeLoadingTime, activateCallTime, activateResolvedTime, activationEvent);
+		const extension = this._registry.getExtensionDescription(extensionId);
+		if (extension.isRemote) {
+			this._remoteExtensionHostProcessManager.onExtensionActivated(extensionId, startup, codeLoadingTime, activateCallTime, activateResolvedTime, activationEvent);
+		} else {
+			this._localExtensionHostProcessManager.onExtensionActivated(extensionId, startup, codeLoadingTime, activateCallTime, activateResolvedTime, activationEvent);
+		}
 		this._onDidChangeExtensionsStatus.fire([extensionId]);
 	}
 
 	public _onExtensionRuntimeError(extensionId: string, err: Error): void {
-		this._extensionHostProcessManager.onExtensionRuntimeError(extensionId, err);
+		const extension = this._registry.getExtensionDescription(extensionId);
+		if (extension.isRemote) {
+			this._remoteExtensionHostProcessManager.onExtensionRuntimeError(extensionId, err);
+		} else {
+			this._localExtensionHostProcessManager.onExtensionRuntimeError(extensionId, err);
+		}
 		this._onDidChangeExtensionsStatus.fire([extensionId]);
 	}
 

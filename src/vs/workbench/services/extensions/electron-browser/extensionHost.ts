@@ -131,15 +131,18 @@ export class ExtensionHostRemoteProcess implements IExtensionHostStarter {
 	}
 
 	private _createExtHostInitData(): TPromise<IInitData> {
-		return TPromise.join<any>([this._telemetryService.getTelemetryInfo(), this._extensionService.getExtensions()]).then(([telemetryInfo, originalExtensionDescriptions]) => {
+		return TPromise.join([this._telemetryService.getTelemetryInfo(), this._extensionService.getExtensions()]).then(([telemetryInfo, originalExtensionDescriptions]) => {
 
 			const runtimeRemoteOptions = this._extensionService.getRuntimeRemoteOptions();
 
 			let extensionDescriptions: IExtensionDescription[] = [];
 			for (let i = 0; i < originalExtensionDescriptions.length; i++) {
+				if (!originalExtensionDescriptions[i].isRemote) {
+					continue;
+				}
 				const extension = objects.assign({}, originalExtensionDescriptions[i]);
 				(<any>extension).extensionFolderPath = (<any>extension).remoteExtensionFolderPath;
-				extensionDescriptions[i] = extension;
+				extensionDescriptions.push(extension);
 			}
 
 			const configurationData: IConfigurationInitData = { ...this._configurationService.getConfigurationData(), configurationScopes: {} };
@@ -521,7 +524,16 @@ export class ExtensionHostProcessWorker implements IExtensionHostStarter {
 	}
 
 	private _createExtHostInitData(): TPromise<IInitData> {
-		return TPromise.join<any>([this._telemetryService.getTelemetryInfo(), this._extensionService.getExtensions()]).then(([telemetryInfo, extensionDescriptions]) => {
+		return TPromise.join([this._telemetryService.getTelemetryInfo(), this._extensionService.getExtensions()]).then(([telemetryInfo, originalExtensionDescriptions]) => {
+
+			let extensionDescriptions: IExtensionDescription[] = [];
+			for (let i = 0; i < originalExtensionDescriptions.length; i++) {
+				if (originalExtensionDescriptions[i].isRemote) {
+					continue;
+				}
+				extensionDescriptions.push(originalExtensionDescriptions[i]);
+			}
+
 			const configurationData: IConfigurationInitData = { ...this._configurationService.getConfigurationData(), configurationScopes: {} };
 			const r: IInitData = {
 				parentPid: process.pid,

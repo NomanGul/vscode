@@ -11,6 +11,7 @@ import { IExtensionPoint } from 'vs/workbench/services/extensions/common/extensi
 import { Event } from 'vs/base/common/event';
 
 export interface IExtensionDescription {
+	isRemote?: boolean;
 	readonly id: string;
 	readonly name: string;
 	readonly uuid?: string;
