@@ -310,9 +310,55 @@ export class SplitTerminalAction extends Action {
 
 	constructor(
 		id: string, label: string,
-		@ITerminalService private readonly _terminalService: ITerminalService
+		@ITerminalService private readonly _terminalService: ITerminalService,
+		@ICommandService private commandService: ICommandService,
+		@IWorkspaceContextService private workspaceContextService: IWorkspaceContextService
 	) {
 		super(id, label, 'terminal-action split');
+	}
+
+	public run(event?: any): TPromise<any> {
+		const instance = this._terminalService.getActiveInstance();
+		if (!instance) {
+			return TPromise.as(void 0);
+		}
+
+		const folders = this.workspaceContextService.getWorkspace().folders;
+
+		let pathPromise: TPromise<any> = TPromise.as({});
+		if (folders.length > 1) {
+			// Only choose a path when there's more than 1 folder
+			const options: IPickOptions = {
+				placeHolder: nls.localize('workbench.action.terminal.newWorkspacePlaceholder', "Select current working directory for new terminal")
+			};
+			pathPromise = this.commandService.executeCommand(PICK_WORKSPACE_FOLDER_COMMAND_ID, [options]).then(workspace => {
+				if (!workspace) {
+					// Don't split the instance if the workspace picker was canceled
+					return null;
+				}
+				return TPromise.as({ cwd: workspace.uri.fsPath });
+			});
+		}
+
+		return pathPromise.then(path => {
+			if (!path) {
+				return TPromise.as(void 0);
+			}
+			this._terminalService.splitInstance(instance, path);
+			return this._terminalService.showPanel(true);
+		});
+	}
+}
+
+export class SplitInActiveWorkspaceTerminalAction extends Action {
+	public static readonly ID = 'workbench.action.terminal.splitInActiveWorkspace';
+	public static readonly LABEL = nls.localize('workbench.action.terminal.splitInActiveWorkspace', "Split Terminal (In Active Workspace)");
+
+	constructor(
+		id: string, label: string,
+		@ITerminalService private readonly _terminalService: ITerminalService
+	) {
+		super(id, label);
 	}
 
 	public run(event?: any): TPromise<any> {
@@ -787,6 +833,27 @@ export class ClearTerminalAction extends Action {
 	}
 }
 
+export class ClearSelectionTerminalAction extends Action {
+
+	public static readonly ID = 'workbench.action.terminal.clearSelection';
+	public static readonly LABEL = nls.localize('workbench.action.terminal.clearSelection', "Clear Selection");
+
+	constructor(
+		id: string, label: string,
+		@ITerminalService private terminalService: ITerminalService
+	) {
+		super(id, label);
+	}
+
+	public run(event?: any): TPromise<any> {
+		let terminalInstance = this.terminalService.getActiveInstance();
+		if (terminalInstance && terminalInstance.hasSelection()) {
+			terminalInstance.clearSelection();
+		}
+		return TPromise.as(void 0);
+	}
+}
+
 export class AllowWorkspaceShellTerminalCommand extends Action {
 
 	public static readonly ID = 'workbench.action.terminal.allowWorkspaceShell';
@@ -982,9 +1049,9 @@ export class RenameTerminalQuickOpenAction extends RenameTerminalAction {
 	}
 }
 
-export class FocusPreviousCommandAction extends Action {
-	public static readonly ID = 'workbench.action.terminal.focusPreviousCommand';
-	public static readonly LABEL = nls.localize('workbench.action.terminal.focusPreviousCommand', "Focus Previous Command");
+export class ScrollToPreviousCommandAction extends Action {
+	public static readonly ID = 'workbench.action.terminal.scrollToPreviousCommand';
+	public static readonly LABEL = nls.localize('workbench.action.terminal.scrollToPreviousCommand', "Scroll To Previous Command");
 
 	constructor(
 		id: string, label: string,
@@ -996,15 +1063,15 @@ export class FocusPreviousCommandAction extends Action {
 	public run(): TPromise<any> {
 		const instance = this.terminalService.getActiveInstance();
 		if (instance) {
-			instance.commandTracker.focusPreviousCommand();
+			instance.commandTracker.scrollToPreviousCommand();
 		}
 		return TPromise.as(void 0);
 	}
 }
 
-export class FocusNextCommandAction extends Action {
-	public static readonly ID = 'workbench.action.terminal.focusNextCommand';
-	public static readonly LABEL = nls.localize('workbench.action.terminal.focusNextCommand', "Focus Next Command");
+export class ScrollToNextCommandAction extends Action {
+	public static readonly ID = 'workbench.action.terminal.scrollToNextCommand';
+	public static readonly LABEL = nls.localize('workbench.action.terminal.scrollToNextCommand', "Scroll To Next Command");
 
 	constructor(
 		id: string, label: string,
@@ -1016,7 +1083,7 @@ export class FocusNextCommandAction extends Action {
 	public run(): TPromise<any> {
 		const instance = this.terminalService.getActiveInstance();
 		if (instance) {
-			instance.commandTracker.focusNextCommand();
+			instance.commandTracker.scrollToNextCommand();
 		}
 		return TPromise.as(void 0);
 	}

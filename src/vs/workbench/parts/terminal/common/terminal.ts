@@ -164,7 +164,7 @@ export interface ITerminalService {
 	setActiveInstance(terminalInstance: ITerminalInstance): void;
 	setActiveInstanceByIndex(terminalIndex: number): void;
 	getActiveOrCreateInstance(wasNewTerminalAction?: boolean): ITerminalInstance;
-	splitInstance(instance: ITerminalInstance): void;
+	splitInstance(instance: ITerminalInstance, shell?: IShellLaunchConfig): void;
 
 	getActiveTab(): ITerminalTab;
 	setActiveTabToNext(): void;
@@ -448,8 +448,8 @@ export interface ITerminalInstance {
 }
 
 export interface ITerminalCommandTracker {
-	focusPreviousCommand(): void;
-	focusNextCommand(): void;
+	scrollToPreviousCommand(): void;
+	scrollToNextCommand(): void;
 	selectToPreviousCommand(): void;
 	selectToNextCommand(): void;
 }

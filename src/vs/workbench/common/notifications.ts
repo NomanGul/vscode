@@ -563,6 +563,10 @@ export class NotificationViewItem implements INotificationViewItem {
 	}
 
 	public equals(other: INotificationViewItem): boolean {
+		if (this.hasProgress() || other.hasProgress()) {
+			return false;
+		}
+
 		if (this._source !== other.source) {
 			return false;
 		}
@@ -578,7 +582,7 @@ export class NotificationViewItem implements INotificationViewItem {
 		}
 
 		for (let i = 0; i < primaryActions.length; i++) {
-			if (primaryActions[i].id !== otherPrimaryActions[i].id) {
+			if ((primaryActions[i].id + primaryActions[i].label) !== (otherPrimaryActions[i].id + otherPrimaryActions[i].label)) {
 				return false;
 			}
 		}

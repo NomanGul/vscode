@@ -337,7 +337,7 @@ export interface MyQuickPickItems extends IPickOpenEntry {
 	handle: number;
 }
 export interface MainThreadQuickOpenShape extends IDisposable {
-	$show(options: IPickOptions): TPromise<number>;
+	$show(options: IPickOptions): TPromise<number | number[]>;
 	$setItems(items: MyQuickPickItems[]): TPromise<any>;
 	$setError(error: Error): TPromise<any>;
 	$input(options: vscode.InputBoxOptions, validateInput: boolean): TPromise<string>;
@@ -357,7 +357,7 @@ export interface MainThreadTelemetryShape extends IDisposable {
 	$publicLog(eventName: string, data?: any): void;
 }
 
-export type WebviewHandle = number;
+export type WebviewHandle = string;
 
 export interface MainThreadWebviewsShape extends IDisposable {
 	$createWebview(handle: WebviewHandle, viewType: string, title: string, column: EditorPosition, options: vscode.WebviewOptions, extensionFolderPath: string): void;
@@ -366,12 +366,18 @@ export interface MainThreadWebviewsShape extends IDisposable {
 	$setTitle(handle: WebviewHandle, value: string): void;
 	$setHtml(handle: WebviewHandle, value: string): void;
 	$sendMessage(handle: WebviewHandle, value: any): Thenable<boolean>;
+
+	$registerSerializer(viewType: string): void;
+	$unregisterSerializer(viewType: string): void;
 }
+
 export interface ExtHostWebviewsShape {
 	$onMessage(handle: WebviewHandle, message: any): void;
 	$onDidChangeActiveWeview(handle: WebviewHandle | undefined): void;
 	$onDidDisposeWeview(handle: WebviewHandle): Thenable<void>;
 	$onDidChangePosition(handle: WebviewHandle, newPosition: EditorPosition): void;
+	$deserializeWebview(newWebviewHandle: WebviewHandle, viewType: string, state: any, position: EditorPosition, options: vscode.WebviewOptions): void;
+	$serializeWebview(webviewHandle: WebviewHandle): Thenable<any>;
 }
 
 export interface MainThreadWorkspaceShape extends IDisposable {
@@ -392,7 +398,7 @@ export interface MainThreadFileSystemShape extends IDisposable {
 	$unregisterProvider(handle: number): void;
 
 	$onFileSystemChange(handle: number, resource: IFileChangeDto[]): void;
-	$reportFileChunk(handle: number, session: number, chunk: number[] | null): void;
+	$reportFileChunk(handle: number, session: number, base64Encoded: string | null): void;
 
 	$handleFindMatch(handle: number, session, data: UriComponents | [UriComponents, ILineMatch]): void;
 }
@@ -401,7 +407,7 @@ export interface MainThreadTaskShape extends IDisposable {
 	$registerTaskProvider(handle: number): TPromise<void>;
 	$executeTaskProvider(): TPromise<TaskDTO[]>;
 	$executeTask(task: TaskHandleDTO | TaskDTO): TPromise<TaskExecutionDTO>;
-	$terminateTask(task: TaskExecutionDTO): TPromise<void>;
+	$terminateTask(id: string): TPromise<void>;
 	$unregisterTaskProvider(handle: number): TPromise<void>;
 }
 
@@ -571,7 +577,7 @@ export interface ExtHostFileSystemShape {
 	$utimes(handle: number, resource: UriComponents, mtime: number, atime: number): TPromise<IStat>;
 	$stat(handle: number, resource: UriComponents): TPromise<IStat>;
 	$read(handle: number, session: number, offset: number, count: number, resource: UriComponents): TPromise<number>;
-	$write(handle: number, resource: UriComponents, content: number[]): TPromise<void>;
+	$write(handle: number, resource: UriComponents, base64Encoded: string): TPromise<void>;
 	$unlink(handle: number, resource: UriComponents): TPromise<void>;
 	$move(handle: number, resource: UriComponents, target: UriComponents): TPromise<IStat>;
 	$mkdir(handle: number, resource: UriComponents): TPromise<IStat>;
@@ -710,7 +716,7 @@ export interface ExtHostLanguageFeaturesShape {
 	$resolveWorkspaceSymbol(handle: number, symbol: SymbolInformationDto): TPromise<SymbolInformationDto>;
 	$releaseWorkspaceSymbols(handle: number, id: number): void;
 	$provideRenameEdits(handle: number, resource: UriComponents, position: IPosition, newName: string): TPromise<WorkspaceEditDto>;
-	$resolveRenameLocation(handle: number, resource: UriComponents, position: IPosition): TPromise<modes.RenameContext>;
+	$resolveRenameLocation(handle: number, resource: UriComponents, position: IPosition): TPromise<IRange>;
 	$provideCompletionItems(handle: number, resource: UriComponents, position: IPosition, context: modes.SuggestContext): TPromise<SuggestResultDto>;
 	$resolveCompletionItem(handle: number, resource: UriComponents, position: IPosition, suggestion: modes.ISuggestion): TPromise<modes.ISuggestion>;
 	$releaseCompletionItems(handle: number, id: number): void;

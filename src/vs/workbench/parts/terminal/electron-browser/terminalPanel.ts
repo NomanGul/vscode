@@ -9,7 +9,6 @@ import * as dom from 'vs/base/browser/dom';
 import * as nls from 'vs/nls';
 import * as platform from 'vs/base/common/platform';
 import { Action, IAction } from 'vs/base/common/actions';
-import { Builder, Dimension } from 'vs/base/browser/builder';
 import { IActionItem, Separator } from 'vs/base/browser/ui/actionbar/actionbar';
 import { IConfigurationService } from 'vs/platform/configuration/common/configuration';
 import { IContextMenuService } from 'vs/platform/contextview/browser/contextView';
@@ -28,9 +27,6 @@ import { PANEL_BACKGROUND, PANEL_BORDER } from 'vs/workbench/common/theme';
 import { TERMINAL_BACKGROUND_COLOR, TERMINAL_BORDER_COLOR } from 'vs/workbench/parts/terminal/electron-browser/terminalColorRegistry';
 import { DataTransfers } from 'vs/base/browser/dnd';
 import { ILifecycleService, LifecyclePhase } from 'vs/platform/lifecycle/common/lifecycle';
-import { ipcRenderer as ipc } from 'electron';
-import { IOpenFileRequest } from 'vs/platform/windows/common/windows';
-import { whenDeleted } from 'vs/base/node/pfs';
 
 export class TerminalPanel extends Panel {
 
@@ -56,9 +52,9 @@ export class TerminalPanel extends Panel {
 		super(TERMINAL_PANEL_ID, telemetryService, themeService);
 	}
 
-	public create(parent: Builder): TPromise<any> {
+	public create(parent: HTMLElement): TPromise<any> {
 		super.create(parent);
-		this._parentDomElement = parent.getHTMLElement();
+		this._parentDomElement = parent;
 		dom.addClass(this._parentDomElement, 'integrated-terminal');
 		this._themeStyleElement = document.createElement('style');
 		this._fontStyleElement = document.createElement('style');
@@ -75,7 +71,7 @@ export class TerminalPanel extends Panel {
 
 		this._attachEventListeners();
 
-		this._terminalService.setContainers(this.getContainer().getHTMLElement(), this._terminalContainer);
+		this._terminalService.setContainers(this.getContainer(), this._terminalContainer);
 
 		this._register(this.themeService.onThemeChange(theme => this._updateTheme(theme)));
 		this._register(this._configurationService.onDidChangeConfiguration(e => {
@@ -86,21 +82,12 @@ export class TerminalPanel extends Panel {
 		this._updateFont();
 		this._updateTheme();
 
-		ipc.on('vscode:openFiles', (_event: any, request: IOpenFileRequest) => {
-			// if the request to open files is coming in from the integrated terminal (identified though
-			// the termProgram variable) and we are instructed to wait for editors close, wait for the
-			// marker file to get deleted and then focus back to the integrated terminal.
-			if (request.termProgram === 'vscode' && request.filesToWait) {
-				whenDeleted(request.filesToWait.waitMarkerFilePath).then(() => this.focus());
-			}
-		});
-
 		// Force another layout (first is setContainers) since config has changed
-		this.layout(new Dimension(this._terminalContainer.offsetWidth, this._terminalContainer.offsetHeight));
+		this.layout(new dom.Dimension(this._terminalContainer.offsetWidth, this._terminalContainer.offsetHeight));
 		return TPromise.as(void 0);
 	}
 
-	public layout(dimension?: Dimension): void {
+	public layout(dimension?: dom.Dimension): void {
 		if (!dimension) {
 			return;
 		}
@@ -350,7 +337,7 @@ export class TerminalPanel extends Panel {
 		}
 		// TODO: Can we support ligatures?
 		// dom.toggleClass(this._parentDomElement, 'enable-ligatures', this._terminalService.configHelper.config.fontLigatures);
-		this.layout(new Dimension(this._parentDomElement.offsetWidth, this._parentDomElement.offsetHeight));
+		this.layout(new dom.Dimension(this._parentDomElement.offsetWidth, this._parentDomElement.offsetHeight));
 	}
 
 	/**

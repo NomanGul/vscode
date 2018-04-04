@@ -8,7 +8,6 @@
 import * as nls from 'vs/nls';
 import { TPromise } from 'vs/base/common/winjs.base';
 import URI from 'vs/base/common/uri';
-import { Dimension, Builder } from 'vs/base/browser/builder';
 import * as objects from 'vs/base/common/objects';
 import * as types from 'vs/base/common/types';
 import * as errors from 'vs/base/common/errors';
@@ -43,7 +42,7 @@ export interface IEditorConfiguration {
  */
 export abstract class BaseTextEditor extends BaseEditor {
 	private editorControl: IEditor;
-	private _editorContainer: Builder;
+	private _editorContainer: HTMLElement;
 	private hasPendingConfigurationChange: boolean;
 	private lastAppliedEditorOptions: IEditorOptions;
 
@@ -123,7 +122,7 @@ export abstract class BaseTextEditor extends BaseEditor {
 		return overrides;
 	}
 
-	protected createEditor(parent: Builder): void {
+	protected createEditor(parent: HTMLElement): void {
 
 		// Editor for Text
 		this._editorContainer = parent;
@@ -177,10 +176,10 @@ export abstract class BaseTextEditor extends BaseEditor {
 	 *
 	 * The passed in configuration object should be passed to the editor control when creating it.
 	 */
-	protected createEditorControl(parent: Builder, configuration: IEditorOptions): IEditor {
+	protected createEditorControl(parent: HTMLElement, configuration: IEditorOptions): IEditor {
 
 		// Use a getter for the instantiation service since some subclasses might use scoped instantiation services
-		return this.instantiationService.createInstance(CodeEditor, parent.getHTMLElement(), configuration);
+		return this.instantiationService.createInstance(CodeEditor, parent, configuration);
 	}
 
 	public setInput(input: EditorInput, options?: EditorOptions): TPromise<void> {
@@ -189,7 +188,7 @@ export abstract class BaseTextEditor extends BaseEditor {
 			// Update editor options after having set the input. We do this because there can be
 			// editor input specific options (e.g. an ARIA label depending on the input showing)
 			this.updateEditorConfiguration();
-			this._editorContainer.getHTMLElement().setAttribute('aria-label', this.computeAriaLabel());
+			this._editorContainer.setAttribute('aria-label', this.computeAriaLabel());
 		});
 	}
 
@@ -219,7 +218,7 @@ export abstract class BaseTextEditor extends BaseEditor {
 		this.editorControl.focus();
 	}
 
-	public layout(dimension: Dimension): void {
+	public layout(dimension: DOM.Dimension): void {
 
 		// Pass on to Editor
 		this.editorControl.layout(dimension);
@@ -233,23 +232,9 @@ export abstract class BaseTextEditor extends BaseEditor {
 	 * Saves the text editor view state for the given resource.
 	 */
 	protected saveTextEditorViewState(resource: URI): void {
-		const editor = getCodeOrDiffEditor(this).codeEditor;
-		if (!editor) {
-			return; // not supported for diff editors
-		}
-
-		const model = editor.getModel();
-		if (!model) {
-			return; // view state always needs a model
-		}
-
-		const modelUri = model.uri;
-		if (!modelUri) {
-			return; // model URI is needed to make sure we save the view state correctly
-		}
-
-		if (modelUri.toString() !== resource.toString()) {
-			return; // prevent saving view state for a model that is not the expected one
+		const editorViewState = this.retrieveTextEditorViewState(resource);
+		if (!editorViewState) {
+			return;
 		}
 
 		const memento = this.getMemento(this.storageService, Scope.WORKSPACE);
@@ -267,8 +252,31 @@ export abstract class BaseTextEditor extends BaseEditor {
 		}
 
 		if (typeof this.position === 'number') {
-			lastKnownViewState[this.position] = editor.saveViewState();
+			lastKnownViewState[this.position] = editorViewState;
 		}
+	}
+
+	protected retrieveTextEditorViewState(resource: URI): IEditorViewState {
+		const editor = getCodeOrDiffEditor(this).codeEditor;
+		if (!editor) {
+			return null; // not supported for diff editors
+		}
+
+		const model = editor.getModel();
+		if (!model) {
+			return null; // view state always needs a model
+		}
+
+		const modelUri = model.uri;
+		if (!modelUri) {
+			return null; // model URI is needed to make sure we save the view state correctly
+		}
+
+		if (modelUri.toString() !== resource.toString()) {
+			return null; // prevent saving view state for a model that is not the expected one
+		}
+
+		return editor.saveViewState();
 	}
 
 	/**
