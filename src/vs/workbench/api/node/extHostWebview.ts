@@ -13,14 +13,15 @@ import { Disposable } from './extHostTypes';
 
 export class ExtHostWebview implements vscode.Webview {
 
+	private readonly _handle: WebviewHandle;
 	private readonly _viewType: string;
+	private readonly _proxy: MainThreadWebviewsShape;
 	private _title: string;
 	private _html: string;
 	private _options: vscode.WebviewOptions;
 	private _isDisposed: boolean = false;
 	private _viewColumn: vscode.ViewColumn;
 	private _active: boolean;
-	private _state: any;
 
 	public readonly onMessageEmitter = new Emitter<any>();
 	public readonly onDidReceiveMessage: Event<any> = this.onMessageEmitter.event;
@@ -32,12 +33,14 @@ export class ExtHostWebview implements vscode.Webview {
 	public readonly onDidChangeViewState: Event<vscode.WebViewOnDidChangeViewStateEvent> = this.onDidChangeViewStateEmitter.event;
 
 	constructor(
-		private readonly _handle: WebviewHandle,
-		private readonly _proxy: MainThreadWebviewsShape,
+		handle: WebviewHandle,
+		proxy: MainThreadWebviewsShape,
 		viewType: string,
 		viewColumn: vscode.ViewColumn,
 		options: vscode.WebviewOptions
 	) {
+		this._handle = handle;
+		this._proxy = proxy;
 		this._viewType = viewType;
 		this._viewColumn = viewColumn;
 		this._options = options;
@@ -85,11 +88,6 @@ export class ExtHostWebview implements vscode.Webview {
 			this._html = value;
 			this._proxy.$setHtml(this._handle, value);
 		}
-	}
-
-	get state(): any {
-		this.assertNotDisposed();
-		return this._state;
 	}
 
 	get options(): vscode.WebviewOptions {
@@ -237,21 +235,24 @@ export class ExtHostWebviews implements ExtHostWebviewsShape {
 		state: any,
 		position: Position,
 		options: vscode.WebviewOptions
-	): void {
+	): Thenable<void> {
 		const serializer = this._serializers.get(viewType);
 		if (!serializer) {
-			return;
+			return TPromise.wrapError(new Error(`No serializer found for '${viewType}'`));
 		}
 
 		const revivedWebview = new ExtHostWebview(webviewHandle, this._proxy, viewType, typeConverters.toViewColumn(position), options);
 		this._webviews.set(webviewHandle, revivedWebview);
-		serializer.deserializeWebview(revivedWebview, state);
+		return serializer.deserializeWebview(revivedWebview, state);
 	}
 
 	$serializeWebview(
 		webviewHandle: WebviewHandle
 	): Thenable<any> {
 		const webview = this.getWebview(webviewHandle);
+		if (!webview) {
+			return TPromise.as(undefined);
+		}
 
 		const serialzer = this._serializers.get(webview.viewType);
 		if (!serialzer) {
@@ -261,7 +262,7 @@ export class ExtHostWebviews implements ExtHostWebviewsShape {
 		return serialzer.serializeWebview(webview);
 	}
 
-	private getWebview(handle: WebviewHandle) {
+	private getWebview(handle: WebviewHandle): ExtHostWebview | undefined {
 		return this._webviews.get(handle);
 	}
 }

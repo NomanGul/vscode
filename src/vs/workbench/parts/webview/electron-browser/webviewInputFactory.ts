@@ -7,7 +7,7 @@
 
 import { IInstantiationService } from 'vs/platform/instantiation/common/instantiation';
 import { IEditorInputFactory } from 'vs/workbench/common/editor';
-import { IWebviewService, WebviewInputOptions } from './webviewService';
+import { IWebviewEditorService, WebviewInputOptions } from './webviewEditorService';
 import { WebviewEditorInput } from './webviewInput';
 
 interface SerializedWebview {
@@ -23,12 +23,17 @@ export class WebviewInputFactory implements IEditorInputFactory {
 	public static readonly ID = WebviewEditorInput.typeId;
 
 	public constructor(
-		@IWebviewService private readonly _webviewService: IWebviewService
+		@IWebviewEditorService private readonly _webviewService: IWebviewEditorService
 	) { }
 
 	public serialize(
 		input: WebviewEditorInput
 	): string {
+		// Has no state, don't revive
+		if (!input.state) {
+			return null;
+		}
+
 		// Only attempt revival if we may have a reviver
 		if (!this._webviewService.canRevive(input) && !input.reviver) {
 			return null;
@@ -49,6 +54,6 @@ export class WebviewInputFactory implements IEditorInputFactory {
 		serializedEditorInput: string
 	): WebviewEditorInput {
 		const data: SerializedWebview = JSON.parse(serializedEditorInput);
-		return this._webviewService.createRevivableWebview(data.viewType, data.title, data.state, data.options, data.extensionFolderPath);
+		return this._webviewService.reviveWebview(data.viewType, data.title, data.state, data.options, data.extensionFolderPath);
 	}
 }

@@ -11,32 +11,6 @@ declare module 'vscode' {
 		export function sampleFunction(): Thenable<any>;
 	}
 
-	//#region Joh: readable diagnostics
-
-	export interface DiagnosticChangeEvent {
-		uris: Uri[];
-	}
-
-	export namespace languages {
-
-		/**
-		 *
-		 */
-		export const onDidChangeDiagnostics: Event<DiagnosticChangeEvent>;
-
-		/**
-		 *
-		 */
-		export function getDiagnostics(resource: Uri): Diagnostic[];
-
-		/**
-		 *
-		 */
-		export function getDiagnostics(): [Uri, Diagnostic[]][];
-	}
-
-	//#endregion
-
 	//#region Aeschli: folding
 
 	export class FoldingRangeList {
@@ -658,10 +632,8 @@ declare module 'vscode' {
 		 *
 		 * @param webview Webview to restore. The serializer should take ownership of this webview.
 		 * @param state Persisted state.
-		 *
-		 * @return Was deserialization successful?
 		 */
-		deserializeWebview(webview: Webview, state: any): Thenable<boolean>;
+		deserializeWebview(webview: Webview, state: any): Thenable<void>;
 	}
 
 	namespace window {
