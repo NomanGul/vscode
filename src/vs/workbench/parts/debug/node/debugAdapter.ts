@@ -33,7 +33,7 @@ export class Debugger {
 	public createDebugAdapter(root: IWorkspaceFolder, outputService: IOutputService): TPromise<IDebugAdapter> {
 		return this.getAdapterExecutable(root).then(adapterExecutable => {
 			const debugConfigs = this.configurationService.getValue<IDebugConfiguration>('debug');
-			if (debugConfigs.extensionHostDebugAdapter) {
+			if (this.extensionDescription.isRemote || debugConfigs.extensionHostDebugAdapter) {
 				return this.configurationManager.createDebugAdapter(this.rawAdapter.type, adapterExecutable);
 			} else {
 				return new DebugAdapter(this.rawAdapter.type, adapterExecutable, this._mergedExtensionDescriptions, outputService);
