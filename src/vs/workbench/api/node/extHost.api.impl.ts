@@ -136,7 +136,7 @@ export function createApiFactory(
 	const extHostProgress = rpcProtocol.set(ExtHostContext.ExtHostProgress, new ExtHostProgress(rpcProtocol.getProxy(MainContext.MainThreadProgress)));
 
 	if (initData.remoteOptions) {
-		extHostFileSystem.registerFileSystemProvider('vscode-remote', new FileSystemProvider());
+		extHostFileSystem.registerFileSystemProvider('vscode-remote', new FileSystemProvider(), undefined);
 	}
 
 	// Check that no named customers are missing
@@ -557,8 +557,8 @@ export function createApiFactory(
 			onDidEndTask: (listeners, thisArgs?, disposables?) => {
 				return extHostTask.onDidEndTask(listeners, thisArgs, disposables);
 			},
-			registerFileSystemProvider: proposedApiFunction(extension, (scheme, provider) => {
-				return extHostFileSystem.registerFileSystemProvider(scheme, provider);
+			registerFileSystemProvider: proposedApiFunction(extension, (scheme, provider, newProvider?) => {
+				return extHostFileSystem.registerFileSystemProvider(scheme, provider, newProvider);
 			}),
 			registerSearchProvider: proposedApiFunction(extension, (scheme, provider) => {
 				return extHostFileSystem.registerSearchProvider(scheme, provider);

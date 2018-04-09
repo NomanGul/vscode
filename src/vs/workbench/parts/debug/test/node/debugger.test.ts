@@ -7,11 +7,11 @@ import * as assert from 'assert';
 import * as paths from 'vs/base/common/paths';
 import * as platform from 'vs/base/common/platform';
 import { IAdapterExecutable, IConfigurationManager } from 'vs/workbench/parts/debug/common/debug';
-import { Debugger } from 'vs/workbench/parts/debug/node/debugAdapter';
+import { Debugger } from 'vs/workbench/parts/debug/node/debugger';
 import { TestConfigurationService } from 'vs/platform/configuration/test/common/testConfigurationService';
 import uri from 'vs/base/common/uri';
 import { TPromise } from 'vs/base/common/winjs.base';
-import { DebugAdapter } from 'vs/workbench/parts/debug/node/v8Protocol';
+import { DebugAdapter } from 'vs/workbench/parts/debug/node/debugAdapter';
 
 
 suite('Debug - Debugger', () => {
@@ -152,12 +152,10 @@ suite('Debug - Debugger', () => {
 	});
 
 	test('merge platform specific attributes', () => {
-
-
-		const ae2 = DebugAdapter.platformAdapterExecutable([extensionDescriptor1, extensionDescriptor2], 'mock');
-		assert.equal(ae2.command, platform.isLinux ? 'linuxRuntime' : (platform.isMacintosh ? 'osxRuntime' : 'winRuntime'));
+		const ae = DebugAdapter.platformAdapterExecutable([extensionDescriptor1, extensionDescriptor2], 'mock');
+		assert.equal(ae.command, platform.isLinux ? 'linuxRuntime' : (platform.isMacintosh ? 'osxRuntime' : 'winRuntime'));
 		const xprogram = platform.isLinux ? 'linuxProgram' : (platform.isMacintosh ? 'osxProgram' : 'winProgram');
-		assert.deepEqual(ae2.args, ['rarg', '/e2/b/c/' + xprogram, 'parg']);
+		assert.deepEqual(ae.args, ['rarg', '/e2/b/c/' + xprogram, 'parg']);
 	});
 
 	test('initial config file content', () => {

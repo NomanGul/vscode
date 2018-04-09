@@ -21,7 +21,7 @@ declare module 'vscode' {
 		ranges: FoldingRange[];
 
 		/**
-		 * Creates mew folding range list.
+		 * Creates new folding range list.
 		 *
 		 * @param ranges The folding ranges
 		 */
@@ -185,7 +185,7 @@ declare module 'vscode' {
 		readonly onDidChange?: Event<FileChange[]>;
 
 		// more...
-		//
+		// @deprecated - will go away
 		utimes(resource: Uri, mtime: number, atime: number): Thenable<FileStat>;
 
 		stat(resource: Uri): Thenable<FileStat>;
@@ -223,8 +223,41 @@ declare module 'vscode' {
 		// create(resource: Uri): Thenable<FileStat>;
 	}
 
+	// todo@joh discover files etc
+	// todo@joh CancellationToken everywhere
+	// todo@joh add open/close calls?
+	export interface FileSystemProvider2 {
+
+		_version: 2;
+
+		readonly onDidChange?: Event<FileChange[]>;
+
+		stat(uri: Uri, token: CancellationToken): Thenable<FileStat>;
+
+		readdir(uri: Uri, token: CancellationToken): Thenable<[Uri, FileStat][]>;
+
+		readFile(uri: Uri, token: CancellationToken): Thenable<Uint8Array>;
+
+		writeFile(uri: Uri, content: Uint8Array, token: CancellationToken): Thenable<void>;
+
+		// todo@remote
+		// Thenable<FileStat>
+		rename(oldUri: Uri, newUri: Uri): Thenable<FileStat>;
+
+		// todo@remote
+		// helps with performance bigly
+		// copy?(from: Uri, to: Uri): Thenable<void>;
+
+		// todo@remote
+		// ? useTrash, expose trash
+		delete(resource: Uri, options: { recursive?: boolean; }): Thenable<void>;
+
+		// todo@remote
+		create(resource: Uri, options: { type: FileType }): Thenable<FileStat>;
+	}
+
 	export namespace workspace {
-		export function registerFileSystemProvider(scheme: string, provider: FileSystemProvider): Disposable;
+		export function registerFileSystemProvider(scheme: string, provider: FileSystemProvider, newProvider?: FileSystemProvider2): Disposable;
 	}
 
 	//#endregion
