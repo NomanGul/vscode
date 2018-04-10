@@ -643,9 +643,19 @@ class Launch implements ILaunch {
 					}
 
 					pinned = true; // pin only if config file is created #8727
-					return this.fileService.updateContent(resource, content).then(() => {
-						// convert string into IContent; see #32135
-						return content;
+
+					const dot_vscode = this.workspace.uri.with({ path: paths.join(this.workspace.uri.path, '/.vscode/') });
+					return this.fileService.createFolder(dot_vscode).then(_ => {
+						return this.fileService.updateContent(resource, content).then(() => {
+							// convert string into IContent; see #32135
+							return content;
+						});
+					}, err => {
+						// ignore silently
+						return this.fileService.updateContent(resource, content).then(() => {
+							// convert string into IContent; see #32135
+							return content;
+						});
 					});
 				});
 			}).then(content => {
