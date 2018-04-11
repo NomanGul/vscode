@@ -30,20 +30,27 @@ export interface IAgentScanExtensionsResponse {
 	extensions: IExtensionDescription[];
 }
 
-const EXTENSION_FOLDER = path.join(os.homedir(), '.vscode-remote/extensions');
-const USER_DATA_FOLDER = path.join(os.homedir(), '.vscode-remote/data');
-const LOGS_FOLDER = path.join(os.homedir(), '.vscode-remote/logs');
+const REMOTE_DATA_FOLDER = path.join(os.homedir(), '.vscode-remote');
+const EXTENSION_FOLDER = path.join(REMOTE_DATA_FOLDER, 'extensions');
+const USER_DATA_FOLDER = path.join(REMOTE_DATA_FOLDER, 'data');
+const LOGS_FOLDER = path.join(REMOTE_DATA_FOLDER, 'logs');
 const APP_SETTINGS_HOME = path.join(USER_DATA_FOLDER, 'User');
+
 const APP_ROOT = path.dirname(URI.parse(require.toUrl('')).fsPath);
 
-try { fs.mkdirSync(path.join(os.homedir(), '.vscode-remote')); } catch (err) { }
-try { fs.mkdirSync(path.join(os.homedir(), '.vscode-remote/extensions')); } catch (err) { }
-try { fs.mkdirSync(path.join(os.homedir(), '.vscode-remote/data')); } catch (err) { }
-try { fs.mkdirSync(path.join(os.homedir(), '.vscode-remote/data/User')); } catch (err) { }
-try { fs.mkdirSync(path.join(os.homedir(), '.vscode-remote/logs')); } catch (err) { }
+
+[REMOTE_DATA_FOLDER, EXTENSION_FOLDER, USER_DATA_FOLDER, APP_SETTINGS_HOME, LOGS_FOLDER].forEach(f => {
+	try {
+		if (!fs.existsSync(f)) {
+			fs.mkdirSync(f);
+		}
+	} catch (err) { console.error(err); }
+});
+
+console.log(`Remote configuration data at ${REMOTE_DATA_FOLDER}`);
 
 const extHostServer = net.createServer((connection) => {
-	console.log(`received a connection`);
+	console.log(`received a connection on 8000`);
 	const con = new ExtensionHostConnection(connection);
 	con.start();
 });
@@ -55,6 +62,7 @@ extHostServer.listen(8000, () => {
 });
 
 const httpServer = http.createServer((request, response) => {
+	console.log(`received a connection on 8001`);
 	if (request.url === '/scan-extensions') {
 		const input = new ExtensionScannerInput(
 			pkg.version,

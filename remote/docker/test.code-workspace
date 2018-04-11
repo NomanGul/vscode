@@ -1,0 +1,19 @@
+{
+	"folders": [{
+		"uri": "vscode-remote://127.0.0.1:8000/data/TypeScriptSamples",
+		"name": "my-remote"
+	}],
+	"settings": {
+		"launch": {
+			"configurations": [
+				{
+					"type": "node",
+					"request": "launch",
+					"name": "Node Remote",
+					"program": "${workspaceFolder:my-remote}/test.js",
+					"stopOnEntry": true
+				}
+			],
+		}
+	}
+}
