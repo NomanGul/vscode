@@ -48,6 +48,7 @@ const APP_ROOT = path.dirname(URI.parse(require.toUrl('')).fsPath);
 });
 
 console.log(`Remote configuration data at ${REMOTE_DATA_FOLDER}`);
+console.log(`Remote extensions: ${fs.readdirSync(EXTENSION_FOLDER).join(', ')}`);
 
 const extHostServer = net.createServer((connection) => {
 	console.log(`received a connection on 8000`);
