@@ -2,11 +2,11 @@ FROM node:8
 
 # install some extensions in the container: git, css, typescript
 RUN mkdir -p /root/.vscode-remote/extensions
-RUN ln -s /vscode/extensions/git /root/.vscode-remote/extensions/git
-RUN ln -s /vscode/extensions/css-language-features /root/.vscode-remote/extensions/css-language-features
-RUN ln -s /vscode/extensions/typescript-language-features /root/.vscode-remote/extensions/typescript-language-features
-RUN ln -s /vscode/.build/builtInExtensions/ms-vscode.node-debug /root/.vscode-remote/extensions/ms-vscode.node-debug
-RUN ln -s /vscode/.build/builtInExtensions/ms-vscode.node-debug2/ /root/.vscode-remote/extensions/ms-vscode.node-debug2
+# RUN ln -s /vscode/extensions/git /root/.vscode-remote/extensions/git
+# RUN ln -s /vscode/extensions/css-language-features /root/.vscode-remote/extensions/css-language-features
+# RUN ln -s /vscode/extensions/typescript-language-features /root/.vscode-remote/extensions/typescript-language-features
+# RUN ln -s /vscode/.build/builtInExtensions/ms-vscode.node-debug /root/.vscode-remote/extensions/ms-vscode.node-debug
+# RUN ln -s /vscode/.build/builtInExtensions/ms-vscode.node-debug2/ /root/.vscode-remote/extensions/ms-vscode.node-debug2
 
 # create a folder with sample code in the container: /data/TypeScriptSamples
 RUN mkdir /data
