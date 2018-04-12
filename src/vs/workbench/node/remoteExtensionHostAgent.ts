@@ -5,6 +5,7 @@
 'use strict';
 
 import * as net from 'net';
+import * as nls from 'vs/nls';
 import * as http from 'http';
 import * as objects from 'vs/base/common/objects';
 import * as cp from 'child_process';
@@ -35,9 +36,16 @@ const EXTENSION_FOLDER = path.join(REMOTE_DATA_FOLDER, 'extensions');
 const USER_DATA_FOLDER = path.join(REMOTE_DATA_FOLDER, 'data');
 const LOGS_FOLDER = path.join(REMOTE_DATA_FOLDER, 'logs');
 const APP_SETTINGS_HOME = path.join(USER_DATA_FOLDER, 'User');
-
 const APP_ROOT = path.dirname(URI.parse(require.toUrl('')).fsPath);
+const BUILTIN_EXTENSIONS_FOLDER_PATH = path.join(APP_ROOT, 'extensions');
 
+let builtinExtensions = [];
+process.argv.forEach((arg) => {
+	if (/^--builtin-extensions=/.test(arg)) {
+		arg = arg.substr('--builtin-extensions='.length);
+		builtinExtensions = arg.split(',');
+	}
+});
 
 [REMOTE_DATA_FOLDER, EXTENSION_FOLDER, USER_DATA_FOLDER, APP_SETTINGS_HOME, LOGS_FOLDER].forEach(f => {
 	try {
@@ -62,30 +70,74 @@ extHostServer.listen(8000, () => {
 	console.log('Extension Host Server listening on 8000');
 });
 
+const consoleLogger = new class implements ILog {
+	public error(source: string, message: string): void {
+		console.error(source, message);
+	}
+	public warn(source: string, message: string): void {
+		console.warn(source, message);
+	}
+	public info(source: string, message: string): void {
+		console.info(source, message);
+	}
+};
+
+function scanBuiltinExtensions(): TPromise<IExtensionDescription[]> {
+	return TPromise.join(
+		builtinExtensions.map((extensionPath) => {
+			const absoluteExtensionPath = path.join(BUILTIN_EXTENSIONS_FOLDER_PATH, extensionPath);
+			return ExtensionScanner.scanExtension(
+				pkg.version,
+				consoleLogger,
+				absoluteExtensionPath,
+				true,
+				{ devMode: true, locale: 'en', pseudo: false, translations: {} }// TODO@vs-remote
+			);
+		})
+	);
+}
+
+function scanInstalledExtensions(): TPromise<IExtensionDescription[]> {
+	const input = new ExtensionScannerInput(
+		pkg.version,
+		null,
+		'en', // TODO@vs-remote
+		true,
+		EXTENSION_FOLDER,
+		false,
+		{}
+	);
+
+	return ExtensionScanner.scanExtensions(input, consoleLogger);
+}
+
+async function scanExtensions(): TPromise<IExtensionDescription[]> {
+
+	return TPromise.join([
+		scanBuiltinExtensions(),
+		scanInstalledExtensions()
+	]).then(([builtinExtensions, installedExtensions]) => {
+		let result: { [extensionId: string]: IExtensionDescription; } = {};
+
+		builtinExtensions.forEach((builtinExtension) => {
+			result[builtinExtension.id] = builtinExtension;
+		});
+
+		installedExtensions.forEach((installedExtension) => {
+			if (result.hasOwnProperty(installedExtension.id)) {
+				console.warn(nls.localize('overwritingExtension', "Overwriting extension {0} with {1}.", result[installedExtension.id].extensionFolderPath, installedExtension.extensionFolderPath));
+			}
+			result[installedExtension.id] = installedExtension;
+		});
+
+		return Object.keys(result).map((extId) => result[extId]);
+	});
+}
+
 const httpServer = http.createServer((request, response) => {
 	console.log(`received a connection on 8001`);
 	if (request.url === '/scan-extensions') {
-		const input = new ExtensionScannerInput(
-			pkg.version,
-			null,
-			'en', // TODO@vs-remote
-			true,
-			EXTENSION_FOLDER,
-			true, // TODO@vs-remote built-in
-			{}
-		);
-		const logger = new class implements ILog {
-			public error(source: string, message: string): void {
-				console.error(source, message);
-			}
-			public warn(source: string, message: string): void {
-				console.warn(source, message);
-			}
-			public info(source: string, message: string): void {
-				console.info(source, message);
-			}
-		};
-		ExtensionScanner.scanExtensions(input, logger).then((extensions) => {
+		scanExtensions().then((extensions) => {
 			response.writeHead(200);
 			let r: IAgentScanExtensionsResponse = {
 				agentPid: process.pid,
