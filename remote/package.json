@@ -1,8 +1,0 @@
-{
-	"name": "vscode-remote",
-	"version": "0.0.0",
-	"devDependencies": {
-		"native-watchdog": "0.3.0",
-		"spdlog": "0.6.0"
-	}
-}
