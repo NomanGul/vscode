@@ -59,6 +59,7 @@ import { OverviewRulerLane } from 'vs/editor/common/model';
 import { ExtHostLogService } from 'vs/workbench/api/node/extHostLogService';
 import FileSystemProvider from 'vs/workbench/api/node/extHostFileSystemImpl';
 import { ExtHostWebviews } from 'vs/workbench/api/node/extHostWebview';
+import FileWatcher from './extHostFileWatcher';
 
 export interface IExtensionApiFactory {
 	(extension: IExtensionDescription): typeof vscode;
@@ -136,7 +137,9 @@ export function createApiFactory(
 	const extHostProgress = rpcProtocol.set(ExtHostContext.ExtHostProgress, new ExtHostProgress(rpcProtocol.getProxy(MainContext.MainThreadProgress)));
 
 	if (initData.remoteOptions) {
-		extHostFileSystem.registerFileSystemProvider('vscode-remote', new FileSystemProvider(), undefined);
+		const watcher = new FileWatcher(extHostWorkspace, extHostConfiguration, extHostFileSystemEvent, extHostLogService);
+		watcher.startWatching();
+		extHostFileSystem.registerFileSystemProvider('vscode-remote', new FileSystemProvider(watcher), undefined);
 	}
 
 	// Check that no named customers are missing

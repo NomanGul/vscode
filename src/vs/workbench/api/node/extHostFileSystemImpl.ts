@@ -9,11 +9,16 @@ import * as path from 'path';
 
 import URI from 'vs/base/common/uri';
 import { IStat, FileType } from 'vs/platform/files/common/files';
+import FileWatcher from './extHostFileWatcher';
 
 import * as vscode from 'vscode';
 
 export default class FileSystemProvider implements vscode.FileSystemProvider {
-	constructor() {
+
+	readonly onDidChange: vscode.Event<vscode.FileChange[]>;
+
+	constructor(fileWatcher: FileWatcher) {
+		this.onDidChange = fileWatcher.onFileChange;
 	}
 
 	private asFileSystemStat(stat: fs.Stats): IStat {
