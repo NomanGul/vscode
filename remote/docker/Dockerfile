@@ -16,6 +16,7 @@ WORKDIR /data/TypeScriptSamples
 RUN echo "setInterval(function() {\n\tconsole.log('Hello');\n}, 1000);" > test.js
 
 # run the agent: /vscode linked to the host's vscode folder (set up by docker-compose)
-CMD cd /vscode/remote && npm install . && cd /vscode && node out/remoteExtensionHostAgent.js && cd /data
+# CMD cd /vscode/remote && npm install . && cd /vscode && node out/remoteExtensionHostAgent.js && cd /data
+CMD cd /vscode && node out/remoteExtensionHostAgent.js && cd /data
 EXPOSE 8000
 EXPOSE 8001
