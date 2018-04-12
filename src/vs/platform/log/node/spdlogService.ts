@@ -20,7 +20,8 @@ export function createSpdLogService(processName: string, logLevel: LogLevel, log
 
 		return new SpdLogService(logger, logLevel);
 	} catch (e) {
-		console.error(e);
+		// TODO@remote: This is expected in the remote case
+		// console.error(e);
 	}
 	return new NullLogService();
 }
