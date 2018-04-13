@@ -58,6 +58,16 @@ process.argv.forEach((arg) => {
 console.log(`Remote configuration data at ${REMOTE_DATA_FOLDER}`);
 console.log(`Remote extensions: ${fs.readdirSync(EXTENSION_FOLDER).join(', ')}`);
 
+var ifaces = os.networkInterfaces();
+
+Object.keys(ifaces).forEach(function (ifname) {
+	ifaces[ifname].forEach(function (iface) {
+		if (!iface.internal && iface.family === 'IPv4') {
+			console.log(`IP Address: ${iface.address}`);
+		}
+	});
+});
+
 const extHostServer = net.createServer((connection) => {
 	console.log(`received a connection on 8000`);
 	const con = new ExtensionHostConnection(connection);
