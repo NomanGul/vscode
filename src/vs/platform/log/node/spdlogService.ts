@@ -6,7 +6,7 @@
 'use strict';
 
 import * as path from 'path';
-import { ILogService, LogLevel, NullLogService, AbstractLogService } from 'vs/platform/log/common/log';
+import { ILogService, LogLevel, AbstractLogService, ConsoleLogService } from 'vs/platform/log/common/log';
 import * as spdlog from 'spdlog';
 
 export function createSpdLogService(processName: string, logLevel: LogLevel, logsFolder: string): ILogService {
@@ -23,7 +23,7 @@ export function createSpdLogService(processName: string, logLevel: LogLevel, log
 		// TODO@vs-remote: This is expected in the remote case
 		// console.error(e);
 	}
-	return new NullLogService();
+	return new ConsoleLogService();
 }
 
 class SpdLogService extends AbstractLogService implements ILogService {
