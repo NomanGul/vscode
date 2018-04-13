@@ -62,7 +62,7 @@ export class Debugger {
 	public runInTerminal(args: DebugProtocol.RunInTerminalRequestArguments): TPromise<void> {
 		const debugConfigs = this.configurationService.getValue<IDebugConfiguration>('debug');
 		const config = this.configurationService.getValue<ITerminalSettings>('terminal');
-		return this.configurationManager.runInTerminal(debugConfigs && debugConfigs.extensionHostDebugAdapter, args, config);
+		return this.configurationManager.runInTerminal(this.extensionDescription.isRemote || debugConfigs.extensionHostDebugAdapter, args, config);
 	}
 
 	public get aiKey(): string {
