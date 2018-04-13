@@ -53,9 +53,6 @@ export class MainThreadDebugService implements MainThreadDebugServiceShape {
 		}));
 
 		this._debugAdapters = new Map<number, ExtensionHostDebugAdapter>();
-
-		// register a default EH terminal launcher
-		debugService.getConfigurationManager().registerEHTerminalLauncher(new ExtensionHostTerminalLauncher(this._proxy));
 	}
 
 	public $registerDebugTypes(debugTypes: string[]) {
@@ -70,6 +67,9 @@ export class MainThreadDebugService implements MainThreadDebugServiceShape {
 					return da;
 				}
 			});
+
+			// register a default EH terminal launcher
+			this.debugService.getConfigurationManager().registerEHTerminalLauncher(new ExtensionHostTerminalLauncher(this._proxy));
 		}
 	}
 
@@ -296,6 +296,9 @@ class ExtensionHostTerminalLauncher implements ITerminalLauncher {
 	}
 
 	runInTerminal(args: DebugProtocol.RunInTerminalRequestArguments, config: ITerminalSettings): TPromise<void> {
-		return this._proxy.$runInTerminal(args, config);
+		return this._proxy.$runInTerminal(args, config).then(result => {
+			console.log(result);
+			return void 0;
+		});
 	}
 }

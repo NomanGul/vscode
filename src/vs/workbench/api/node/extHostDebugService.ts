@@ -103,7 +103,11 @@ export class ExtHostDebugService implements ExtHostDebugServiceShape {
 	}
 
 	public $runInTerminal(args: DebugProtocol.RunInTerminalRequestArguments, config: ITerminalSettings): TPromise<void> {
-		return getTerminalLauncher().runInTerminal(args, config);
+		const terminalLauncher = getTerminalLauncher();
+		if (terminalLauncher) {
+			return terminalLauncher.runInTerminal(args, config);
+		}
+		return void 0;
 	}
 
 	public $startDASession(handle: number, debugType: string, adpaterExecutable: IAdapterExecutable | null): TPromise<void> {
