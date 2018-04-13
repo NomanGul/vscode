@@ -134,6 +134,8 @@ export abstract class AbstractDebugAdapter implements debug.IDebugAdapter {
 export abstract class StreamDebugAdapter extends AbstractDebugAdapter {
 
 	private static readonly TWO_CRLF = '\r\n\r\n';
+	private static readonly HEADER_LINESEPARATOR = /\r?\n/;	// allow for non-RFC 2822 conforming line separators
+	private static readonly HEADER_FIELDSEPARATOR = /: */;
 
 	private outputStream: stream.Writable;
 	private rawData: Buffer;
@@ -194,9 +196,9 @@ export abstract class StreamDebugAdapter extends AbstractDebugAdapter {
 				const idx = this.rawData.indexOf(StreamDebugAdapter.TWO_CRLF);
 				if (idx !== -1) {
 					const header = this.rawData.toString('utf8', 0, idx);
-					const lines = header.split('\r\n');
+					const lines = header.split(StreamDebugAdapter.HEADER_LINESEPARATOR);
 					for (const h of lines) {
-						const kvPair = h.split(/: +/);
+						const kvPair = h.split(StreamDebugAdapter.HEADER_FIELDSEPARATOR);
 						if (kvPair[0] === 'Content-Length') {
 							this.contentLength = Number(kvPair[1]);
 						}
@@ -304,11 +306,11 @@ export class DebugAdapter extends StreamDebugAdapter {
 		}
 	}
 
-	private static extract(dbg: debug.IRawAdapter, extensionFolderPath: string) {
+	private static extract(dbg: debug.IDebuggerContribution, extensionFolderPath: string) {
 		if (!dbg) {
 			return undefined;
 		}
-		let x: debug.IRawAdapter = {};
+		let x: debug.IDebuggerContribution = {};
 
 		if (dbg.runtime) {
 			if (dbg.runtime.indexOf('./') === 0) {	// TODO
@@ -351,14 +353,14 @@ export class DebugAdapter extends StreamDebugAdapter {
 
 	static platformAdapterExecutable(extensionDescriptions: IExtensionDescription[], debugType: string): debug.IAdapterExecutable {
 
-		let result: debug.IRawAdapter = {};
+		let result: debug.IDebuggerContribution = {};
 
 		debugType = debugType.toLowerCase();
 
 		// merge all contributions into one
 		for (const ed of extensionDescriptions) {
 			if (ed.contributes) {
-				const debuggers = <debug.IRawAdapter[]>ed.contributes['debuggers'];
+				const debuggers = <debug.IDebuggerContribution[]>ed.contributes['debuggers'];
 				if (debuggers && debuggers.length > 0) {
 					const dbgs = debuggers.filter(d => strings.equalsIgnoreCase(d.type, debugType));
 					for (const dbg of dbgs) {
@@ -374,7 +376,7 @@ export class DebugAdapter extends StreamDebugAdapter {
 		}
 
 		// select the right platform
-		let platformInfo: debug.IRawEnvAdapter;
+		let platformInfo: debug.IPlatformSpecificAdapterContribution;
 		if (platform.isWindows && !process.env.hasOwnProperty('PROCESSOR_ARCHITEW6432')) {
 			platformInfo = result.winx86 || result.win || result.windows;
 		} else if (platform.isWindows) {

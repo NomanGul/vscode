@@ -896,6 +896,11 @@ declare module 'vscode' {
 		/**
 		 * CSS styling property that will be applied to text enclosed by a decoration.
 		 */
+		opacity?: string;
+
+		/**
+		 * CSS styling property that will be applied to text enclosed by a decoration.
+		 */
 		letterSpacing?: string;
 
 		/**
@@ -1926,6 +1931,13 @@ declare module 'vscode' {
 		 */
 		static readonly RefactorRewrite: CodeActionKind;
 
+		/**
+		 * Base kind for source actions.
+		 *
+		 * Source code actions apply to the entire file.
+		 */
+		static readonly Source: CodeActionKind;
+
 		private constructor(value: string);
 
 		/**
@@ -2022,7 +2034,6 @@ declare module 'vscode' {
 	 * A code action can be any command that is [known](#commands.getCommands) to the system.
 	 */
 	export interface CodeActionProvider {
-
 		/**
 		 * Provide commands for the given document and range.
 		 *
@@ -2034,6 +2045,19 @@ declare module 'vscode' {
 		 * signaled by returning `undefined`, `null`, or an empty array.
 		 */
 		provideCodeActions(document: TextDocument, range: Range, context: CodeActionContext, token: CancellationToken): ProviderResult<(Command | CodeAction)[]>;
+	}
+
+	/**
+	 * Metadata about the type of code actions that a [CodeActionProvider](#CodeActionProvider) providers
+	 */
+	export interface CodeActionProviderMetadata {
+		/**
+		 * [CodeActionKinds](#CodeActionKind) that this provider may return.
+		 *
+		 * The list of kinds may be generic, such as `CodeActionKind.Refactor`, or the provider
+		 * may list our every specific kind they provide, such as `CodeActionKind.Refactor.Extract.append('function`)`
+		 */
+		readonly providedCodeActionKinds?: ReadonlyArray<CodeActionKind>;
 	}
 
 	/**
@@ -6111,9 +6135,10 @@ declare module 'vscode' {
 		 *
 		 * @param selector A selector that defines the documents this provider is applicable to.
 		 * @param provider A code action provider.
+		 * @param metadata Metadata about the kind of code actions the provider providers.
 		 * @return A [disposable](#Disposable) that unregisters this provider when being disposed.
 		 */
-		export function registerCodeActionsProvider(selector: DocumentSelector, provider: CodeActionProvider): Disposable;
+		export function registerCodeActionsProvider(selector: DocumentSelector, provider: CodeActionProvider, metadata?: CodeActionProviderMetadata): Disposable;
 
 		/**
 		 * Register a code lens provider.
