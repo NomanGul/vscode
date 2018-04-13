@@ -306,16 +306,16 @@ export class ConfigurationManager implements IConfigurationManager {
 		return TPromise.as(undefined);
 	}
 
-	public registerDebugAdapterProvider(debugType: string, debugAdapterLauncher: IDebugAdapterProvider) {
-		this.debugAdapterProviders.set(debugType, debugAdapterLauncher);
+	public registerDebugAdapterProvider(debugTypes: string[], debugAdapterLauncher: IDebugAdapterProvider) {
+		debugTypes.forEach(debugType => this.debugAdapterProviders.set(debugType, debugAdapterLauncher));
 	}
 
-	public createDebugAdapter(debugType: string, adapterExecutable: IAdapterExecutable): IDebugAdapter {
+	public createDebugAdapter(debugType: string, adapterExecutable: IAdapterExecutable): IDebugAdapter | undefined {
 		let dap = this.debugAdapterProviders.get(debugType);
-		if (!dap) {
-			dap = this.debugAdapterProviders.get('*');
+		if (dap) {
+			return dap.createDebugAdapter(debugType, adapterExecutable);
 		}
-		return dap.createDebugAdapter(debugType, adapterExecutable);
+		return undefined;
 	}
 
 	public registerEHTerminalLauncher(launcher: ITerminalLauncher): void {

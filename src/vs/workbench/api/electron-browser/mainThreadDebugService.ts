@@ -54,18 +54,23 @@ export class MainThreadDebugService implements MainThreadDebugServiceShape {
 
 		this._debugAdapters = new Map<number, ExtensionHostDebugAdapter>();
 
-		// register a default EH DA provider
-		debugService.getConfigurationManager().registerDebugAdapterProvider('*', {
-			createDebugAdapter: (debugType, adapterInfo) => {
-				const handle = this._debugAdaptersHandleCounter++;
-				const da = new ExtensionHostDebugAdapter(handle, this._proxy, debugType, adapterInfo);
-				this._debugAdapters.set(handle, da);
-				return da;
-			}
-		});
-
 		// register a default EH terminal launcher
 		debugService.getConfigurationManager().registerEHTerminalLauncher(new ExtensionHostTerminalLauncher(this._proxy));
+	}
+
+	public $registerDebugTypes(debugTypes: string[]) {
+
+		if (debugTypes.length > 0) {
+			// register a default DA provider
+			this.debugService.getConfigurationManager().registerDebugAdapterProvider(debugTypes, {
+				createDebugAdapter: (debugType, adapterInfo) => {
+					const handle = this._debugAdaptersHandleCounter++;
+					const da = new ExtensionHostDebugAdapter(handle, this._proxy, debugType, adapterInfo);
+					this._debugAdapters.set(handle, da);
+					return da;
+				}
+			});
+		}
 	}
 
 	public dispose(): void {
