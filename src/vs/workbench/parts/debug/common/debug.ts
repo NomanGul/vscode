@@ -499,8 +499,8 @@ export interface IConfigurationManager {
 	registerDebugAdapterProvider(debugTypes: string[], debugAdapterLauncher: IDebugAdapterProvider);
 	createDebugAdapter(debugType: string, adapterExecutable: IAdapterExecutable | null): IDebugAdapter | undefined;
 
-	registerEHTerminalLauncher(launcher: ITerminalLauncher): void;
-	runInTerminal(extensionHost: boolean, args: DebugProtocol.RunInTerminalRequestArguments, config: ITerminalSettings): TPromise<void>;
+	registerEHTerminalLauncher(debugTypes: string[], launcher: ITerminalLauncher): void;
+	runInTerminal(debugType: string, args: DebugProtocol.RunInTerminalRequestArguments, config: ITerminalSettings): TPromise<void>;
 }
 
 export interface ILaunch {

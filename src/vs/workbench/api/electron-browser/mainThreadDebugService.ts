@@ -69,7 +69,7 @@ export class MainThreadDebugService implements MainThreadDebugServiceShape {
 			});
 
 			// register a default EH terminal launcher
-			this.debugService.getConfigurationManager().registerEHTerminalLauncher(new ExtensionHostTerminalLauncher(this._proxy));
+			this.debugService.getConfigurationManager().registerEHTerminalLauncher(debugTypes, new ExtensionHostTerminalLauncher(this._proxy));
 		}
 	}
 

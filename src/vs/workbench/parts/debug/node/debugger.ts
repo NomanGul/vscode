@@ -32,7 +32,7 @@ export class Debugger {
 	public createDebugAdapter(root: IWorkspaceFolder, outputService: IOutputService): TPromise<IDebugAdapter> {
 		return this.getAdapterExecutable(root).then(adapterExecutable => {
 			const debugConfigs = this.configurationService.getValue<IDebugConfiguration>('debug');
-			if (this.extensionDescription.isRemote || debugConfigs.extensionHostDebugAdapter) {
+			if (debugConfigs.extensionHostDebugAdapter) {
 				return this.configurationManager.createDebugAdapter(this.type, adapterExecutable);
 			} else {
 				return new DebugAdapter(this.type, adapterExecutable, this._mergedExtensionDescriptions, outputService);
@@ -62,7 +62,8 @@ export class Debugger {
 	public runInTerminal(args: DebugProtocol.RunInTerminalRequestArguments): TPromise<void> {
 		const debugConfigs = this.configurationService.getValue<IDebugConfiguration>('debug');
 		const config = this.configurationService.getValue<ITerminalSettings>('terminal');
-		return this.configurationManager.runInTerminal(this.extensionDescription.isRemote || debugConfigs.extensionHostDebugAdapter, args, config);
+		const type = debugConfigs.extensionHostDebugAdapter ? this.type : '*';
+		return this.configurationManager.runInTerminal(type, args, config);
 	}
 
 	public get aiKey(): string {

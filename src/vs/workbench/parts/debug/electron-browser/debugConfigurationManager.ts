@@ -231,8 +231,7 @@ export class ConfigurationManager implements IConfigurationManager {
 	private _onDidSelectConfigurationName = new Emitter<void>();
 	private providers: IDebugConfigurationProvider[];
 	private debugAdapterProviders: Map<string, IDebugAdapterProvider>;
-	private _terminalLauncher: ITerminalLauncher;
-	private _ehTerminalLauncher: ITerminalLauncher;
+	private terminalLaunchers: Map<string, ITerminalLauncher>;
 
 
 	constructor(
@@ -256,6 +255,7 @@ export class ConfigurationManager implements IConfigurationManager {
 			this.selectConfiguration(previousSelectedLaunch, this.storageService.get(DEBUG_SELECTED_CONFIG_NAME_KEY, StorageScope.WORKSPACE));
 		}
 		this.debugAdapterProviders = new Map<string, IDebugAdapterProvider>();
+		this.terminalLaunchers = new Map<string, ITerminalLauncher>();
 	}
 
 	public registerDebugConfigurationProvider(handle: number, debugConfigurationProvider: IDebugConfigurationProvider): void {
@@ -318,20 +318,21 @@ export class ConfigurationManager implements IConfigurationManager {
 		return undefined;
 	}
 
-	public registerEHTerminalLauncher(launcher: ITerminalLauncher): void {
-		this._ehTerminalLauncher = launcher;
+	public registerEHTerminalLauncher(debugTypes: string[], launcher: ITerminalLauncher): void {
+		debugTypes.forEach(debugType => this.terminalLaunchers.set(debugType, launcher));
 	}
 
-	public runInTerminal(extensionHost: boolean, args: DebugProtocol.RunInTerminalRequestArguments, config: ITerminalSettings): TPromise<void> {
+	public runInTerminal(debugType: string, args: DebugProtocol.RunInTerminalRequestArguments, config: ITerminalSettings): TPromise<void> {
 
-		if (extensionHost && this._ehTerminalLauncher) {
-			return this._ehTerminalLauncher.runInTerminal(args, config);
-		} else {
-			if (!this._terminalLauncher) {
-				this._terminalLauncher = this.instantiationService.createInstance(TerminalLauncher);
+		let tl = this.terminalLaunchers.get(debugType);
+		if (!tl) {
+			tl = this.terminalLaunchers.get('*');
+			if (!tl) {
+				tl = this.instantiationService.createInstance(TerminalLauncher);
+				this.terminalLaunchers.set('*', tl);
 			}
-			return this._terminalLauncher.runInTerminal(args, config);
 		}
+		return tl.runInTerminal(args, config);
 	}
 
 	private registerListeners(lifecycleService: ILifecycleService): void {
