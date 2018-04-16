@@ -74,7 +74,10 @@ const extHostServer = net.createServer((connection) => {
 	con.start();
 });
 extHostServer.on('error', (err) => {
-	throw err;
+	console.error('Extension host server received error');
+	if (err) {
+		console.error(err);
+	}
 });
 extHostServer.listen(8000, () => {
 	console.log('Extension Host Server listening on 8000');
@@ -168,7 +171,10 @@ const httpServer = http.createServer((request, response) => {
 	response.end('Not found');
 });
 httpServer.on('error', (err) => {
-	throw err;
+	console.error('Control server received error');
+	if (err) {
+		console.error(err);
+	}
 });
 httpServer.listen(8001, () => {
 	console.log('Control server listening on 8001');
@@ -256,12 +262,17 @@ class ExtensionHostConnection {
 			});
 
 			return this._tryExtHostHandshake();
-		}).then(() => {
+		}).done(() => {
 			console.log(`extension host connected to me!!!`);
 
 			this._extensionHostConnection.pipe(this._rendererConnection);
 			this._rendererConnection.pipe(this._extensionHostConnection);
 
+		}, (error) => {
+			console.error('ExtensionHostConnection errored');
+			if (error) {
+				console.error(error);
+			}
 		});
 	}
 
