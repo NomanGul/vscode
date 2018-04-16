@@ -312,6 +312,12 @@ class ExtensionHostConnection {
 			this._namedPipeServer.on('error', reject);
 			this._namedPipeServer.listen(pipeName, () => {
 				this._namedPipeServer.removeListener('error', reject);
+				this._namedPipeServer.on('error', (error) => {
+					console.error('Named pipe server received error');
+					if (error) {
+						console.error(error);
+					}
+				});
 				resolve(pipeName);
 			});
 		});
