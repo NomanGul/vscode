@@ -296,13 +296,17 @@ class ExtensionHostConnection {
 	private _extensionHostProcess: cp.ChildProcess;
 	private _extensionHostConnection: net.Socket;
 
+	private _rendererClosed: boolean;
+
 	constructor(private _rendererConnection: net.Socket, private _firstDataChunk: Buffer) {
 		this._namedPipeServer = null;
 		this._extensionHostProcess = null;
 		this._extensionHostConnection = null;
+		this._rendererClosed = false;
 
 		this._rendererConnection.on('close', () => {
 			console.log('Renderer connection got closed');
+			this._rendererClosed = true;
 			this._cleanResources();
 		});
 	}
@@ -368,7 +372,9 @@ class ExtensionHostConnection {
 				console.log(`PROCESS EXITED`);
 				console.log(code);
 				console.log(signal);
-				this._rendererConnection.end();
+				if (!this._rendererClosed) {
+					this._rendererConnection.end();
+				}
 				// this._onExtHostProcessExit(code, signal);
 			});
 
