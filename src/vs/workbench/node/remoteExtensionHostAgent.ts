@@ -68,10 +68,114 @@ Object.keys(ifaces).forEach(function (ifname) {
 	});
 });
 
+
+const DefaultSize = 2048;
+const Colon = new Buffer(':', 'ascii')[0];
+
+class MessageBuffer {
+
+	private encoding: string;
+	private index: number;
+	private buffer: Buffer;
+
+	constructor(encoding: string = 'utf8') {
+		this.encoding = encoding;
+		this.index = 0;
+		this.buffer = new Buffer(DefaultSize);
+	}
+
+	public append(chunk: Buffer | String): void {
+		var toAppend: Buffer = <Buffer>chunk;
+		if (typeof (chunk) === 'string') {
+			var str = <string>chunk;
+			var bufferLen = Buffer.byteLength(str, this.encoding);
+			toAppend = new Buffer(bufferLen);
+			toAppend.write(str, 0, bufferLen, this.encoding);
+		}
+		if (this.buffer.length - this.index >= toAppend.length) {
+			toAppend.copy(this.buffer, this.index, 0, toAppend.length);
+		} else {
+			var newSize = (Math.ceil((this.index + toAppend.length) / DefaultSize) + 1) * DefaultSize;
+			if (this.index === 0) {
+				this.buffer = new Buffer(newSize);
+				toAppend.copy(this.buffer, 0, 0, toAppend.length);
+			} else {
+				this.buffer = Buffer.concat([this.buffer.slice(0, this.index), toAppend], newSize);
+			}
+		}
+		this.index += toAppend.length;
+	}
+
+	public tryReadLength(): number | undefined {
+		let result: number | undefined = undefined;
+		let current = 0;
+		while (current < this.index && (this.buffer[current] !== Colon)) {
+			current++;
+		}
+		// No : found
+		if (current >= this.index) {
+			return result;
+		}
+		result = Number(this.buffer.toString('ascii', 0, current));
+
+		// Skip ':'
+		let nextStart = current + 1;
+		this.buffer = this.buffer.slice(nextStart);
+		this.index = this.index - nextStart;
+		return result;
+	}
+
+	public tryReadContent(length: number): string | null {
+		if (this.index < length) {
+			return null;
+		}
+		let result = this.buffer.toString(this.encoding, 0, length);
+		let nextStart = length;
+		this.buffer.copy(this.buffer, 0, nextStart);
+		this.index = this.index - nextStart;
+		return result;
+	}
+
+	public get numberOfBytes(): number {
+		return this.index;
+	}
+
+	public get rest(): Buffer {
+		return this.buffer;
+	}
+}
+
 const extHostServer = net.createServer((connection) => {
 	console.log(`received a connection on 8000`);
-	const con = new ExtensionHostConnection(connection);
-	con.start();
+	let buffer = new MessageBuffer('utf8');
+	let length: number | undefined = undefined;
+	const listener = (data) => {
+		buffer.append(data);
+		if (length === void 0) {
+			length = buffer.tryReadLength();
+		}
+		if (length !== void 0) {
+			console.log(`Command length found: ${length}`);
+			let message = buffer.tryReadContent(length);
+			if (message !== void 0) {
+				console.log(`Message found: ${message} with pending data: ${buffer.numberOfBytes}`);
+				try {
+					let json = JSON.parse(message);
+					if (json.command === 'startExtensionHost') {
+						console.log('Received extension host start command');
+						connection.removeListener('data', listener);
+						const con = new ExtensionHostConnection(connection, buffer.numberOfBytes > 0 ? buffer.rest : undefined);
+						con.start();
+						buffer = undefined;
+					}
+				} catch (error) {
+					console.error('Error parsing message');
+					console.error(error);
+				}
+			}
+		}
+	};
+	connection.on('data', listener);
 });
 extHostServer.on('error', (err) => {
 	console.error('Extension host server received error');
@@ -186,7 +290,7 @@ class ExtensionHostConnection {
 	private _extensionHostProcess: cp.ChildProcess;
 	private _extensionHostConnection: net.Socket;
 
-	constructor(private _rendererConnection: net.Socket) {
+	constructor(private _rendererConnection: net.Socket, private _firstDataChunk: Buffer) {
 		this._namedPipeServer = null;
 		this._extensionHostProcess = null;
 		this._extensionHostConnection = null;
@@ -265,6 +369,9 @@ class ExtensionHostConnection {
 		}).done(() => {
 			console.log(`extension host connected to me!!!`);
 
+			if (this._firstDataChunk) {
+				this._extensionHostConnection.write(this._firstDataChunk);
+			}
 			this._extensionHostConnection.pipe(this._rendererConnection);
 			this._rendererConnection.pipe(this._extensionHostConnection);
 

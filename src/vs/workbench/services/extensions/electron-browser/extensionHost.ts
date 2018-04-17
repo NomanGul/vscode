@@ -88,7 +88,19 @@ export class ExtensionHostRemoteProcess implements IExtensionHostStarter {
 			}, () => {
 				socket.removeListener('error', reject);
 				this._connection = socket;
-				resolve(new Protocol(socket));
+				// The azure container connects to ports any n seconds without sending
+				// data. To be able to distinguish this from a real connect we send an
+				// initial hand shake in 'utf8' encoding with a lenght header in `ascii`.
+				// Length and data are separated using ':'
+				let initMessage = JSON.stringify({
+					command: 'startExtensionHost'
+				});
+				let length = Buffer.byteLength(initMessage, 'utf8');
+				this._connection.write(`${length}:`, 'ascii', () => {
+					this._connection.write(initMessage, 'utf8', () => {
+						resolve(new Protocol(socket));
+					});
+				});
 			});
 			socket.once('error', reject);
 
