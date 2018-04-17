@@ -125,9 +125,9 @@ class MessageBuffer {
 		return result;
 	}
 
-	public tryReadContent(length: number): string | null {
+	public tryReadContent(length: number): string | undefined {
 		if (this.index < length) {
-			return null;
+			return undefined;
 		}
 		let result = this.buffer.toString(this.encoding, 0, length);
 		let nextStart = length;
@@ -153,9 +153,13 @@ const extHostServer = net.createServer((connection) => {
 		buffer.append(data);
 		if (length === void 0) {
 			length = buffer.tryReadLength();
+			if (length !== void 0) {
+				console.log(`Command length found: ${length}`);
+			} else {
+				console.log(`Still waiting for length header`);
+			}
 		}
 		if (length !== void 0) {
-			console.log(`Command length found: ${length}`);
 			let message = buffer.tryReadContent(length);
 			if (message !== void 0) {
 				console.log(`Message found: ${message} with pending data: ${buffer.numberOfBytes}`);
@@ -167,11 +171,14 @@ const extHostServer = net.createServer((connection) => {
 						const con = new ExtensionHostConnection(connection, buffer.numberOfBytes > 0 ? buffer.rest : undefined);
 						con.start();
 						buffer = undefined;
+						length = undefined;
 					}
 				} catch (error) {
 					console.error('Error parsing message');
 					console.error(error);
 				}
+			} else {
+				console.log(`Still waiting for message`);
 			}
 		}
 	};
