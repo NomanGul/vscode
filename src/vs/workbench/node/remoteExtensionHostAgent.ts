@@ -84,10 +84,10 @@ class MessageBuffer {
 		this.buffer = new Buffer(DefaultSize);
 	}
 
-	public append(chunk: Buffer | String): void {
+	public append(chunk: Buffer | string): void {
 		var toAppend: Buffer = <Buffer>chunk;
-		if (typeof (chunk) === 'string') {
-			var str = <string>chunk;
+		if (typeof chunk === 'string') {
+			var str = chunk;
 			var bufferLen = Buffer.byteLength(str, this.encoding);
 			toAppend = new Buffer(bufferLen);
 			toAppend.write(str, 0, bufferLen, this.encoding);
@@ -302,6 +302,7 @@ class ExtensionHostConnection {
 		this._extensionHostConnection = null;
 
 		this._rendererConnection.on('close', () => {
+			console.log('Renderer connection got closed');
 			this._cleanResources();
 		});
 	}
