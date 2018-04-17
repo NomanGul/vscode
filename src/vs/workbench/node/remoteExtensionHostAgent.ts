@@ -146,7 +146,6 @@ class MessageBuffer {
 }
 
 const extHostServer = net.createServer((connection) => {
-	console.log(`received a connection on 8000`);
 	let buffer = new MessageBuffer('utf8');
 	let length: number | undefined = undefined;
 	const listener = (data) => {
