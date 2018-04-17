@@ -304,6 +304,14 @@ class ExtensionHostConnection {
 		this._extensionHostConnection = null;
 		this._rendererClosed = false;
 
+		this._rendererConnection.on('error', (error) => {
+			console.error('Renderer connection recevied error');
+			if (error) {
+				console.error(error);
+			}
+			this._cleanResources();
+		});
+
 		this._rendererConnection.on('close', () => {
 			console.log('Renderer connection got closed');
 			this._rendererClosed = true;
