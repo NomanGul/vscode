@@ -297,12 +297,14 @@ class ExtensionHostConnection {
 	private _extensionHostConnection: net.Socket;
 
 	private _rendererClosed: boolean;
+	private _resourcesCleaned: boolean;
 
 	constructor(private _rendererConnection: net.Socket, private _firstDataChunk: Buffer) {
 		this._namedPipeServer = null;
 		this._extensionHostProcess = null;
 		this._extensionHostConnection = null;
 		this._rendererClosed = false;
+		this._resourcesCleaned = false;
 
 		this._rendererConnection.on('error', (error) => {
 			console.error('Renderer connection recevied error');
@@ -320,17 +322,24 @@ class ExtensionHostConnection {
 	}
 
 	private _cleanResources(): void {
-		if (this._namedPipeServer) {
-			this._namedPipeServer.close();
-			this._namedPipeServer = null;
+		if (this._resourcesCleaned) {
+			return;
 		}
-		if (this._extensionHostConnection) {
-			this._extensionHostConnection.end();
-			this._extensionHostConnection = null;
-		}
-		if (this._extensionHostProcess) {
-			this._extensionHostProcess.kill();
-			this._extensionHostProcess = null;
+		try {
+			if (this._namedPipeServer) {
+				this._namedPipeServer.close();
+				this._namedPipeServer = null;
+			}
+			if (this._extensionHostConnection) {
+				this._extensionHostConnection.end();
+				this._extensionHostConnection = null;
+			}
+			if (this._extensionHostProcess) {
+				this._extensionHostProcess.kill();
+				this._extensionHostProcess = null;
+			}
+		} finally {
+			this._resourcesCleaned = true;
 		}
 	}
 
