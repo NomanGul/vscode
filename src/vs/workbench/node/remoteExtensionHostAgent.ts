@@ -292,6 +292,8 @@ httpServer.listen(8001, () => {
 
 class ExtensionHostConnection {
 
+	static debugPort = 5870; // bumped for every extension host
+
 	private _namedPipeServer: net.Server;
 	private _extensionHostProcess: cp.ChildProcess;
 	private _extensionHostConnection: net.Socket;
@@ -354,7 +356,7 @@ class ExtensionHostConnection {
 					VSCODE_HANDLES_UNCAUGHT_ERRORS: true,
 					VSCODE_LOG_STACK: false
 				}),
-				execArgv: ['--inspect=0.0.0.0:5870'],
+				execArgv: [`--inspect=0.0.0.0:${ExtensionHostConnection.debugPort++}`],
 				silent: true
 			};
 
