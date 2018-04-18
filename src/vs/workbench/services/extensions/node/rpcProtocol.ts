@@ -128,6 +128,13 @@ export class RPCProtocol implements IRPCProtocol {
 		});
 	}
 
+	public transformIncomingURIs<T>(obj: T): T {
+		if (!this._uriTransformer) {
+			return obj;
+		}
+		return transformIncomingURIs(obj, this._uriTransformer);
+	}
+
 	public getProxy<T>(identifier: ProxyIdentifier<T>): T {
 		if (!this._proxies[identifier.id]) {
 			this._proxies[identifier.id] = this._createProxy(identifier.id);
