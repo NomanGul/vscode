@@ -247,8 +247,13 @@ declare module 'vscode' {
 	}
 
 	export interface TextSearchOptions {
+		folder: Uri;
 		includes: GlobPattern[];
 		excludes: GlobPattern[];
+		maxFileSize?: number;
+		disregardIgnoreFiles?: boolean;
+		ignoreSymlinks?: boolean;
+		encoding?: string;
 	}
 
 	export interface TextSearchResult {

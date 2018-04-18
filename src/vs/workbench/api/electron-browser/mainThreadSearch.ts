@@ -112,7 +112,7 @@ class RemoteSearchProvider implements ISearchResultProvider {
 
 			outer = query.type === QueryType.File
 				? this._proxy.$provideFileSearchResults(this._handle, search.id, query.filePattern)
-				: this._proxy.$provideTextSearchResults(this._handle, search.id, query.contentPattern, { excludes: Object.keys(excludes), includes: Object.keys(includes) });
+				: this._proxy.$provideTextSearchResults(this._handle, search.id, query.contentPattern, query, { excludes: Object.keys(excludes), includes: Object.keys(includes) });
 
 			outer.then(() => {
 				this._searches.delete(search.id);

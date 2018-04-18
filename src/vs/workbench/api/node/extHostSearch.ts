@@ -6,7 +6,7 @@
 
 import { asWinJsPromise } from 'vs/base/common/async';
 import { TPromise } from 'vs/base/common/winjs.base';
-import { IPatternInfo } from 'vs/platform/search/common/search';
+import { IPatternInfo, ISearchQuery } from 'vs/platform/search/common/search';
 import * as vscode from 'vscode';
 import { ExtHostSearchShape, IMainContext, MainContext, MainThreadSearchShape } from './extHost.protocol';
 
@@ -45,11 +45,21 @@ export class ExtHostSearch implements ExtHostSearchShape {
 		return asWinJsPromise(token => provider.provideFileSearchResults(query, progress, token));
 	}
 
-	$provideTextSearchResults(handle: number, session: number, pattern: IPatternInfo, options: { includes: string[], excludes: string[] }): TPromise<void> {
+	$provideTextSearchResults(handle: number, session: number, pattern: IPatternInfo, query: ISearchQuery, options: { includes: string[], excludes: string[] }): TPromise<void> {
 		const provider = this._searchProvider.get(handle);
 		if (!provider.provideTextSearchResults) {
 			return TPromise.as(undefined);
 		}
+
+		const searchOptions: vscode.TextSearchOptions = {
+			folder: query.folderQueries[0].folder,
+			excludes: options.excludes,
+			includes: options.includes,
+			disregardIgnoreFiles: query.disregardIgnoreFiles,
+			ignoreSymlinks: query.ignoreSymlinks,
+			encoding: query.fileEncoding
+		};
+
 		const progress = {
 			report: (data: vscode.TextSearchResult) => {
 				this._proxy.$handleFindMatch(handle, session, [data.uri, {
@@ -59,6 +69,6 @@ export class ExtHostSearch implements ExtHostSearchShape {
 				}]);
 			}
 		};
-		return asWinJsPromise(token => provider.provideTextSearchResults(pattern, options, progress, token));
+		return asWinJsPromise(token => provider.provideTextSearchResults(pattern, searchOptions, progress, token));
 	}
 }
