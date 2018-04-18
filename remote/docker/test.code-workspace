@@ -1,6 +1,6 @@
 {
 	"folders": [{
-		"uri": "vscode-remote://127.0.0.1:8000/data/TypeScriptSamples",
+		"uri": "vscode-remote://127.0.0.1:8000/data/vscode-smoketest-express",
 		"name": "my-remote"
 	}],
 	"settings": {
@@ -10,7 +10,7 @@
 					"type": "node",
 					"request": "launch",
 					"name": "Node Remote",
-					"program": "${workspaceFolder:my-remote}/test.js",
+					"program": "${workspaceFolder:my-remote}/bin/www",
 					"stopOnEntry": true
 				}
 			],
