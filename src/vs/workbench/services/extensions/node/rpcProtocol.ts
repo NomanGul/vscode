@@ -111,13 +111,6 @@ export class RPCProtocol implements IRPCProtocol {
 		this._multiplexor = new RPCMultiplexer(protocol, (msg) => this._receiveOneMessage(msg));
 	}
 
-	public transformIncomingURIs<T>(obj: T): T {
-		if (!this._uriTransformer) {
-			return obj;
-		}
-		return transformIncomingURIs(obj, this._uriTransformer);
-	}
-
 	public dispose(): void {
 		this._isDisposed = true;
 
