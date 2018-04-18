@@ -133,6 +133,7 @@ export interface IFolderConfiguration {
 	readonly loaded: boolean;
 	loadConfiguration(): TPromise<ConfigurationModel>;
 	reprocess(): ConfigurationModel;
+	getUnsupportedKeys(): string[];
 	dispose(): void;
 }
 
@@ -438,6 +439,10 @@ export class FolderConfiguration extends Disposable implements IFolderConfigurat
 
 	reprocess(): ConfigurationModel {
 		return this.folderConfiguration.reprocess();
+	}
+
+	getUnsupportedKeys(): string[] {
+		return this.folderConfiguration.getUnsupportedKeys();
 	}
 
 	get loaded(): boolean {

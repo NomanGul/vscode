@@ -68,13 +68,126 @@ Object.keys(ifaces).forEach(function (ifname) {
 	});
 });
 
+
+const DefaultSize = 2048;
+const Colon = new Buffer(':', 'ascii')[0];
+
+class MessageBuffer {
+
+	private encoding: string;
+	private index: number;
+	private buffer: Buffer;
+
+	constructor(encoding: string = 'utf8') {
+		this.encoding = encoding;
+		this.index = 0;
+		this.buffer = new Buffer(DefaultSize);
+	}
+
+	public append(chunk: Buffer | string): void {
+		var toAppend: Buffer = <Buffer>chunk;
+		if (typeof chunk === 'string') {
+			var str = chunk;
+			var bufferLen = Buffer.byteLength(str, this.encoding);
+			toAppend = new Buffer(bufferLen);
+			toAppend.write(str, 0, bufferLen, this.encoding);
+		}
+		if (this.buffer.length - this.index >= toAppend.length) {
+			toAppend.copy(this.buffer, this.index, 0, toAppend.length);
+		} else {
+			var newSize = (Math.ceil((this.index + toAppend.length) / DefaultSize) + 1) * DefaultSize;
+			if (this.index === 0) {
+				this.buffer = new Buffer(newSize);
+				toAppend.copy(this.buffer, 0, 0, toAppend.length);
+			} else {
+				this.buffer = Buffer.concat([this.buffer.slice(0, this.index), toAppend], newSize);
+			}
+		}
+		this.index += toAppend.length;
+	}
+
+	public tryReadLength(): number | undefined {
+		let result: number | undefined = undefined;
+		let current = 0;
+		while (current < this.index && (this.buffer[current] !== Colon)) {
+			current++;
+		}
+		// No : found
+		if (current >= this.index) {
+			return result;
+		}
+		result = Number(this.buffer.toString('ascii', 0, current));
+
+		// Skip ':'
+		let nextStart = current + 1;
+		this.buffer = this.buffer.slice(nextStart);
+		this.index = this.index - nextStart;
+		return result;
+	}
+
+	public tryReadContent(length: number): string | undefined {
+		if (this.index < length) {
+			return undefined;
+		}
+		let result = this.buffer.toString(this.encoding, 0, length);
+		let nextStart = length;
+		this.buffer.copy(this.buffer, 0, nextStart);
+		this.index = this.index - nextStart;
+		return result;
+	}
+
+	public get numberOfBytes(): number {
+		return this.index;
+	}
+
+	public get rest(): Buffer {
+		return this.buffer;
+	}
+}
+
 const extHostServer = net.createServer((connection) => {
-	console.log(`received a connection on 8000`);
-	const con = new ExtensionHostConnection(connection);
-	con.start();
+	let buffer = new MessageBuffer('utf8');
+	let length: number | undefined = undefined;
+	const listener = (data) => {
+		buffer.append(data);
+		if (length === void 0) {
+			length = buffer.tryReadLength();
+			if (length !== void 0) {
+				console.log(`Command length found: ${length}`);
+			} else {
+				console.log(`Still waiting for length header`);
+			}
+		}
+		if (length !== void 0) {
+			let message = buffer.tryReadContent(length);
+			if (message !== void 0) {
+				console.log(`Message found: ${message} with pending data: ${buffer.numberOfBytes}`);
+				try {
+					let json = JSON.parse(message);
+					if (json.command === 'startExtensionHost') {
+						console.log('Received extension host start command');
+						connection.removeListener('data', listener);
+						const con = new ExtensionHostConnection(connection, buffer.numberOfBytes > 0 ? buffer.rest : undefined);
+						con.start();
+						buffer = undefined;
+						length = undefined;
+					}
+				} catch (error) {
+					console.error('Error parsing message');
+					console.error(error);
+				}
+			} else {
+				console.log(`Still waiting for message`);
+			}
+		}
+	};
+	connection.on('data', listener);
 });
 extHostServer.on('error', (err) => {
-	throw err;
+	console.error('Extension host server received error');
+	if (err) {
+		console.error(err);
+	}
 });
 extHostServer.listen(8000, () => {
 	console.log('Extension Host Server listening on 8000');
@@ -168,7 +281,10 @@ const httpServer = http.createServer((request, response) => {
 	response.end('Not found');
 });
 httpServer.on('error', (err) => {
-	throw err;
+	console.error('Control server received error');
+	if (err) {
+		console.error(err);
+	}
 });
 httpServer.listen(8001, () => {
 	console.log('Control server listening on 8001');
@@ -180,28 +296,50 @@ class ExtensionHostConnection {
 	private _extensionHostProcess: cp.ChildProcess;
 	private _extensionHostConnection: net.Socket;
 
-	constructor(private _rendererConnection: net.Socket) {
+	private _rendererClosed: boolean;
+	private _resourcesCleaned: boolean;
+
+	constructor(private _rendererConnection: net.Socket, private _firstDataChunk: Buffer) {
 		this._namedPipeServer = null;
 		this._extensionHostProcess = null;
 		this._extensionHostConnection = null;
+		this._rendererClosed = false;
+		this._resourcesCleaned = false;
+
+		this._rendererConnection.on('error', (error) => {
+			console.error('Renderer connection recevied error');
+			if (error) {
+				console.error(error);
+			}
+			this._cleanResources();
+		});
 
 		this._rendererConnection.on('close', () => {
+			console.log('Renderer connection got closed');
+			this._rendererClosed = true;
 			this._cleanResources();
 		});
 	}
 
 	private _cleanResources(): void {
-		if (this._namedPipeServer) {
-			this._namedPipeServer.close();
-			this._namedPipeServer = null;
+		if (this._resourcesCleaned) {
+			return;
 		}
-		if (this._extensionHostConnection) {
-			this._extensionHostConnection.end();
-			this._extensionHostConnection = null;
-		}
-		if (this._extensionHostProcess) {
-			this._extensionHostProcess.kill();
-			this._extensionHostProcess = null;
+		try {
+			if (this._namedPipeServer) {
+				this._namedPipeServer.close();
+				this._namedPipeServer = null;
+			}
+			if (this._extensionHostConnection) {
+				this._extensionHostConnection.end();
+				this._extensionHostConnection = null;
+			}
+			if (this._extensionHostProcess) {
+				this._extensionHostProcess.kill();
+				this._extensionHostProcess = null;
+			}
+		} finally {
+			this._resourcesCleaned = true;
 		}
 	}
 
@@ -216,7 +354,7 @@ class ExtensionHostConnection {
 					VSCODE_HANDLES_UNCAUGHT_ERRORS: true,
 					VSCODE_LOG_STACK: false
 				}),
-				execArgv: <string[]>undefined,
+				execArgv: ['--inspect=0.0.0.0:5870'],
 				silent: true
 			};
 
@@ -251,17 +389,27 @@ class ExtensionHostConnection {
 				console.log(`PROCESS EXITED`);
 				console.log(code);
 				console.log(signal);
-				this._rendererConnection.end();
+				if (!this._rendererClosed) {
+					this._rendererConnection.end();
+				}
 				// this._onExtHostProcessExit(code, signal);
 			});
 
 			return this._tryExtHostHandshake();
-		}).then(() => {
+		}).done(() => {
 			console.log(`extension host connected to me!!!`);
 
+			if (this._firstDataChunk) {
+				this._extensionHostConnection.write(this._firstDataChunk);
+			}
 			this._extensionHostConnection.pipe(this._rendererConnection);
 			this._rendererConnection.pipe(this._extensionHostConnection);
 
+		}, (error) => {
+			console.error('ExtensionHostConnection errored');
+			if (error) {
+				console.error(error);
+			}
 		});
 	}
 
@@ -301,6 +449,12 @@ class ExtensionHostConnection {
 			this._namedPipeServer.on('error', reject);
 			this._namedPipeServer.listen(pipeName, () => {
 				this._namedPipeServer.removeListener('error', reject);
+				this._namedPipeServer.on('error', (error) => {
+					console.error('Named pipe server received error');
+					if (error) {
+						console.error(error);
+					}
+				});
 				resolve(pipeName);
 			});
 		});

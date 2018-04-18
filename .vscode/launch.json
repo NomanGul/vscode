@@ -220,6 +220,20 @@
 				"VSCODE_DEV": "1",
 				"VSCODE_CLI": "1"
 			}
+		},
+		{
+			"type": "node",
+			"request": "attach",
+			"name": "Windows Remote EH",
+			"protocol": "inspector",
+			"address": "10.211.55.60",
+			"port": 5870,
+			"localRoot": "${workspaceFolder}",
+			"remoteRoot": "y:\\",
+			"restart": true,
+			"outFiles": [
+				"${workspaceFolder}/out/**/*.js"
+			]
 		}
 	],
 	"compounds": [
