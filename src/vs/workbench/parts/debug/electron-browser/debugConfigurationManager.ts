@@ -26,7 +26,7 @@ import { IFileService } from 'vs/platform/files/common/files';
 import { IWorkspaceContextService, IWorkspaceFolder, WorkbenchState } from 'vs/platform/workspace/common/workspace';
 import { IInstantiationService } from 'vs/platform/instantiation/common/instantiation';
 import { ICommandService } from 'vs/platform/commands/common/commands';
-import { IDebugConfigurationProvider, IDebuggerContribution, ICompound, IDebugConfiguration, IConfig, IEnvConfig, IGlobalConfig, IConfigurationManager, ILaunch, IAdapterExecutable, IDebugAdapterProvider, IDebugAdapter, ITerminalLauncher, ITerminalSettings } from 'vs/workbench/parts/debug/common/debug';
+import { IDebugConfigurationProvider, IDebuggerContribution, ICompound, IDebugConfiguration, IConfig, IEnvConfig, IGlobalConfig, IConfigurationManager, ILaunch, IAdapterExecutable, IDebugAdapterProvider, IDebugAdapter, ITerminalSettings, ITerminalLauncher } from 'vs/workbench/parts/debug/common/debug';
 import { Debugger } from 'vs/workbench/parts/debug/node/debugger';
 import { IWorkbenchEditorService } from 'vs/workbench/services/editor/common/editorService';
 import { IQuickOpenService } from 'vs/platform/quickOpen/common/quickOpen';
@@ -231,8 +231,7 @@ export class ConfigurationManager implements IConfigurationManager {
 	private _onDidSelectConfigurationName = new Emitter<void>();
 	private providers: IDebugConfigurationProvider[];
 	private debugAdapterProviders: Map<string, IDebugAdapterProvider>;
-	private _terminalLauncher: ITerminalLauncher;
-	private _ehTerminalLauncher: ITerminalLauncher;
+	private terminalLauncher: ITerminalLauncher;
 
 
 	constructor(
@@ -266,10 +265,10 @@ export class ConfigurationManager implements IConfigurationManager {
 		debugConfigurationProvider.handle = handle;
 		this.providers = this.providers.filter(p => p.handle !== handle);
 		this.providers.push(debugConfigurationProvider);
-		const adapter = this.getDebugger(debugConfigurationProvider.type);
+		const dbg = this.getDebugger(debugConfigurationProvider.type);
 		// Check if the provider contributes provideDebugConfigurations method
-		if (adapter && debugConfigurationProvider.provideDebugConfigurations) {
-			adapter.hasConfigurationProvider = true;
+		if (dbg && debugConfigurationProvider.provideDebugConfigurations) {
+			dbg.hasConfigurationProvider = true;
 		}
 	}
 
@@ -306,32 +305,37 @@ export class ConfigurationManager implements IConfigurationManager {
 		return TPromise.as(undefined);
 	}
 
-	public registerDebugAdapterProvider(debugTypes: string[], debugAdapterLauncher: IDebugAdapterProvider) {
+	public registerDebugAdapterProvider(debugTypes: string[], debugAdapterLauncher: IDebugAdapterProvider): IDisposable {
 		debugTypes.forEach(debugType => this.debugAdapterProviders.set(debugType, debugAdapterLauncher));
+		return {
+			dispose: () => {
+				debugTypes.forEach(debugType => this.debugAdapterProviders.delete(debugType));
+			}
+		};
+	}
+
+	private getDebugAdapterProvider(type: string): IDebugAdapterProvider | undefined {
+		return this.debugAdapterProviders.get(type);
 	}
 
 	public createDebugAdapter(debugType: string, adapterExecutable: IAdapterExecutable): IDebugAdapter | undefined {
-		let dap = this.debugAdapterProviders.get(debugType);
+		let dap = this.getDebugAdapterProvider(debugType);
 		if (dap) {
 			return dap.createDebugAdapter(debugType, adapterExecutable);
 		}
 		return undefined;
 	}
 
-	public registerEHTerminalLauncher(launcher: ITerminalLauncher): void {
-		this._ehTerminalLauncher = launcher;
-	}
+	public runInTerminal(debugType: string, args: DebugProtocol.RunInTerminalRequestArguments, config: ITerminalSettings): TPromise<void> {
 
-	public runInTerminal(extensionHost: boolean, args: DebugProtocol.RunInTerminalRequestArguments, config: ITerminalSettings): TPromise<void> {
-
-		if (extensionHost && this._ehTerminalLauncher) {
-			return this._ehTerminalLauncher.runInTerminal(args, config);
-		} else {
-			if (!this._terminalLauncher) {
-				this._terminalLauncher = this.instantiationService.createInstance(TerminalLauncher);
+		let tl: ITerminalLauncher = this.getDebugAdapterProvider(debugType);
+		if (!tl) {
+			if (!this.terminalLauncher) {
+				this.terminalLauncher = this.instantiationService.createInstance(TerminalLauncher);
 			}
-			return this._terminalLauncher.runInTerminal(args, config);
+			tl = this.terminalLauncher;
 		}
+		return tl.runInTerminal(args, config);
 	}
 
 	private registerListeners(lifecycleService: ILifecycleService): void {
@@ -615,7 +619,7 @@ class Launch implements ILaunch {
 		return undefined;
 	}
 
-	public resolveConfiguration(config: IConfig): TPromise<IConfig> {
+	public substituteVariables(config: IConfig): TPromise<IConfig> {
 		const result = objects.deepClone(config) as IConfig;
 		// Set operating system specific properties #1873
 		const setOSProperties = (flag: boolean, osConfig: IEnvConfig) => {

@@ -1809,7 +1809,7 @@ declare module 'vscode' {
 	 * its resource, or a glob-pattern that is applied to the [path](#TextDocument.fileName).
 	 *
 	 * @sample A language filter that applies to typescript files on disk: `{ language: 'typescript', scheme: 'file' }`
-	 * @sample A language filter that applies to all package.json paths: `{ language: 'json', pattern: '**​/package.json' }`
+	 * @sample A language filter that applies to all package.json paths: `{ language: 'json', scheme: 'untitled', pattern: '**​/package.json' }`
 	 */
 	export interface DocumentFilter {
 
@@ -1834,10 +1834,14 @@ declare module 'vscode' {
 	 * A language selector is the combination of one or many language identifiers
 	 * and [language filters](#DocumentFilter).
 	 *
-	 * @sample `let sel:DocumentSelector = 'typescript'`;
-	 * @sample `let sel:DocumentSelector = ['typescript', { language: 'json', pattern: '**​/tsconfig.json' }]`;
+	 * *Note* that a document selector that is just a language identifier selects *all*
+	 * documents, even those that are not saved on disk. Only use such selectors when
+	 * a feature works without further context, e.g without the need to resolve related
+	 * 'files'.
+	 *
+	 * @sample `let sel:DocumentSelector = { scheme: 'file', language: 'typescript' }`;
 	 */
-	export type DocumentSelector = string | DocumentFilter | (string | DocumentFilter)[];
+	export type DocumentSelector = DocumentFilter | string | Array<DocumentFilter | string>;
 
 	/**
 	 * A provider result represents the values a provider, like the [`HoverProvider`](#HoverProvider),
@@ -2742,6 +2746,18 @@ declare module 'vscode' {
 		 * signaled by returning `undefined` or `null`.
 		 */
 		provideRenameEdits(document: TextDocument, position: Position, newName: string, token: CancellationToken): ProviderResult<WorkspaceEdit>;
+
+		/**
+		 * Optional function for resolving and validating a position *before* running rename. The result can
+		 * be a range or a range and a placeholder text. The placeholder text should be the identifier of the symbol 
+		 * which is being renamed - when omitted the text in the returned range is used.
+		 *
+		 * @param document The document in which rename will be invoked.
+		 * @param position The position at which rename will be invoked.
+		 * @param token A cancellation token.
+		 * @return The range or range and placeholder text of the identifier that is to be renamed. The lack of a result can signaled by returning `undefined` or `null`.
+		 */
+		resolveRenameLocation?(document: TextDocument, position: Position, token: CancellationToken): ProviderResult<Range | { range: Range, placeholder: string }>;
 	}
 
 	/**

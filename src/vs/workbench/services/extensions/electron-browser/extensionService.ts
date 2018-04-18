@@ -470,8 +470,8 @@ export class ExtensionService extends Disposable implements IExtensionService, I
 	}
 
 	private _activateByEvent(activationEvent: string): TPromise<void> {
-		let remoteActivateByEvent = (this._remoteExtensionHostProcessManager ? this._remoteExtensionHostProcessManager.activateByEvent(activationEvent) : TPromise.as(void 0));
-		let localActivateByEvent = (this._localExtensionHostProcessManager ? this._localExtensionHostProcessManager.activateByEvent(activationEvent) : TPromise.as(void 0));
+		let remoteActivateByEvent = (this._remoteExtensionHostProcessManager ? this._remoteExtensionHostProcessManager.activateByEvent(activationEvent) : NO_OP_VOID_PROMISE);
+		let localActivateByEvent = (this._localExtensionHostProcessManager ? this._localExtensionHostProcessManager.activateByEvent(activationEvent) : NO_OP_VOID_PROMISE);
 		return TPromise.join([remoteActivateByEvent, localActivateByEvent]).then(() => { });
 	}
 
@@ -503,8 +503,8 @@ export class ExtensionService extends Disposable implements IExtensionService, I
 	}
 
 	public getExtensionsStatus(): { [id: string]: IExtensionsStatus; } {
-		const localActivationTimes = this._localExtensionHostProcessManager.getActivationTimes();
-		const localRuntimeErrors = this._localExtensionHostProcessManager.getRuntimeErrors();
+		const localActivationTimes = this._localExtensionHostProcessManager ? this._localExtensionHostProcessManager.getActivationTimes() : {};
+		const localRuntimeErrors = this._localExtensionHostProcessManager ? this._localExtensionHostProcessManager.getRuntimeErrors() : {};
 
 		let remoteActivationTimes: { [id: string]: ActivationTimes; };
 		let remoteRuntimeErrors: { [id: string]: Error[]; };
@@ -533,7 +533,10 @@ export class ExtensionService extends Disposable implements IExtensionService, I
 	}
 
 	public canProfileExtensionHost(): boolean {
-		return this._localExtensionHostProcessManager.canProfileExtensionHost();
+		if (this._localExtensionHostProcessManager) {
+			return this._localExtensionHostProcessManager.canProfileExtensionHost();
+		}
+		return false;
 	}
 
 	public startExtensionHostProfile(): TPromise<ProfileSession> {

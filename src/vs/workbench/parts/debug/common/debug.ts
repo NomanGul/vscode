@@ -306,13 +306,13 @@ export interface IViewModel extends ITreeElement {
 }
 
 export interface IModel extends ITreeElement {
-	getProcesses(): IProcess[];
-	getBreakpoints(): IBreakpoint[];
+	getProcesses(): ReadonlyArray<IProcess>;
+	getBreakpoints(): ReadonlyArray<IBreakpoint>;
 	areBreakpointsActivated(): boolean;
-	getFunctionBreakpoints(): IFunctionBreakpoint[];
-	getExceptionBreakpoints(): IExceptionBreakpoint[];
-	getWatchExpressions(): IExpression[];
-	getReplElements(): IReplElement[];
+	getFunctionBreakpoints(): ReadonlyArray<IFunctionBreakpoint>;
+	getExceptionBreakpoints(): ReadonlyArray<IExceptionBreakpoint>;
+	getWatchExpressions(): ReadonlyArray<IExpression>;
+	getReplElements(): ReadonlyArray<IReplElement>;
 
 	onDidChangeBreakpoints: Event<IBreakpointsChangeEvent>;
 	onDidChangeCallStack: Event<void>;
@@ -394,7 +394,7 @@ export interface IDebugAdapter extends IDisposable {
 	stopSession(): TPromise<void>;
 }
 
-export interface IDebugAdapterProvider {
+export interface IDebugAdapterProvider extends ITerminalLauncher {
 	createDebugAdapter(debugType: string, adapterInfo: IAdapterExecutable | null): IDebugAdapter;
 }
 
@@ -404,8 +404,6 @@ export interface IAdapterExecutable {
 }
 
 export interface IPlatformSpecificAdapterContribution {
-	type?: string;		// TODO: doesn't belong here
-	label?: string;		// TODO: doesn't belong here
 	program?: string;
 	args?: string[];
 	runtime?: string;
@@ -413,9 +411,8 @@ export interface IPlatformSpecificAdapterContribution {
 }
 
 export interface IDebuggerContribution extends IPlatformSpecificAdapterContribution {
-	// type: string;		// TODO: host from IPlatformSpecificAdapterContribution
-	// label?: string;		// TODO: host from IPlatformSpecificAdapterContribution
-
+	type?: string;
+	label?: string;
 	// debug adapter executable
 	adapterExecutableCommand?: string;
 	win?: IPlatformSpecificAdapterContribution;
@@ -496,11 +493,9 @@ export interface IConfigurationManager {
 	resolveConfigurationByProviders(folderUri: uri | undefined, type: string | undefined, debugConfiguration: any): TPromise<any>;
 	debugAdapterExecutable(folderUri: uri | undefined, type: string): TPromise<IAdapterExecutable | undefined>;
 
-	registerDebugAdapterProvider(debugTypes: string[], debugAdapterLauncher: IDebugAdapterProvider);
+	registerDebugAdapterProvider(debugTypes: string[], debugAdapterLauncher: IDebugAdapterProvider): IDisposable;
 	createDebugAdapter(debugType: string, adapterExecutable: IAdapterExecutable | null): IDebugAdapter | undefined;
-
-	registerEHTerminalLauncher(launcher: ITerminalLauncher): void;
-	runInTerminal(extensionHost: boolean, args: DebugProtocol.RunInTerminalRequestArguments, config: ITerminalSettings): TPromise<void>;
+	runInTerminal(debugType: string, args: DebugProtocol.RunInTerminalRequestArguments, config: ITerminalSettings): TPromise<void>;
 }
 
 export interface ILaunch {
@@ -547,7 +542,7 @@ export interface ILaunch {
 	 * Returns the resolved configuration.
 	 * Replaces os specific values, system variables, interactive variables.
 	 */
-	resolveConfiguration(config: IConfig): TPromise<IConfig>;
+	substituteVariables(config: IConfig): TPromise<IConfig>;
 
 	/**
 	 * Opens the launch.json file. Creates if it does not exist.

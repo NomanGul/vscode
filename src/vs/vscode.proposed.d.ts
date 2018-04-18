@@ -101,57 +101,6 @@ declare module 'vscode' {
 
 	//#region Joh: file system provider
 
-	// export enum FileErrorCodes {
-	// 	/**
-	// 	 * Not owner.
-	// 	 */
-	// 	EPERM = 1,
-	// 	/**
-	// 	 * No such file or directory.
-	// 	 */
-	// 	ENOENT = 2,
-	// 	/**
-	// 	 * I/O error.
-	// 	 */
-	// 	EIO = 5,
-	// 	/**
-	// 	 * Permission denied.
-	// 	 */
-	// 	EACCES = 13,
-	// 	/**
-	// 	 * File exists.
-	// 	 */
-	// 	EEXIST = 17,
-	// 	/**
-	// 	 * Not a directory.
-	// 	 */
-	// 	ENOTDIR = 20,
-	// 	/**
-	// 	 * Is a directory.
-	// 	 */
-	// 	EISDIR = 21,
-	// 	/**
-	// 	 *  File too large.
-	// 	 */
-	// 	EFBIG = 27,
-	// 	/**
-	// 	 * No space left on device.
-	// 	 */
-	// 	ENOSPC = 28,
-	// 	/**
-	// 	 * Directory is not empty.
-	// 	 */
-	// 	ENOTEMPTY = 66,
-	// 	/**
-	// 	 * Invalid file handle.
-	// 	 */
-	// 	ESTALE = 70,
-	// 	/**
-	// 	 * Illegal NFS file handle.
-	// 	 */
-	// 	EBADHANDLE = 10001,
-	// }
-
 	export enum FileChangeType {
 		Updated = 0,
 		Added = 1,
@@ -223,6 +172,33 @@ declare module 'vscode' {
 		// create(resource: Uri): Thenable<FileStat>;
 	}
 
+	export class FileError extends Error {
+
+		/**
+		 * Entry already exists.
+		 */
+		static readonly EEXIST: FileError;
+
+		/**
+		 * Entry does not exist.
+		 */
+		static readonly ENOENT: FileError;
+
+		/**
+		 * Entry is not a directory.
+		 */
+		static readonly ENOTDIR: FileError;
+
+		/**
+		 * Entry is a directory.
+		 */
+		static readonly EISDIR: FileError;
+
+		readonly code: string;
+
+		constructor(code: string, message?: string);
+	}
+
 	export enum FileChangeType2 {
 		Changed = 1,
 		Created = 2,
@@ -246,12 +222,17 @@ declare module 'vscode' {
 		size: number;
 	}
 
+	export enum FileOpenFlags {
+		Read = 0b0001,
+		Write = 0b0010,
+		Create = 0b0100,
+		Exclusive = 0b1000
+	}
 
-	// todo@joh discover files etc
 	// todo@joh add open/close calls?
 	export interface FileSystemProvider2 {
 
-		_version: 4;
+		_version: 6;
 
 		/**
 		 * An event to signal that a resource has been created, changed, or deleted.
@@ -259,13 +240,13 @@ declare module 'vscode' {
 		readonly onDidChange: Event<FileChange2[]>;
 
 		/**
-		 * Retrieve meta data about a file.
+		 * Retrieve metadata about a file. Must throw an [`ENOENT`](#FileError.ENOENT)-error
+		 * when the file doesn't exist.
 		 *
 		 * @param uri The uri of the file to retrieve meta data about.
 		 * @param token A cancellation token.
+		 * @return The file metadata about the file.
 		 */
-		// todo@remote
-		// ! throw error (ENOENT) when the file doesn't exist
 		stat(uri: Uri, token: CancellationToken): FileStat2 | Thenable<FileStat2>;
 
 		/**
@@ -278,13 +259,21 @@ declare module 'vscode' {
 		readDirectory(uri: Uri, token: CancellationToken): [string, FileStat2][] | Thenable<[string, FileStat2][]>;
 
 		/**
+		 * Create a new directory. *Note* that new files are created via `write`-calls.
+		 * 
+		 * @param uri The uri of the *new* folder.
+		 * @param token A cancellation token.
+		 */
+		createDirectory(uri: Uri, token: CancellationToken): FileStat2 | Thenable<FileStat2>;
+
+		/**
 		 * Read the entire contents of a file.
 		 *
 		 * @param uri The uri of the file.
 		 * @param token A cancellation token.
 		 * @return A thenable that resolves to an array of bytes.
 		 */
-		readFile(uri: Uri, token: CancellationToken): Uint8Array | Thenable<Uint8Array>;
+		readFile(uri: Uri, options: { flags: FileOpenFlags }, token: CancellationToken): Uint8Array | Thenable<Uint8Array>;
 
 		/**
 		 * Write data to a file, replacing its entire contents.
@@ -293,7 +282,7 @@ declare module 'vscode' {
 		 * @param content The new content of the file.
 		 * @param token A cancellation token.
 		 */
-		writeFile(uri: Uri, content: Uint8Array, token: CancellationToken): void | Thenable<void>;
+		writeFile(uri: Uri, content: Uint8Array, options: { flags: FileOpenFlags }, token: CancellationToken): void | Thenable<void>;
 
 		/**
 		 * Rename a file or folder.
@@ -302,7 +291,7 @@ declare module 'vscode' {
 		 * @param newUri The target location
 		 * @param token A cancellation token.
 		 */
-		rename(oldUri: Uri, newUri: Uri, token: CancellationToken): FileStat2 | Thenable<FileStat2>;
+		rename(oldUri: Uri, newUri: Uri, options: { flags: FileOpenFlags }, token: CancellationToken): FileStat2 | Thenable<FileStat2>;
 
 		// todo@remote
 		// helps with performance bigly
@@ -311,9 +300,6 @@ declare module 'vscode' {
 		// todo@remote
 		// ? useTrash, expose trash
 		delete(uri: Uri, token: CancellationToken): void | Thenable<void>;
-
-		// todo@remote
-		create(uri: Uri, options: { type: FileType2 }, token: CancellationToken): FileStat2 | Thenable<FileStat2>;
 	}
 
 	export namespace workspace {
@@ -500,25 +486,6 @@ declare module 'vscode' {
 		 * @readonly
 		 */
 		export const logLevel: LogLevel;
-	}
-
-	//#endregion
-
-	//#region Joh: rename context
-
-	export interface RenameProvider2 extends RenameProvider {
-
-		/**
-		 * Optional function for resolving and validating a position at which rename is
-		 * being carried out.
-		 *
-		 * @param document The document in which rename will be invoked.
-		 * @param position The position at which rename will be invoked.
-		 * @param token A cancellation token.
-		 * @return The range of the identifier that is to be renamed. The lack of a result can signaled by returning `undefined` or `null`.
-		 */
-		resolveRenameLocation?(document: TextDocument, position: Position, token: CancellationToken): ProviderResult<Range>;
-
 	}
 
 	//#endregion

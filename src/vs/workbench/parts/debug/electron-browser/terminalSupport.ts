@@ -42,7 +42,7 @@ export class TerminalLauncher implements ITerminalLauncher {
 
 		let t = this.integratedTerminalInstance;
 		if ((t && this.isBusy(t)) || !t) {
-			t = this.terminalService.createInstance({ name: args.title || nls.localize('debug.terminal.title', "debuggee") });
+			t = this.terminalService.createTerminal({ name: args.title || nls.localize('debug.terminal.title', "debuggee") });
 			this.integratedTerminalInstance = t;
 		}
 		this.terminalService.setActiveInstance(t);
@@ -193,7 +193,7 @@ export class TerminalLauncher implements ITerminalLauncher {
 					command += `cd ${quote(args.cwd)} ; `;
 				}
 				if (args.env) {
-					command += 'envVars';
+					command += 'env';
 					for (let key in args.env) {
 						const value = args.env[key];
 						if (value === null) {

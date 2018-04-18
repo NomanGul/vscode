@@ -6,11 +6,11 @@
 
 import URI from 'vs/base/common/uri';
 import { FileService } from 'vs/workbench/services/files/electron-browser/fileService';
-import { IContent, IStreamContent, IFileStat, IResolveContentOptions, IUpdateContentOptions, IResolveFileOptions, IResolveFileResult, FileOperationEvent, FileOperation, IFileSystemProvider, IStat, FileType2, FileChangesEvent, ICreateFileOptions, FileOperationError, FileOperationResult, ITextSnapshot, StringSnapshot } from 'vs/platform/files/common/files';
+import { IContent, IStreamContent, IFileStat, IResolveContentOptions, IUpdateContentOptions, IResolveFileOptions, IResolveFileResult, FileOperationEvent, FileOperation, IFileSystemProvider, IStat, FileType2, FileChangesEvent, ICreateFileOptions, FileOperationError, FileOperationResult, ITextSnapshot, StringSnapshot, FileOpenFlags, FileError } from 'vs/platform/files/common/files';
 import { TPromise } from 'vs/base/common/winjs.base';
 import { posix } from 'path';
 import { IDisposable } from 'vs/base/common/lifecycle';
-import { isFalsyOrEmpty, distinct } from 'vs/base/common/arrays';
+import { isFalsyOrEmpty, distinct, flatten } from 'vs/base/common/arrays';
 import { Schemas } from 'vs/base/common/network';
 import { toDecodeStream, IDecodeStreamOptions, decodeStream } from 'vs/base/node/encoding';
 import { TernarySearchTree } from 'vs/base/common/map';
@@ -189,9 +189,7 @@ export class RemoteFileService extends FileService {
 				promises.push(this._doResolveFiles(group));
 			}
 		}
-		return TPromise.join(promises).then(data => {
-			return [].concat(...data);
-		});
+		return TPromise.join(promises).then(data => flatten(data));
 	}
 
 	private _doResolveFiles(toResolve: { resource: URI; options?: IResolveFileOptions; }[]): TPromise<IResolveFileResult[], any> {
@@ -257,7 +255,7 @@ export class RemoteFileService extends FileService {
 					}
 				};
 
-				const readable = createReadableOfProvider(provider, resource, options.position || 0);
+				const readable = createReadableOfProvider(provider, resource, options.position || 0, FileOpenFlags.Read);
 
 				return toDecodeStream(readable, decodeStreamOpts).then(data => {
 
@@ -289,44 +287,46 @@ export class RemoteFileService extends FileService {
 			return super.createFile(resource, content, options);
 		} else {
 			return this._withProvider(resource).then(provider => {
-				let prepare = options && !options.overwrite
-					? this.existsFile(resource)
-					: TPromise.as(false);
 
+				let flags = FileOpenFlags.Write | FileOpenFlags.Create;
+				if (options && options.overwrite === false) {
+					flags += FileOpenFlags.Exclusive;
+				}
 
-				return prepare.then(exists => {
-					if (exists && options && !options.overwrite) {
-						return TPromise.wrapError(new FileOperationError('EEXIST', FileOperationResult.FILE_MODIFIED_SINCE, options));
-					}
-					return this._writeFile(provider, resource, content || '', {});
-				}).then(fileStat => {
-					this._onAfterOperation.fire(new FileOperationEvent(resource, FileOperation.CREATE, fileStat));
-					return fileStat;
-				});
+				const encoding = this.encoding.getWriteEncoding(resource);
+				return this._writeFile(provider, resource, new StringSnapshot(content), { encoding }, flags);
+
+			}).then(fileStat => {
+				this._onAfterOperation.fire(new FileOperationEvent(resource, FileOperation.CREATE, fileStat));
+				return fileStat;
+			}, err => {
+				if (FileError.EEXIST.is(err)) {
+					return TPromise.wrapError(new FileOperationError('EEXIST', FileOperationResult.FILE_MODIFIED_SINCE, options));
+				}
+				throw err;
 			});
 		}
 	}
 
-	updateContent(resource: URI, value: string | ITextSnapshot, options?: IUpdateContentOptions): TPromise<IFileStat> {
+	async updateContent(resource: URI, value: string | ITextSnapshot, options?: IUpdateContentOptions): TPromise<IFileStat> {
 		if (resource.scheme === Schemas.file) {
 			return super.updateContent(resource, value, options);
 		} else {
+			if (options && options.mkdirp) {
+				await this._mkdirp(resource.with({ path: posix.dirname(resource.path) }));
+			}
 			return this._withProvider(resource).then(provider => {
-				return this._writeFile(provider, resource, value, options || {});
+				const snapshot = typeof value === 'string' ? new StringSnapshot(value) : value;
+				return this._writeFile(provider, resource, snapshot, options || {}, FileOpenFlags.Write);
 			});
 		}
 	}
 
-	private _writeFile(provider: IFileSystemProvider, resource: URI, content: string | ITextSnapshot, options: IUpdateContentOptions): TPromise<IFileStat> {
-
-		const snapshot = typeof content === 'string' ? new StringSnapshot(content) : content;
+	private _writeFile(provider: IFileSystemProvider, resource: URI, snapshot: ITextSnapshot, options: IUpdateContentOptions, fags: FileOpenFlags): TPromise<IFileStat> {
 		const readable = createReadableOfSnapshot(snapshot);
-
 		const encoding = this.encoding.getWriteEncoding(resource, options.encoding);
 		const decoder = decodeStream(encoding);
-
-		const target = createWritableOfProvider(provider, resource);
-
+		const target = createWritableOfProvider(provider, resource, FileOpenFlags.Write);
 		return new TPromise<IFileStat>((resolve, reject) => {
 			readable.pipe(decoder).pipe(target);
 			target.once('error', err => reject(err));
@@ -350,6 +350,27 @@ export class RemoteFileService extends FileService {
 			content.value.on('error', reject);
 			content.value.on('end', () => resolve(result));
 		});
+	}
+
+	private async _mkdirp(directory: URI): Promise<void> {
+		let basenames: string[] = [];
+		while (directory.path !== '/') {
+			try {
+				let stat = await this.resolveFile(directory);
+				if (!stat.isDirectory) {
+					throw new Error(`${directory.toString()} is not a directory`);
+				}
+			} catch (e) {
+				// ENOENT
+				basenames.push(posix.basename(directory.path));
+				directory = directory.with({ path: posix.dirname(directory.path) });
+			}
+			break;
+		}
+		for (let i = basenames.length - 1; i >= 0; i--) {
+			directory = directory.with({ path: posix.join(directory.path, basenames[i]) });
+			await this.createFolder(directory);
+		}
 	}
 
 	// --- delete
@@ -407,7 +428,7 @@ export class RemoteFileService extends FileService {
 			: TPromise.as(null);
 
 		return prepare.then(() => this._withProvider(source)).then(provider => {
-			return provider.rename(source, target).then(stat => {
+			return provider.rename(source, target, { flags: 0 /*todo@remote ->  RENAME_NOREPLACE */ }).then(stat => {
 				return toIFileStat(provider, [target, stat]);
 			}).then(fileStat => {
 				this._onAfterOperation.fire(new FileOperationEvent(source, FileOperation.MOVE, fileStat));
@@ -441,7 +462,12 @@ export class RemoteFileService extends FileService {
 			// https://github.com/Microsoft/vscode/issues/41543
 			return this.resolveContent(source, { acceptTextOnly: true }).then(content => {
 				return this._withProvider(target).then(provider => {
-					return this._writeFile(provider, target, content.value, { encoding: content.encoding }).then(fileStat => {
+					return this._writeFile(
+						provider, target,
+						new StringSnapshot(content.value),
+						{ encoding: content.encoding },
+						FileOpenFlags.Create | FileOpenFlags.Write
+					).then(fileStat => {
 						this._onAfterOperation.fire(new FileOperationEvent(source, FileOperation.COPY, fileStat));
 						return fileStat;
 					});
