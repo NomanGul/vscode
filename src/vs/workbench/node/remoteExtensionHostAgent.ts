@@ -354,7 +354,7 @@ class ExtensionHostConnection {
 					VSCODE_HANDLES_UNCAUGHT_ERRORS: true,
 					VSCODE_LOG_STACK: false
 				}),
-				execArgv: <string[]>undefined,
+				execArgv: ['--inspect=0.0.0.0:5870'],
 				silent: true
 			};
 
