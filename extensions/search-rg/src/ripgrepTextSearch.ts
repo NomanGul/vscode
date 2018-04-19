@@ -12,7 +12,7 @@ import * as path from 'path';
 import { StringDecoder, NodeStringDecoder } from 'string_decoder';
 
 import * as cp from 'child_process';
-import { rgPath } from 'vscode-ripgrep';
+import { rgPath } from 'vscode-ripgrep-dynamic';
 import { patternsToRgGlobs } from './ripgrepHelpers';
 import { start } from 'repl';
 
