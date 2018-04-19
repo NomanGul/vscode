@@ -185,7 +185,7 @@ export class RipgrepParser extends EventEmitter {
 			relativeOrAbsolutePath :
 			path.join(this.rootFolder, relativeOrAbsolutePath);
 
-		return vscode.Uri.parse(absPath);
+		return vscode.Uri.file(absPath);
 	}
 
 	private handleMatchLine(outputLine: string, lineNum: number, lineText: string): void {
