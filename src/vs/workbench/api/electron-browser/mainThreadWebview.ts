@@ -178,7 +178,7 @@ export class MainThreadWebviews implements MainThreadWebviewsShape, WebviewReviv
 			onDidClickLink: uri => this.onDidClickLink(handle, uri),
 			onMessage: message => this._proxy.$onMessage(handle, message),
 			onDispose: () => {
-				this._proxy.onDidDisposeWebviewPanel(handle).then(() => {
+				this._proxy.$onDidDisposeWebviewPanel(handle).then(() => {
 					this._webviews.delete(handle);
 				});
 			}

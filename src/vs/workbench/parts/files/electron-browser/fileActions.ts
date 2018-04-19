@@ -160,8 +160,15 @@ class TriggerRenameFileAction extends BaseFileAction {
 		this._updateEnablement();
 	}
 
-
 	public validateFileName(name: string): string {
+		const names: string[] = name.split(/[\\/]/).filter(part => !!part);
+		if (names.length > 1) {	// error only occurs on multi-path
+			const comparer = isLinux ? strings.compare : strings.compareIgnoreCase;
+			if (comparer(names[0], this.element.name) === 0) {
+				return nls.localize('renameWhenSourcePathIsParentOfTargetError', "Please use the 'New Folder' or 'New File' command to add children to an existing folder");
+			}
+		}
+
 		return this.renameAction.validateFileName(this.element.parent, name);
 	}
 
@@ -1354,6 +1361,11 @@ export function validateFileName(parent: ExplorerItem, name: string, allowOverwr
 	// Name not provided
 	if (!name || name.length === 0 || /^\s+$/.test(name)) {
 		return nls.localize('emptyFileNameError', "A file or folder name must be provided.");
+	}
+
+	// Relative paths only
+	if (name[0] === '/' || name[0] === '\\') {
+		return nls.localize('fileNameStartsWithSlashError', "A file or folder name cannot start with a slash.");
 	}
 
 	const names: string[] = name.split(/[\\/]/).filter(part => !!part);
