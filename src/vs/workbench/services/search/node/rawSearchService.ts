@@ -17,7 +17,6 @@ import * as strings from 'vs/base/common/strings';
 import { PPromise, TPromise } from 'vs/base/common/winjs.base';
 import { FileWalker, Engine as FileSearchEngine } from 'vs/workbench/services/search/node/fileSearch';
 import { MAX_FILE_SIZE } from 'vs/platform/files/node/files';
-import { RipgrepEngine } from 'vs/workbench/services/search/node/ripgrepTextSearch';
 import { Engine as TextSearchEngine } from 'vs/workbench/services/search/node/textSearch';
 import { TextSearchWorkerProvider } from 'vs/workbench/services/search/node/textSearchWorkerProvider';
 import { IRawSearchService, IRawSearch, IRawFileMatch, ISerializedFileMatch, ISerializedSearchProgressItem, ISerializedSearchComplete, ISearchEngine, IFileSearchProgressItem, ITelemetryEvent } from './search';
@@ -42,31 +41,6 @@ export class SearchService implements IRawSearchService {
 		return config.useRipgrep ?
 			PPromise.wrap({ limitHit: false, stats: null }) :
 			this.legacyTextSearch(config);
-	}
-
-	public ripgrepTextSearch(config: IRawSearch): PPromise<ISerializedSearchComplete, ISerializedSearchProgressItem> {
-		config.maxFilesize = MAX_FILE_SIZE;
-		let engine = new RipgrepEngine(config);
-
-		return new PPromise<ISerializedSearchComplete, ISerializedSearchProgressItem>((c, e, p) => {
-			// Use BatchedCollector to get new results to the frontend every 2s at least, until 50 results have been returned
-			const collector = new BatchedCollector<ISerializedFileMatch>(SearchService.BATCH_SIZE, p);
-			engine.search((match) => {
-				collector.addItem(match, match.numMatches);
-			}, (message) => {
-				p(message);
-			}, (error, stats) => {
-				collector.flush();
-
-				if (error) {
-					e(error);
-				} else {
-					c(stats);
-				}
-			});
-		}, () => {
-			engine.cancel();
-		});
 	}
 
 	public legacyTextSearch(config: IRawSearch): PPromise<ISerializedSearchComplete, ISerializedSearchProgressItem> {

@@ -26,7 +26,6 @@ import * as extfs from 'vs/base/node/extfs';
 import * as flow from 'vs/base/node/flow';
 import { IRawFileMatch, ISerializedSearchComplete, IRawSearch, ISearchEngine, IFolderSearch } from './search';
 import { spawnRipgrepCmd } from './ripgrepFileSearch';
-import { rgErrorMsgForDisplay } from './ripgrepTextSearch';
 
 enum Traversal {
 	Node = 1,
@@ -820,4 +819,30 @@ class AbsoluteAndRelativeParsedExpression {
 
 		return pathTerms;
 	}
+}
+
+/**
+ * Read the first line of stderr and return an error for display or undefined, based on a whitelist.
+ * Ripgrep produces stderr output which is not from a fatal error, and we only want the search to be
+ * "failed" when a fatal error was produced.
+ */
+function rgErrorMsgForDisplay(msg: string): string | undefined {
+	const firstLine = msg.split('\n')[0];
+
+	if (strings.startsWith(firstLine, 'Error parsing regex')) {
+		return firstLine;
+	}
+
+	if (strings.startsWith(firstLine, 'error parsing glob') ||
+		strings.startsWith(firstLine, 'unsupported encoding')) {
+		// Uppercase first letter
+		return firstLine.charAt(0).toUpperCase() + firstLine.substr(1);
+	}
+
+	if (strings.startsWith(firstLine, 'Literal ')) {
+		// e.g. "Literal \n not allowed"
+		return firstLine;
+	}
+
+	return undefined;
 }
