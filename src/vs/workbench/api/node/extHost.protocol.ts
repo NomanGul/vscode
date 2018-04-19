@@ -46,7 +46,7 @@ import { IStat, FileChangeType, FileOpenFlags, IWatchOptions, FileSystemProvider
 import { ConfigurationScope } from 'vs/platform/configuration/common/configurationRegistry';
 import { CommentRule, CharacterPair, EnterAction } from 'vs/editor/common/modes/languageConfiguration';
 import { ISingleEditOperation } from 'vs/editor/common/model';
-import { ILineMatch, IPatternInfo, ISearchQuery } from 'vs/platform/search/common/search';
+import { ILineMatch, IPatternInfo, IRawSearchQuery } from 'vs/platform/search/common/search';
 import { LogLevel } from 'vs/platform/log/common/log';
 import { TaskExecutionDTO, TaskDTO, TaskHandleDTO } from 'vs/workbench/api/shared/tasks';
 
@@ -592,7 +592,7 @@ export interface ExtHostFileSystemShape {
 
 export interface ExtHostSearchShape {
 	$provideFileSearchResults(handle: number, session: number, query: string): TPromise<void>;
-	$provideTextSearchResults(handle: number, session: number, pattern: IPatternInfo, query: ISearchQuery, options: { includes: string[], excludes: string[] }): TPromise<void>;
+	$provideTextSearchResults(handle: number, session: number, pattern: IPatternInfo, query: IRawSearchQuery): TPromise<void>;
 }
 
 export interface ExtHostExtensionServiceShape {

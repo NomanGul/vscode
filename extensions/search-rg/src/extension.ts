@@ -7,7 +7,9 @@ import * as vscode from 'vscode';
 import { RipgrepTextSearchEngine } from './ripgrepTextSearch';
 
 export function activate(): void {
-	vscode.workspace.registerSearchProvider('vscode-remote', new RipgrepSearchProvider());
+	const provider = new RipgrepSearchProvider();
+	vscode.workspace.registerSearchProvider('vscode-remote', provider);
+	vscode.workspace.registerSearchProvider('file', provider);
 }
 
 class RipgrepSearchProvider implements vscode.SearchProvider {

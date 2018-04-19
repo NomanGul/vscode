@@ -32,7 +32,6 @@ export class RipgrepTextSearchEngine {
 	}
 
 	cancel(): void {
-		this.isDone = true;
 		this.ripgrepParser.cancel();
 		this.rgProc.kill();
 	}
@@ -50,6 +49,10 @@ export class RipgrepTextSearchEngine {
 			// let rgCmd = `rg ${escapedArgs}\n - cwd: ${cwd}`;
 
 			this.rgProc = cp.spawn(rgDiskPath, rgArgs, { cwd });
+			this.rgProc.on('error', e => {
+				console.log(e);
+				reject(e);
+			});
 
 			this.ripgrepParser = new RipgrepParser(cwd);
 			this.ripgrepParser.on('result', (match: vscode.TextSearchResult) => {
@@ -71,17 +74,14 @@ export class RipgrepTextSearchEngine {
 			});
 
 			this.rgProc.on('close', code => {
-				// Trigger last result, then wait on async result handling
+				// Trigger last result
 				this.ripgrepParser.flush();
 				this.rgProc = null;
-				if (!this.isDone) {
-					this.isDone = true;
-					let displayMsg: string;
-					if (stderr && !gotData && (displayMsg = rgErrorMsgForDisplay(stderr))) {
-						reject(new Error(displayMsg));
-					} else {
-						resolve();
-					}
+				let displayMsg: string;
+				if (stderr && !gotData && (displayMsg = rgErrorMsgForDisplay(stderr))) {
+					reject(new Error(displayMsg));
+				} else {
+					resolve();
 				}
 			});
 		});

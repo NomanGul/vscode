@@ -40,7 +40,7 @@ export class SearchService implements IRawSearchService {
 
 	public textSearch(config: IRawSearch): PPromise<ISerializedSearchComplete, ISerializedSearchProgressItem> {
 		return config.useRipgrep ?
-			this.ripgrepTextSearch(config) :
+			PPromise.wrap({ limitHit: false, stats: null }) :
 			this.legacyTextSearch(config);
 	}
 

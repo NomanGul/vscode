@@ -5,7 +5,7 @@
 'use strict';
 
 import { PPromise, TPromise } from 'vs/base/common/winjs.base';
-import uri from 'vs/base/common/uri';
+import uri, { UriComponents } from 'vs/base/common/uri';
 import * as objects from 'vs/base/common/objects';
 import * as paths from 'vs/base/common/paths';
 import * as glob from 'vs/base/common/glob';
@@ -33,16 +33,16 @@ export interface ISearchResultProvider {
 	search(query: ISearchQuery): PPromise<ISearchComplete, ISearchProgressItem>;
 }
 
-export interface IFolderQuery {
-	folder: uri;
+export interface IFolderQuery<U=uri> {
+	folder: U;
 	excludePattern?: glob.IExpression;
 	includePattern?: glob.IExpression;
 	fileEncoding?: string;
 	disregardIgnoreFiles?: boolean;
 }
 
-export interface ICommonQueryOptions {
-	extraFileResources?: uri[];
+export interface ICommonQueryOptions<U> {
+	extraFileResources?: U[];
 	filePattern?: string; // file search only
 	fileEncoding?: string;
 	maxResults?: number;
@@ -60,20 +60,23 @@ export interface ICommonQueryOptions {
 	ignoreSymlinks?: boolean;
 }
 
-export interface IQueryOptions extends ICommonQueryOptions {
+export interface IQueryOptions extends ICommonQueryOptions<uri> {
 	excludePattern?: string;
 	includePattern?: string;
 }
 
-export interface ISearchQuery extends ICommonQueryOptions {
+export interface ISearchQueryProps<U> extends ICommonQueryOptions<U> {
 	type: QueryType;
 
 	excludePattern?: glob.IExpression;
 	includePattern?: glob.IExpression;
 	contentPattern?: IPatternInfo;
-	folderQueries?: IFolderQuery[];
+	folderQueries?: IFolderQuery<U>[];
 	usingSearchPaths?: boolean;
 }
+
+export type ISearchQuery = ISearchQueryProps<uri>;
+export type IRawSearchQuery = ISearchQueryProps<UriComponents>;
 
 export enum QueryType {
 	File = 1,

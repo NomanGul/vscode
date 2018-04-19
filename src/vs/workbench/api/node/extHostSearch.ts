@@ -6,9 +6,10 @@
 
 import { asWinJsPromise } from 'vs/base/common/async';
 import { TPromise } from 'vs/base/common/winjs.base';
-import { IPatternInfo, ISearchQuery } from 'vs/platform/search/common/search';
+import { IPatternInfo, IFolderQuery, IRawSearchQuery } from 'vs/platform/search/common/search';
 import * as vscode from 'vscode';
 import { ExtHostSearchShape, IMainContext, MainContext, MainThreadSearchShape } from './extHost.protocol';
+import URI, { UriComponents } from 'vs/base/common/uri';
 
 export class ExtHostSearch implements ExtHostSearchShape {
 
@@ -45,16 +46,36 @@ export class ExtHostSearch implements ExtHostSearchShape {
 		return asWinJsPromise(token => provider.provideFileSearchResults(query, progress, token));
 	}
 
-	$provideTextSearchResults(handle: number, session: number, pattern: IPatternInfo, query: ISearchQuery, options: { includes: string[], excludes: string[] }): TPromise<void> {
+	$provideTextSearchResults(handle: number, session: number, pattern: IPatternInfo, query: IRawSearchQuery): TPromise<void> {
+		return TPromise.join(
+			query.folderQueries.map(fq => this.provideTextSearchResultsForFolder(handle, session, pattern, query, fq))
+		).then(
+			() => { },
+			(err: Error[]) => {
+				return TPromise.wrapError(err[0]);
+			});
+	}
+
+	private provideTextSearchResultsForFolder(handle: number, session: number, pattern: IPatternInfo, query: IRawSearchQuery, folderQuery: IFolderQuery<UriComponents>): TPromise<void> {
 		const provider = this._searchProvider.get(handle);
 		if (!provider.provideTextSearchResults) {
 			return TPromise.as(undefined);
 		}
 
+		const includes: string[] = query.includePattern ? Object.keys(query.includePattern) : [];
+		if (folderQuery.includePattern) {
+			includes.push(...Object.keys(folderQuery.includePattern));
+		}
+
+		const excludes: string[] = query.excludePattern ? Object.keys(query.excludePattern) : [];
+		if (folderQuery.excludePattern) {
+			excludes.push(...Object.keys(folderQuery.excludePattern));
+		}
+
 		const searchOptions: vscode.TextSearchOptions = {
-			folder: query.folderQueries[0].folder,
-			excludes: options.excludes,
-			includes: options.includes,
+			folder: URI.from(folderQuery.folder),
+			excludes,
+			includes,
 			disregardIgnoreFiles: query.disregardIgnoreFiles,
 			ignoreSymlinks: query.ignoreSymlinks,
 			encoding: query.fileEncoding

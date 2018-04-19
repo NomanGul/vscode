@@ -73,7 +73,6 @@ class RemoteSearchProvider implements ISearchResultProvider {
 	private readonly _registrations: IDisposable[];
 	private readonly _searches = new Map<number, SearchOperation>();
 
-
 	constructor(
 		searchService: ISearchService,
 		private readonly _scheme: string,
@@ -93,15 +92,12 @@ class RemoteSearchProvider implements ISearchResultProvider {
 			return PPromise.as(undefined);
 		}
 
-		let includes = { ...query.includePattern };
-		let excludes = { ...query.excludePattern };
+		const folderQueriesForScheme = query.folderQueries.filter(fq => fq.folder.scheme === this._scheme);
 
-		for (const folderQuery of query.folderQueries) {
-			if (folderQuery.folder.scheme === this._scheme) {
-				includes = { ...includes, ...folderQuery.includePattern };
-				excludes = { ...excludes, ...folderQuery.excludePattern };
-			}
-		}
+		query = {
+			...query,
+			folderQueries: folderQueriesForScheme
+		};
 
 		let outer: TPromise;
 
@@ -112,7 +108,7 @@ class RemoteSearchProvider implements ISearchResultProvider {
 
 			outer = query.type === QueryType.File
 				? this._proxy.$provideFileSearchResults(this._handle, search.id, query.filePattern)
-				: this._proxy.$provideTextSearchResults(this._handle, search.id, query.contentPattern, query, { excludes: Object.keys(excludes), includes: Object.keys(includes) });
+				: this._proxy.$provideTextSearchResults(this._handle, search.id, query.contentPattern, query);
 
 			outer.then(() => {
 				this._searches.delete(search.id);
@@ -146,3 +142,20 @@ class RemoteSearchProvider implements ISearchResultProvider {
 		this._searches.get(session).addMatch(resource, match);
 	}
 }
+
+// function createRawSearchQuery(query: ISearchQuery): IRawSearchQuery {
+// 	return {
+// 		contentPattern: query.contentPattern,
+// 		disregardExcludeSettings: query.disregardExcludeSettings,
+// 		disregardIgnoreFiles: query.disregardIgnoreFiles,
+// 		excludePattern: query.excludePattern,
+// 		extraFileResources: query.extraFileResources,
+// 		fileEncoding: query.fileEncoding,
+// 		folderQueries: query.folderQueries.map(fq => {
+// 			const rawFq: IFolderQuery<UriComponents> = { ...fq };
+// 			rawFq.folder = fq.folder.toJSON();
+// 			return rawFq;
+// 		}),
+// 		type: query.type
+// 	}
+// }
