@@ -46,7 +46,7 @@ import { IStat, FileChangeType, FileOpenFlags, IWatchOptions, FileSystemProvider
 import { ConfigurationScope } from 'vs/platform/configuration/common/configurationRegistry';
 import { CommentRule, CharacterPair, EnterAction } from 'vs/editor/common/modes/languageConfiguration';
 import { ISingleEditOperation } from 'vs/editor/common/model';
-import { ILineMatch, IPatternInfo, IRawSearchQuery } from 'vs/platform/search/common/search';
+import { IPatternInfo, IRawSearchQuery, IRawFileMatch } from 'vs/platform/search/common/search';
 import { LogLevel } from 'vs/platform/log/common/log';
 import { TaskExecutionDTO, TaskDTO, TaskHandleDTO } from 'vs/workbench/api/shared/tasks';
 
@@ -400,7 +400,7 @@ export interface MainThreadFileSystemShape extends IDisposable {
 export interface MainThreadSearchShape extends IDisposable {
 	$registerSearchProvider(handle: number, scheme: string): void;
 	$unregisterProvider(handle: number): void;
-	$handleFindMatch(handle: number, session, data: UriComponents | [UriComponents, ILineMatch]): void;
+	$handleFindMatch(handle: number, session, data: UriComponents | IRawFileMatch[]): void;
 }
 
 export interface MainThreadTaskShape extends IDisposable {

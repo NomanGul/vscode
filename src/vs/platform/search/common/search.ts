@@ -33,7 +33,7 @@ export interface ISearchResultProvider {
 	search(query: ISearchQuery): PPromise<ISearchComplete, ISearchProgressItem>;
 }
 
-export interface IFolderQuery<U=uri> {
+export interface IFolderQuery<U extends UriComponents=uri> {
 	folder: U;
 	excludePattern?: glob.IExpression;
 	includePattern?: glob.IExpression;
@@ -65,7 +65,7 @@ export interface IQueryOptions extends ICommonQueryOptions<uri> {
 	includePattern?: string;
 }
 
-export interface ISearchQueryProps<U> extends ICommonQueryOptions<U> {
+export interface ISearchQueryProps<U extends UriComponents> extends ICommonQueryOptions<U> {
 	type: QueryType;
 
 	excludePattern?: glob.IExpression;
@@ -103,10 +103,12 @@ export interface IPatternInfo {
 	isSmartCase?: boolean;
 }
 
-export interface IFileMatch {
-	resource?: uri;
+export interface IFileMatch<U extends UriComponents = uri> {
+	resource?: U;
 	lineMatches?: ILineMatch[];
 }
+
+export type IRawFileMatch = IFileMatch<UriComponents>;
 
 export interface ILineMatch {
 	preview: string;
