@@ -19,6 +19,9 @@ import { start } from 'repl';
 // If vscode-ripgrep is in an .asar file, then the binary is unpacked.
 const rgDiskPath = rgPath.replace(/\bnode_modules\.asar\b/, 'node_modules.asar.unpacked');
 
+// TODO@roblou move to SearchService
+const MAX_TEXT_RESULTS = 10000;
+
 export class RipgrepTextSearchEngine {
 	private isDone = false;
 	private rgProc: cp.ChildProcess;
@@ -28,16 +31,17 @@ export class RipgrepTextSearchEngine {
 
 	constructor() {
 		this.killRgProcFn = () => this.rgProc && this.rgProc.kill();
-		process.once('exit', this.killRgProcFn);
 	}
 
 	provideTextSearchResults(query: vscode.TextSearchQuery, options: vscode.TextSearchOptions, progress: vscode.Progress<vscode.TextSearchResult>, token: vscode.CancellationToken): Thenable<void> {
 		return new Promise((resolve, reject) => {
 			let isDone = false;
-			token.onCancellationRequested(e => {
+			const cancel = () => {
+				this.isDone = true;
 				this.ripgrepParser.cancel();
 				this.rgProc.kill();
-			});
+			};
+			token.onCancellationRequested(cancel);
 
 			const rgArgs = getRgArgs(query, options);
 
@@ -50,14 +54,19 @@ export class RipgrepTextSearchEngine {
 			// let rgCmd = `rg ${escapedArgs}\n - cwd: ${cwd}`;
 
 			this.rgProc = cp.spawn(rgDiskPath, rgArgs, { cwd });
+			process.once('exit', this.killRgProcFn);
 			this.rgProc.on('error', e => {
 				console.log(e);
 				reject(e);
 			});
 
-			this.ripgrepParser = new RipgrepParser(cwd);
+			this.ripgrepParser = new RipgrepParser(MAX_TEXT_RESULTS, cwd);
 			this.ripgrepParser.on('result', (match: vscode.TextSearchResult) => {
 				progress.report(match);
+			});
+
+			this.ripgrepParser.on('hitLimit', () => {
+				cancel();
 			});
 
 			this.rgProc.stdout.on('data', data => {
@@ -75,6 +84,7 @@ export class RipgrepTextSearchEngine {
 			});
 
 			this.rgProc.on('close', code => {
+				process.removeListener('exit', this.killRgProcFn);
 				if (isDone) {
 					resolve();
 				} else {
@@ -131,7 +141,9 @@ export class RipgrepParser extends EventEmitter {
 	private isDone: boolean;
 	private stringDecoder: NodeStringDecoder;
 
-	constructor(private rootFolder: string) {
+	private numResults = 0;
+
+	constructor(private maxResults: number, private rootFolder: string) {
 		super();
 		this.stringDecoder = new StringDecoder();
 	}
@@ -244,6 +256,13 @@ export class RipgrepParser extends EventEmitter {
 				matchTextStartRealIdx = -1;
 				i += RipgrepParser.MATCH_END_MARKER.length;
 				lastMatchEndPos = i;
+				this.numResults++;
+
+				// Check hit maxResults limit
+				if (this.numResults >= this.maxResults) {
+					// Finish the line, then report the result below
+					hitLimit = true;
+				}
 			} else {
 				i++;
 				textRealIdx++;
@@ -268,6 +287,11 @@ export class RipgrepParser extends EventEmitter {
 				};
 			})
 			.forEach(match => this.onResult(match));
+
+		if (hitLimit) {
+			this.cancel();
+			this.emit('hitLimit');
+		}
 	}
 
 	private onResult(match: vscode.TextSearchResult): void {
