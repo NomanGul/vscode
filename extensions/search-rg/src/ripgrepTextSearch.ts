@@ -31,13 +31,14 @@ export class RipgrepTextSearchEngine {
 		process.once('exit', this.killRgProcFn);
 	}
 
-	cancel(): void {
-		this.ripgrepParser.cancel();
-		this.rgProc.kill();
-	}
-
 	provideTextSearchResults(query: vscode.TextSearchQuery, options: vscode.TextSearchOptions, progress: vscode.Progress<vscode.TextSearchResult>, token: vscode.CancellationToken): Thenable<void> {
 		return new Promise((resolve, reject) => {
+			let isDone = false;
+			token.onCancellationRequested(e => {
+				this.ripgrepParser.cancel();
+				this.rgProc.kill();
+			});
+
 			const rgArgs = getRgArgs(query, options);
 
 			const cwd = options.folder.fsPath;
@@ -74,14 +75,18 @@ export class RipgrepTextSearchEngine {
 			});
 
 			this.rgProc.on('close', code => {
-				// Trigger last result
-				this.ripgrepParser.flush();
-				this.rgProc = null;
-				let displayMsg: string;
-				if (stderr && !gotData && (displayMsg = rgErrorMsgForDisplay(stderr))) {
-					reject(new Error(displayMsg));
-				} else {
+				if (isDone) {
 					resolve();
+				} else {
+					// Trigger last result
+					this.ripgrepParser.flush();
+					this.rgProc = null;
+					let displayMsg: string;
+					if (stderr && !gotData && (displayMsg = rgErrorMsgForDisplay(stderr))) {
+						reject(new Error(displayMsg));
+					} else {
+						resolve();
+					}
 				}
 			});
 		});
