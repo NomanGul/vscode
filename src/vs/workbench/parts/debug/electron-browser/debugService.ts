@@ -153,11 +153,17 @@ export class DebugService implements debug.IDebugService {
 		const session = <RawDebugSession>process.session;
 
 		if (broadcast.channel === EXTENSION_ATTACH_BROADCAST_CHANNEL) {
-			this.onSessionEnd(session);
-
+			const initialAttach = process.configuration.request === 'launch';
 			process.configuration.request = 'attach';
 			process.configuration.port = broadcast.payload.port;
-			this.doCreateProcess(process.session.root, process.configuration, process.getId());
+			// Do not end process on initial attach (since the request is still 'launch')
+			if (initialAttach) {
+				session.attach(process.configuration);
+			} else {
+				this.onSessionEnd(session);
+				this.doCreateProcess(process.session.root, process.configuration, process.getId());
+			}
+
 			return;
 		}
 
@@ -784,9 +790,32 @@ export class DebugService implements debug.IDebugService {
 		});
 	}
 
+	private substituteVariables(launch: debug.ILaunch, config: debug.IConfig): TPromise<debug.IConfig> {
+		const dbg = this.configurationManager.getDebugger(config.type);
+		if (dbg) {
+			let folder: IWorkspaceFolder = undefined;
+			if (launch.workspace) {
+				folder = launch.workspace;
+			} else {
+				const folders = this.contextService.getWorkspace().folders;
+				if (folders.length === 1) {
+					folder = folders[0];
+				}
+			}
+			return dbg.substituteVariables(folder, config).then(config => {
+				return config;
+			}, (err: Error) => {
+				this.showError(err.message);
+				return undefined;	// bail out
+			});
+		}
+		return TPromise.as(config);
+	}
+
 	private createProcess(launch: debug.ILaunch, config: debug.IConfig, sessionId: string): TPromise<void> {
 		return this.textFileService.saveAll().then(() =>
-			(launch ? launch.substituteVariables(config) : TPromise.as(config)).then(resolvedConfig => {
+			this.substituteVariables(launch, config).then(resolvedConfig => {
+
 				if (!resolvedConfig) {
 					// User canceled resolving of interactive variables, silently return
 					return undefined;
@@ -1144,7 +1173,9 @@ export class DebugService implements debug.IDebugService {
 			process.inactive = true;
 			this._onDidEndProcess.fire(process);
 			if (process.configuration.postDebugTask) {
-				this.runTask(process.getId(), process.session.root, process.configuration.postDebugTask);
+				this.runTask(process.getId(), process.session.root, process.configuration.postDebugTask).done(undefined, err =>
+					this.notificationService.error(err)
+				);
 			}
 		}
 
