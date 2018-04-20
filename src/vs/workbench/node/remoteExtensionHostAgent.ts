@@ -273,7 +273,7 @@ const httpServer = http.createServer((request, response) => {
 			response.end(JSON.stringify(r));
 		}, (err) => {
 			response.writeHead(500);
-			response.end(err);
+			response.end(err.toString());
 		});
 		return;
 	}
