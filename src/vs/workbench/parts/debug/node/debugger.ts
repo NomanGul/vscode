@@ -65,7 +65,7 @@ export class Debugger {
 
 		let configP: TPromise<IConfig>;
 		const debugConfigs = this.configurationService.getValue<IDebugConfiguration>('debug');
-		if (debugConfigs.extensionHostDebugAdapter) {
+		if (this.extensionDescription.isRemote || debugConfigs.extensionHostDebugAdapter) {
 			configP = this.configurationManager.substituteVariables(this.type, folder, config);
 		} else {
 			try {
