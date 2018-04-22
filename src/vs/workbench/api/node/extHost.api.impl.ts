@@ -73,7 +73,7 @@ export function checkProposedApiEnabled(extension: IExtensionDescription): void 
 }
 
 function throwProposedApiError(extension: IExtensionDescription): void {
-	// throw new Error(`[${extension.id}]: Proposed API is only available when running out of dev or with the following command line switch: --enable-proposed-api ${extension.id}`);
+	throw new Error(`[${extension.id}]: Proposed API is only available when running out of dev or with the following command line switch: --enable-proposed-api ${extension.id}`);
 }
 
 function proposedApiFunction<T>(extension: IExtensionDescription, fn: T): T {

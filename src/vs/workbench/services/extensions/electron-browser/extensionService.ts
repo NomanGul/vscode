@@ -579,7 +579,7 @@ export class ExtensionService extends Disposable implements IExtensionService, I
 					(<any>extension).remoteExtensionFolderPath = extension.extensionFolderPath;
 					(<any>extension).extensionFolderPath = localExtensionsFolder + path.sep + extension.extensionFolderPath.substr(remoteExtensionsFolder.length + 1);
 				});
-				return extensions;
+				return this._updateEnableProposedApi(extensions);
 			});
 		} else {
 			remoteExtensionsPromise = TPromise.as([]);
