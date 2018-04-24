@@ -7,7 +7,7 @@
 import { Emitter } from 'vs/base/common/event';
 import { TernarySearchTree } from 'vs/base/common/map';
 import { score } from 'vs/editor/common/modes/languageSelector';
-import * as Platform from 'vs/base/common/platform';
+import * as platform from 'vs/base/common/platform';
 import * as errors from 'vs/base/common/errors';
 import product from 'vs/platform/node/product';
 import pkg from 'vs/platform/node/package';
@@ -142,7 +142,7 @@ export function createApiFactory(
 	if (initData.remoteOptions) {
 		const watcher = new FileWatcher(extHostWorkspace, extHostConfiguration, extHostFileSystemEvent, extHostLogService);
 		watcher.startWatching();
-		extHostFileSystem.registerFileSystemProvider('vscode-remote', new FileSystemProvider(watcher), undefined);
+		extHostFileSystem.registerFileSystemProvider('vscode-remote', new FileSystemProvider(watcher), { isCaseSensitive: platform.isLinux });
 	}
 
 	// Check that no named customers are missing
@@ -236,7 +236,7 @@ export function createApiFactory(
 		const env: typeof vscode.env = Object.freeze({
 			get machineId() { return initData.telemetryInfo.machineId; },
 			get sessionId() { return initData.telemetryInfo.sessionId; },
-			get language() { return Platform.language; },
+			get language() { return platform.language; },
 			get appName() { return product.nameLong; },
 			get appRoot() { return initData.environment.appRoot; },
 			get logLevel() { return extHostLogService.getLevel(); }

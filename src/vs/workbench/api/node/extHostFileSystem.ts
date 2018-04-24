@@ -213,10 +213,11 @@ export class ExtHostFileSystem implements ExtHostFileSystemShape {
 			let mapped: IFileChangeDto[] = [];
 			for (const e of event) {
 				let { uri: resource, type } = e;
-				if (resource.scheme !== scheme) {
-					// dropping events for wrong scheme
-					continue;
-				}
+				// TODO@vs-remote: The file watcher creates file:// changes
+				// if (resource.scheme !== scheme) {
+				// 	// dropping events for wrong scheme
+				// 	continue;
+				// }
 				let newType: files.FileChangeType;
 				switch (type) {
 					case FileChangeType.Changed:

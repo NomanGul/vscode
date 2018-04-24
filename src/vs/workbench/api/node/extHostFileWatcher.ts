@@ -25,7 +25,7 @@ import { ExtHostFileSystemEventService } from 'vs/workbench/api/node/extHostFile
 
 export default class FileWatcher {
 
-	private readonly eventEmmiter: vscode.EventEmitter<vscode.FileChange[]>;
+	private readonly eventEmmiter: vscode.EventEmitter<vscode.FileChangeEvent[]>;
 
 	private readonly watcherService: ChokidarWatcherService;
 	private isDisposed: boolean;
@@ -35,12 +35,12 @@ export default class FileWatcher {
 		private extHostConfiguration: ExtHostConfiguration,
 		private extHostFileSystemEventService: ExtHostFileSystemEventService,
 		private logService: ExtHostLogService) {
-		this.eventEmmiter = new Emitter<vscode.FileChange[]>();
+		this.eventEmmiter = new Emitter<vscode.FileChangeEvent[]>();
 		this.watcherService = this.getService();
 	}
 
 
-	get onFileChange(): vscode.Event<vscode.FileChange[]> {
+	get onFileChange(): vscode.Event<vscode.FileChangeEvent[]> {
 		return this.eventEmmiter.event;
 	}
 
@@ -99,8 +99,8 @@ export default class FileWatcher {
 			if (events.length > 0) {
 				const fileEvents = events.map(e => {
 					return {
-						type: e.type === FileChangeType.UPDATED ? extHostTypes.FileChangeType.Updated : e.type === FileChangeType.ADDED ? extHostTypes.FileChangeType.Added : extHostTypes.FileChangeType.Deleted,
-						resource: URI.file(e.path)
+						type: e.type === FileChangeType.UPDATED ? extHostTypes.FileChangeType.Changed : e.type === FileChangeType.ADDED ? extHostTypes.FileChangeType.Created : extHostTypes.FileChangeType.Deleted,
+						uri: URI.file(e.path)
 					};
 				});
 				if (verboseLogging) {
