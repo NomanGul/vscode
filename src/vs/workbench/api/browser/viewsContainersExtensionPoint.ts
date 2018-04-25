@@ -42,9 +42,10 @@ const viewsContainerSchema: IJSONSchema = {
 	properties: {
 		id: {
 			description: localize({ key: 'vscode.extension.contributes.views.containers.id', comment: ['Contribution refers to those that an extension contributes to VS Code through an extension/contribution point. '] }, "Unique id used to identify the container in which views can be contributed using 'views' contribution point"),
-			type: 'string'
+			type: 'string',
+			pattern: '^[a-zA-Z0-9_-]+$'
 		},
-		label: {
+		title: {
 			description: localize('vscode.extension.contributes.views.containers.title', 'Human readable string used to render the container'),
 			type: 'string'
 		},
@@ -55,8 +56,8 @@ const viewsContainerSchema: IJSONSchema = {
 	}
 };
 
-export const viewsContainerContribution: IJSONSchema = {
-	description: localize('vscode.extension.contributes.viewsContainer', 'Contributes views containers to the editor'),
+export const viewsContainersContribution: IJSONSchema = {
+	description: localize('vscode.extension.contributes.viewsContainers', 'Contributes views containers to the editor'),
 	type: 'object',
 	properties: {
 		'activitybar': {
@@ -67,7 +68,7 @@ export const viewsContainerContribution: IJSONSchema = {
 	}
 };
 
-export const viewsContainersExtensionPoint: IExtensionPoint<{ [loc: string]: IUserFriendlyViewsContainerDescriptor[] }> = ExtensionsRegistry.registerExtensionPoint<{ [loc: string]: IUserFriendlyViewsContainerDescriptor[] }>('viewsContainers', [], viewsContainerContribution);
+export const viewsContainersExtensionPoint: IExtensionPoint<{ [loc: string]: IUserFriendlyViewsContainerDescriptor[] }> = ExtensionsRegistry.registerExtensionPoint<{ [loc: string]: IUserFriendlyViewsContainerDescriptor[] }>('viewsContainers', [], viewsContainersContribution);
 class ViewsContainersExtensionHandler implements IWorkbenchContribution {
 
 	constructor() {
@@ -79,7 +80,7 @@ class ViewsContainersExtensionHandler implements IWorkbenchContribution {
 			for (let extension of extensions) {
 				const { value, collector } = extension;
 				if (!extension.description.enableProposedApi) {
-					collector.error(localize({ key: 'proposed', comment: ['Contribution refers to those that an extension contributes to VS Code through an extension/contribution point. '] }, "'viewsContainer' contribution is only available when running out of dev or with the following command line switch: --enable-proposed-api {0}", extension.description.id));
+					collector.error(localize({ key: 'proposed', comment: ['Contribution refers to those that an extension contributes to VS Code through an extension/contribution point. '] }, "'viewsContainers' contribution is only available when running out of dev or with the following command line switch: --enable-proposed-api {0}", extension.description.id));
 					continue;
 				}
 				forEach(value, entry => {
@@ -104,7 +105,11 @@ class ViewsContainersExtensionHandler implements IWorkbenchContribution {
 
 		for (let descriptor of viewsContainersDescriptors) {
 			if (typeof descriptor.id !== 'string') {
-				collector.error(localize('requirestring', "property `{0}` is mandatory and must be of type `string`", 'id'));
+				collector.error(localize('requireidstring', "property `{0}` is mandatory and must be of type `string`. Allowed only alphanumeric letters, '_', '-'.", 'id'));
+				return false;
+			}
+			if (!(/^[a-z0-9_-]+$/i.test(descriptor.id))) {
+				collector.error(localize('requireidstring', "property `{0}` is mandatory and must be of type `string`. Allowed only alphanumeric letters, '_', '-'.", 'id'));
 				return false;
 			}
 			if (typeof descriptor.title !== 'string') {

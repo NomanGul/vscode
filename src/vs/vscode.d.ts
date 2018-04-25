@@ -3988,7 +3988,7 @@ declare module 'vscode' {
 		 * modify the diagnostics-array returned from this call.
 		 *
 		 * @param uri A resource identifier.
-		 * @returns An immutable array of [diagnostics](#Diagnxostic) or `undefined`.
+		 * @returns An immutable array of [diagnostics](#Diagnostic) or `undefined`.
 		 */
 		get(uri: Uri): Diagnostic[] | undefined;
 
@@ -4969,7 +4969,7 @@ declare module 'vscode' {
 
 		/**
 		 * An event to signal that a resource has been created, changed, or deleted. This
-		 * event should fire for resources that are being [watched](#FileSystemProvider2.watch)
+		 * event should fire for resources that are being [watched](#FileSystemProvider.watch)
 		 * by clients of this provider.
 		 */
 		readonly onDidChangeFile: Event<FileChangeEvent[]>;
@@ -4982,7 +4982,7 @@ declare module 'vscode' {
 		watch(uri: Uri, options: { recursive?: boolean; excludes?: string[] }): Disposable;
 
 		/**
-		 * Retrieve metadata about a file. Throw an [`EntryNotFound`](#FileError.EntryNotFound)-error
+		 * Retrieve metadata about a file. Throw an [`FileNotFound`](#FileSystemError.FileNotFound)-error
 		 * in case the file does not exist.
 		 *
 		 * @param uri The uri of the file to retrieve meta data about.
@@ -4992,7 +4992,7 @@ declare module 'vscode' {
 		stat(uri: Uri, options: { /*future: followSymlinks*/ }, token: CancellationToken): FileStat | Thenable<FileStat>;
 
 		/**
-		 * Retrieve the meta data of all entries of a [directory](#FileType2.Directory)
+		 * Retrieve the meta data of all entries of a [directory](#FileStat.isDirectory)
 		 *
 		 * @param uri The uri of the folder.
 		 * @param token A cancellation token.
@@ -5048,11 +5048,11 @@ declare module 'vscode' {
 		 * Copy files or folders. Implementing this function is optional but it will speedup
 		 * the copy operation.
 		 *
-		 * @param uri The existing file or folder.
-		 * @param target The target location.
+		 * @param source The existing file or folder.
+		 * @param destination The destination location.
 		 * @param token A cancellation token.
 		 */
-		copy?(uri: Uri, target: Uri, options: FileOptions, token: CancellationToken): FileStat | Thenable<FileStat>;
+		copy?(source: Uri, destination: Uri, options: FileOptions, token: CancellationToken): FileStat | Thenable<FileStat>;
 	}
 
 	/**
@@ -5060,14 +5060,14 @@ declare module 'vscode' {
 	 */
 	export interface WebviewOptions {
 		/**
-		 * Should scripts be enabled in the webview content?
+		 * Controls whether scripts are enabled in the webview content or not.
 		 *
 		 * Defaults to false (scripts-disabled).
 		 */
 		readonly enableScripts?: boolean;
 
 		/**
-		 * Should command uris be enabled in webview content?
+		 * Controls whether command uris are enabled in webview content or not.
 		 *
 		 * Defaults to false.
 		 */
@@ -5119,15 +5119,15 @@ declare module 'vscode' {
 	 */
 	export interface WebviewPanelOptions {
 		/**
-		 * Should the find widget be enabled in the panel?
+		 * Controls if the find widget is enabled in the panel.
 		 *
 		 * Defaults to false.
 		 */
 		readonly enableFindWidget?: boolean;
 
 		/**
-		 * Should the webview panel's content (iframe) be kept around even when the panel
-		 * is no longer visible?
+		 * Controls if the webview panel's content (iframe) is kept around even when the panel
+		 * is no longer visible.
 		 *
 		 * Normally the webview panel's html context is created when the panel becomes visible
 		 * and destroyed when it is is hidden. Extensions that have complex state
@@ -5147,7 +5147,7 @@ declare module 'vscode' {
 	 */
 	interface WebviewPanel {
 		/**
-		 * Type of the webview panel, such as `'markdown.preview'`.
+		 * Identifies the type of the webview panel, such as `'markdown.preview'`.
 		 */
 		readonly viewType: string;
 
@@ -7263,7 +7263,7 @@ declare module 'vscode' {
 	}
 
 	/**
-	 * An event describing the changes to the set of [breakpoints](#debug.Breakpoint).
+	 * An event describing the changes to the set of [breakpoints](#Breakpoint).
 	 */
 	export interface BreakpointsChangeEvent {
 		/**
