@@ -21,7 +21,6 @@ export default class FileSystemProvider implements vscode.FileSystemProvider {
 	}
 
 	watch(uri: vscode.Uri, options: { recursive?: boolean; excludes?: string[]; }): vscode.Disposable {
-		console.log(`I AM CALLED TO WATCH!!`);
 		return {
 			dispose: () => { }
 		};
