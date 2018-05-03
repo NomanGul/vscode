@@ -265,18 +265,12 @@ export interface CustomCodeAction extends CodeActionDto {
 
 class CodeActionAdapter {
 
-	private _documents: ExtHostDocuments;
-	private _commands: CommandsConverter;
-	private _diagnostics: ExtHostDiagnostics;
-	private _provider: vscode.CodeActionProvider;
-
-	constructor(documents: ExtHostDocuments, commands: CommandsConverter, diagnostics: ExtHostDiagnostics, provider: vscode.CodeActionProvider) {
-		this._documents = documents;
-		this._commands = commands;
-		this._diagnostics = diagnostics;
-		this._provider = provider;
-	}
-
+	constructor(
+		private readonly _documents: ExtHostDocuments,
+		private readonly _commands: CommandsConverter,
+		private readonly _diagnostics: ExtHostDiagnostics,
+		private readonly _provider: vscode.CodeActionProvider
+	) { }
 
 	provideCodeActions(resource: URI, range: IRange, context: modes.CodeActionContext): TPromise<CodeActionDto[]> {
 
@@ -471,7 +465,7 @@ class NavigateTypeAdapter {
 class RenameAdapter {
 
 	static supportsResolving(provider: vscode.RenameProvider): boolean {
-		return typeof provider.resolveRenameLocation === 'function';
+		return typeof provider.prepareRename === 'function';
 	}
 
 	private _documents: ExtHostDocuments;
@@ -511,14 +505,14 @@ class RenameAdapter {
 	}
 
 	resolveRenameLocation(resource: URI, position: IPosition): TPromise<modes.RenameLocation> {
-		if (typeof this._provider.resolveRenameLocation !== 'function') {
+		if (typeof this._provider.prepareRename !== 'function') {
 			return TPromise.as(undefined);
 		}
 
 		let doc = this._documents.getDocumentData(resource).document;
 		let pos = TypeConverters.toPosition(position);
 
-		return asWinJsPromise(token => this._provider.resolveRenameLocation(doc, pos, token)).then(rangeOrLocation => {
+		return asWinJsPromise(token => this._provider.prepareRename(doc, pos, token)).then(rangeOrLocation => {
 
 			let range: vscode.Range;
 			let text: string;

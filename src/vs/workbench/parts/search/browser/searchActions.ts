@@ -11,7 +11,7 @@ import { IViewletService } from 'vs/workbench/services/viewlet/browser/viewlet';
 import { ITree } from 'vs/base/parts/tree/browser/tree';
 import { INavigator } from 'vs/base/common/iterator';
 import { SearchView } from 'vs/workbench/parts/search/browser/searchView';
-import { Match, FileMatch, FileMatchOrMatch, FolderMatch, RenderableMatch, SearchResult } from 'vs/workbench/parts/search/common/searchModel';
+import { Match, FileMatch, FileMatchOrMatch, FolderMatch, RenderableMatch, SearchResult, searchMatchComparer } from 'vs/workbench/parts/search/common/searchModel';
 import { IReplaceService } from 'vs/workbench/parts/search/common/replace';
 import * as Constants from 'vs/workbench/parts/search/common/constants';
 import { IWorkbenchEditorService } from 'vs/workbench/services/editor/common/editorService';
@@ -501,11 +501,32 @@ export abstract class AbstractSearchAndReplaceAction extends Action {
 	public getPreviousElementAfterRemoved(viewer: ITree, element: RenderableMatch): RenderableMatch {
 		let navigator: INavigator<any> = this.getNavigatorAt(element, viewer);
 		let previousElement = navigator.previous();
-		if (element instanceof Match && element.parent().matches().length === 1) {
-			// If this is the only match, then the file match is also removed
-			// Hence take the previous element to file match
+
+		// If this is the only match, then the file/folder match is also removed
+		// Hence take the previous element.
+		const parent = element.parent();
+		if (parent === previousElement) {
 			previousElement = navigator.previous();
 		}
+
+		if (parent instanceof FileMatch && parent.parent() === previousElement) {
+			previousElement = navigator.previous();
+		}
+
+		// If the previous element is a File or Folder, expand it and go to its last child.
+		// Spell out the two cases, would be too easy to create an infinite loop, like by adding another level...
+		if (previousElement && previousElement instanceof FolderMatch) {
+			navigator.next();
+			viewer.expand(previousElement);
+			previousElement = navigator.previous();
+		}
+
+		if (previousElement && previousElement instanceof FileMatch) {
+			navigator.next();
+			viewer.expand(previousElement);
+			previousElement = navigator.previous();
+		}
+
 		return previousElement;
 	}
 
@@ -693,10 +714,10 @@ function matchToString(match: Match): string {
 const lineDelimiter = isWindows ? '\r\n' : '\n';
 function fileMatchToString(fileMatch: FileMatch, maxMatches: number): { text: string, count: number } {
 	const matchTextRows = fileMatch.matches()
+		.sort(searchMatchComparer)
 		.slice(0, maxMatches)
 		.map(matchToString)
 		.map(matchText => '  ' + matchText);
-
 	return {
 		text: `${uriToClipboardString(fileMatch.resource())}${lineDelimiter}${matchTextRows.join(lineDelimiter)}`,
 		count: matchTextRows.length
@@ -707,8 +728,10 @@ function folderMatchToString(folderMatch: FolderMatch, maxMatches: number): { te
 	const fileResults: string[] = [];
 	let numMatches = 0;
 
+	let matches = folderMatch.matches().sort(searchMatchComparer);
+
 	for (let i = 0; i < folderMatch.fileCount() && numMatches < maxMatches; i++) {
-		const fileResult = fileMatchToString(folderMatch.matches()[i], maxMatches - numMatches);
+		const fileResult = fileMatchToString(matches[i], maxMatches - numMatches);
 		numMatches += fileResult.count;
 		fileResults.push(fileResult.text);
 	}
@@ -740,7 +763,7 @@ export const copyMatchCommand: ICommandHandler = (accessor, match: RenderableMat
 function allFolderMatchesToString(folderMatches: FolderMatch[], maxMatches: number): string {
 	const folderResults: string[] = [];
 	let numMatches = 0;
-
+	folderMatches = folderMatches.sort(searchMatchComparer);
 	for (let i = 0; i < folderMatches.length && numMatches < maxMatches; i++) {
 		const folderResult = folderMatchToString(folderMatches[i], maxMatches - numMatches);
 		if (folderResult.count) {

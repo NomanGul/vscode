@@ -34,6 +34,7 @@ import { ICodeEditorService } from 'vs/editor/browser/services/codeEditorService
 import { transparent, editorForeground } from 'vs/platform/theme/common/colorRegistry';
 import { ServiceCollection } from 'vs/platform/instantiation/common/serviceCollection';
 import { IDecorationOptions } from 'vs/editor/common/editorCommon';
+import { CodeEditorWidget } from 'vs/editor/browser/widget/codeEditorWidget';
 
 const $ = dom.$;
 const IPrivateBreakopintWidgetService = createDecorator<IPrivateBreakopintWidgetService>('privateBreakopintWidgetService');
@@ -47,14 +48,14 @@ export class BreakpointWidget extends ZoneWidget implements IPrivateBreakopintWi
 	public _serviceBrand: any;
 
 	private selectContainer: HTMLElement;
-	private input: SimpleDebugEditor;
+	private input: CodeEditorWidget;
 	private toDispose: lifecycle.IDisposable[];
 	private conditionInput = '';
 	private hitCountInput = '';
 	private logMessageInput = '';
 	private breakpoint: IBreakpoint;
 
-	constructor(editor: ICodeEditor, private lineNumber: number, private column: number, private context: Context,
+	constructor(editor: ICodeEditor, private lineNumber: number, private context: Context,
 		@IContextViewService private contextViewService: IContextViewService,
 		@IDebugService private debugService: IDebugService,
 		@IThemeService private themeService: IThemeService,
@@ -80,7 +81,7 @@ export class BreakpointWidget extends ZoneWidget implements IPrivateBreakopintWi
 		}
 
 		this.toDispose.push(this.debugService.getModel().onDidChangeBreakpoints(e => {
-			if (this.breakpoint && e.removed && e.removed.indexOf(this.breakpoint) >= 0) {
+			if (this.breakpoint && e && e.removed && e.removed.indexOf(this.breakpoint) >= 0) {
 				this.dispose();
 			}
 		}));
@@ -202,7 +203,8 @@ export class BreakpointWidget extends ZoneWidget implements IPrivateBreakopintWi
 			[IContextKeyService, scopedContextKeyService], [IPrivateBreakopintWidgetService, this]));
 
 		const options = SimpleDebugEditor.getEditorOptions();
-		this.input = scopedInstatiationService.createInstance(SimpleDebugEditor, container, options);
+		const codeEditorWidgetOptions = SimpleDebugEditor.getCodeEditorWidgetOptions();
+		this.input = scopedInstatiationService.createInstance(CodeEditorWidget, container, options, codeEditorWidgetOptions);
 		CONTEXT_IN_BREAKPOINT_WIDGET.bindTo(scopedContextKeyService).set(true);
 		const model = this.modelService.createModel('', null, uri.parse(`${DEBUG_SCHEME}:breakpointinput`), true);
 		this.input.setModel(model);
@@ -219,14 +221,23 @@ export class BreakpointWidget extends ZoneWidget implements IPrivateBreakopintWi
 			provideCompletionItems: (model: ITextModel, position: Position, _context: SuggestContext, token: CancellationToken): Thenable<ISuggestResult> => {
 				let suggestionsPromise: TPromise<ISuggestResult>;
 				if (this.context === Context.CONDITION || this.context === Context.LOG_MESSAGE && this.isCurlyBracketOpen()) {
-					suggestionsPromise = provideSuggestionItems(this.editor.getModel(), new Position(this.lineNumber, this.column), 'none', undefined, _context).then(suggestions => {
+					suggestionsPromise = provideSuggestionItems(this.editor.getModel(), new Position(this.lineNumber, 1), 'none', undefined, _context).then(suggestions => {
+
+						let overwriteBefore = 0;
+						if (this.context === Context.CONDITION) {
+							overwriteBefore = position.column - 1;
+						} else {
+							// Inside the currly brackets, need to count how many useful characters are behind the position so they would all be taken into account
+							const value = this.input.getModel().getValue();
+							while ((position.column - 2 - overwriteBefore >= 0) && value[position.column - 2 - overwriteBefore] !== '{' && value[position.column - 2 - overwriteBefore] !== ' ') {
+								overwriteBefore++;
+							}
+						}
+
 						return {
 							suggestions: suggestions.map(s => {
-								if (this.context === Context.CONDITION) {
-									s.suggestion.overwriteBefore = position.column - 1;
-									s.suggestion.overwriteAfter = 0;
-								}
-
+								s.suggestion.overwriteAfter = 0;
+								s.suggestion.overwriteBefore = overwriteBefore;
 								return s.suggestion;
 							})
 						};

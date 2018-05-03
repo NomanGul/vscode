@@ -10,7 +10,8 @@ import { isMacintosh as isMac } from 'vs/base/common/platform';
 import * as glob from 'vs/base/common/glob';
 import * as objects from 'vs/base/common/objects';
 import * as paths from 'vs/base/common/paths';
-import { normalizeNFD, startsWith, rtrim } from 'vs/base/common/strings';
+import { startsWith, rtrim } from 'vs/base/common/strings';
+import { normalizeNFD } from 'vs/base/common/normalization';
 
 import { IFolderSearch, IRawSearch } from './search';
 
@@ -86,7 +87,7 @@ function anchor(glob: string) {
 	return startsWith(glob, '**') || startsWith(glob, '/') ? glob : `/${glob}`;
 }
 
-export function foldersToRgExcludeGlobs(folderQueries: IFolderSearch[], globalExclude: glob.IExpression, excludesToSkip?: Set<string>, absoluteGlobs = true): IRgGlobResult {
+function foldersToRgExcludeGlobs(folderQueries: IFolderSearch[], globalExclude: glob.IExpression, excludesToSkip?: Set<string>, absoluteGlobs = true): IRgGlobResult {
 	const globArgs: string[] = [];
 	let siblingClauses: glob.IExpression = {};
 	folderQueries.forEach(folderQuery => {
@@ -101,7 +102,7 @@ export function foldersToRgExcludeGlobs(folderQueries: IFolderSearch[], globalEx
 	return { globArgs, siblingClauses };
 }
 
-export function foldersToIncludeGlobs(folderQueries: IFolderSearch[], globalInclude: glob.IExpression, absoluteGlobs = true): string[] {
+function foldersToIncludeGlobs(folderQueries: IFolderSearch[], globalInclude: glob.IExpression, absoluteGlobs = true): string[] {
 	const globArgs: string[] = [];
 	folderQueries.forEach(folderQuery => {
 		const totalIncludePattern = objects.assign({}, globalInclude || {}, folderQuery.includePattern || {});
@@ -150,12 +151,12 @@ function globExprsToRgGlobs(patterns: glob.IExpression, folder?: string, exclude
 	return { globArgs, siblingClauses };
 }
 
-export interface IRgGlobResult {
+interface IRgGlobResult {
 	globArgs: string[];
 	siblingClauses: glob.IExpression;
 }
 
-export function getAbsoluteGlob(folder: string, key: string): string {
+function getAbsoluteGlob(folder: string, key: string): string {
 	return paths.isAbsolute(key) ?
 		key :
 		paths.join(folder, key);
@@ -166,7 +167,7 @@ function trimTrailingSlash(str: string): string {
 	return rtrim(str, '/');
 }
 
-export function fixDriveC(path: string): string {
+function fixDriveC(path: string): string {
 	const root = paths.getRoot(path);
 	return root.toLowerCase() === 'c:/' ?
 		path.replace(/^c:[/\\]/i, '/') :

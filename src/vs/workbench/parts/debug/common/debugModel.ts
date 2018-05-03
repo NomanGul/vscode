@@ -901,7 +901,7 @@ export class Model implements IModel {
 				const ebp = this.exceptionBreakpoints.filter(ebp => ebp.filter === d.filter).pop();
 				return new ExceptionBreakpoint(d.filter, d.label, ebp ? ebp.enabled : d.default);
 			});
-			this._onDidChangeBreakpoints.fire({});
+			this._onDidChangeBreakpoints.fire();
 		}
 	}
 
@@ -911,7 +911,7 @@ export class Model implements IModel {
 
 	public setBreakpointsActivated(activated: boolean): void {
 		this.breakpointsActivated = activated;
-		this._onDidChangeBreakpoints.fire({});
+		this._onDidChangeBreakpoints.fire();
 	}
 
 	public addBreakpoints(uri: uri, rawData: IBreakpointData[], fireEvent = true): IBreakpoint[] {
@@ -966,6 +966,10 @@ export class Model implements IModel {
 		this._onDidChangeBreakpoints.fire({ changed: updated });
 	}
 
+	public unverifyBreakpoints(): void {
+		this.breakpoints.forEach(bp => bp.verified = false);
+	}
+
 	private sortAndDeDup(): void {
 		this.breakpoints = this.breakpoints.sort((first, second) => {
 			if (first.uri.toString() !== second.uri.toString()) {
@@ -981,19 +985,20 @@ export class Model implements IModel {
 	}
 
 	public setEnablement(element: IEnablement, enable: boolean): void {
+		if (element instanceof Breakpoint || element instanceof FunctionBreakpoint || element instanceof ExceptionBreakpoint) {
+			const changed: (IBreakpoint | IFunctionBreakpoint)[] = [];
+			if (element.enabled !== enable && (element instanceof Breakpoint || element instanceof FunctionBreakpoint)) {
+				changed.push(element);
+			}
 
-		const changed: (IBreakpoint | IFunctionBreakpoint)[] = [];
-		if (element.enabled !== enable && (element instanceof Breakpoint || element instanceof FunctionBreakpoint)) {
-			changed.push(element);
+			element.enabled = enable;
+			if (element instanceof Breakpoint && !element.enabled) {
+				const breakpoint = <Breakpoint>element;
+				breakpoint.verified = false;
+			}
+
+			this._onDidChangeBreakpoints.fire({ changed: changed });
 		}
-
-		element.enabled = enable;
-		if (element instanceof Breakpoint && !element.enabled) {
-			const breakpoint = <Breakpoint>element;
-			breakpoint.verified = false;
-		}
-
-		this._onDidChangeBreakpoints.fire({ changed: changed });
 	}
 
 	public enableOrDisableAllBreakpoints(enable: boolean): void {
