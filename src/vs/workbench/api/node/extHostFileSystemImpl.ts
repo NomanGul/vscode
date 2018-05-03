@@ -5,11 +5,10 @@
 'use strict';
 
 import * as path from 'path';
-
 import URI from 'vs/base/common/uri';
 import * as pfs from 'vs/base/node/pfs';
 import FileWatcher from './extHostFileWatcher';
-
+import * as files from 'vs/platform/files/common/files';
 import * as vscode from 'vscode';
 
 export default class FileSystemProvider implements vscode.FileSystemProvider {
@@ -20,7 +19,7 @@ export default class FileSystemProvider implements vscode.FileSystemProvider {
 		this.onDidChangeFile = fileWatcher.onFileChange;
 	}
 
-	watch(uri: vscode.Uri, options: { recursive?: boolean; excludes?: string[]; }): vscode.Disposable {
+	watch(uri: vscode.Uri, options: { recursive: boolean; excludes: string[]; }): vscode.Disposable {
 		return {
 			dispose: () => { }
 		};
@@ -32,53 +31,54 @@ export default class FileSystemProvider implements vscode.FileSystemProvider {
 
 	private async _stat(fsPath: string): Promise<vscode.FileStat> {
 		let stats = await pfs.stat(fsPath);
+		const fileType = (
+			(stats.isFile() ? files.FileType.File : 0)
+			| (stats.isDirectory() ? files.FileType.Directory : 0)
+			| (stats.isSymbolicLink() ? files.FileType.SymbolicLink : 0)
+		);
 		return {
-			isFile: stats.isFile(),
-			isDirectory: stats.isDirectory(),
-			isSymbolicLink: stats.isSymbolicLink(),
+			type: fileType,
+			ctime: stats.ctime.getTime(),
 			mtime: stats.mtime.getTime(),
 			size: stats.size
 		};
 	}
 
-	public async readDirectory(uri: vscode.Uri, options: {}, token: vscode.CancellationToken): Promise<[string, vscode.FileStat][]> {
+	public async readDirectory(uri: vscode.Uri): Promise<[string, vscode.FileType][]> {
 		let fsPath = uri.fsPath;
 		let files = await pfs.readdir(fsPath);
 		let absoluteFiles = files.map(file => path.join(fsPath, file));
 		let statPromises: Promise<vscode.FileStat>[] = absoluteFiles.map(file => this._stat(file));
 		let stats = await Promise.all(statPromises);
-		let result: [string, vscode.FileStat][] = [];
+		let result: [string, vscode.FileType][] = [];
 		for (let i = 0; i < files.length; i++) {
-			result.push([files[i], stats[i]]);
+			result.push([files[i], stats[i].type]);
 		}
 		return result;
 	}
 
-	public async createDirectory(uri: vscode.Uri, options: {}, token: vscode.CancellationToken): Promise<vscode.FileStat> {
+	public async createDirectory(uri: vscode.Uri): Promise<void> {
 		let fsPath = uri.fsPath;
 		await pfs.mkdirp(fsPath);
-		return this._stat(fsPath);
 	}
 
-	public readFile(uri: vscode.Uri, options: vscode.FileOptions, token: vscode.CancellationToken): Uint8Array | Thenable<Uint8Array> {
+	public readFile(uri: vscode.Uri): Thenable<Uint8Array> {
 		return pfs.readFile(uri.fsPath);
 	}
 
-	public writeFile(uri: vscode.Uri, content: Uint8Array, options: vscode.FileOptions, token: vscode.CancellationToken): void | Thenable<void> {
+	public writeFile(uri: vscode.Uri, content: Uint8Array, options: { create: boolean, overwrite: boolean }): void | Thenable<void> {
 		return pfs.writeFile(uri.fsPath, content);
 	}
 
-	public async delete(uri: vscode.Uri, options: {}, token: vscode.CancellationToken): Promise<void> {
+	public async delete(uri: vscode.Uri, options: { recursive: boolean }): Promise<void> {
 		await pfs.rimraf(uri.fsPath);
 	}
 
-	public async rename(source: vscode.Uri, target: vscode.Uri, options: vscode.FileOptions, token: vscode.CancellationToken): Promise<vscode.FileStat> {
+	public async rename(source: vscode.Uri, target: vscode.Uri, options: { overwrite: boolean }): Promise<void> {
 		await pfs.rename(source.fsPath, target.fsPath);
-		return this.stat(target);
 	}
 
-	public async copy(source: vscode.Uri, target: vscode.Uri, options: vscode.FileOptions, token: vscode.CancellationToken): Promise<vscode.FileStat> {
+	public async copy(source: vscode.Uri, target: vscode.Uri, options: { overwrite: boolean }): Promise<void> {
 		await pfs.copy(source.fsPath, target.fsPath);
-		return this.stat(target);
 	}
 }
