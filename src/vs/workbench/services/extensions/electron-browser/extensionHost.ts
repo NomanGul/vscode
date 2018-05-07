@@ -25,7 +25,7 @@ import { generateRandomPipeName, Protocol } from 'vs/base/parts/ipc/node/ipc.net
 import { createServer, Server, Socket, createConnection } from 'net';
 import { Event, Emitter, debounceEvent, mapEvent, anyEvent, fromNodeEventEmitter } from 'vs/base/common/event';
 import { IInitData, IWorkspaceData, IConfigurationInitData, IRemoteOptions } from 'vs/workbench/api/node/extHost.protocol';
-import { IExtensionService, IExtensionDescription } from 'vs/workbench/services/extensions/common/extensions';
+import { IExtensionDescription } from 'vs/workbench/services/extensions/common/extensions';
 import { IWorkspaceConfigurationService } from 'vs/workbench/services/configuration/common/configuration';
 import { ICrashReporterService } from 'vs/workbench/services/crashReporter/electron-browser/crashReporterService';
 import { IBroadcastService, IBroadcast } from 'vs/platform/broadcast/electron-browser/broadcastService';
@@ -66,7 +66,8 @@ export class ExtensionHostRemoteProcess implements IExtensionHostStarter {
 
 	constructor(
 		private readonly _options: IRemoteOptions,
-		/* intentionally not injected */private readonly _extensionService: IExtensionService & IRuntimeRemoteOptionsProvider,
+		private readonly _extensions: TPromise<IExtensionDescription[]>,
+		/* intentionally not injected */private readonly _extensionService: IRuntimeRemoteOptionsProvider,
 		@IWorkspaceContextService private readonly _contextService: IWorkspaceContextService,
 		@IWindowService private readonly _windowService: IWindowService,
 		@IEnvironmentService private readonly _environmentService: IEnvironmentService,
@@ -143,7 +144,7 @@ export class ExtensionHostRemoteProcess implements IExtensionHostStarter {
 	}
 
 	private _createExtHostInitData(): TPromise<IInitData> {
-		return TPromise.join([this._telemetryService.getTelemetryInfo(), this._extensionService.getExtensions()]).then(([telemetryInfo, originalExtensionDescriptions]) => {
+		return TPromise.join([this._telemetryService.getTelemetryInfo(), this._extensions]).then(([telemetryInfo, originalExtensionDescriptions]) => {
 
 			const runtimeRemoteOptions = this._extensionService.getRuntimeRemoteOptions();
 
@@ -234,7 +235,7 @@ export class ExtensionHostProcessWorker implements IExtensionHostStarter {
 	private _messageProtocol: TPromise<IMessagePassingProtocol>;
 
 	constructor(
-		/* intentionally not injected */private readonly _extensionService: IExtensionService,
+		private readonly _extensions: TPromise<IExtensionDescription[]>,
 		@IWorkspaceContextService private readonly _contextService: IWorkspaceContextService,
 		@INotificationService private readonly _notificationService: INotificationService,
 		@IWindowsService private readonly _windowsService: IWindowsService,
@@ -534,7 +535,7 @@ export class ExtensionHostProcessWorker implements IExtensionHostStarter {
 	}
 
 	private _createExtHostInitData(): TPromise<IInitData> {
-		return TPromise.join([this._telemetryService.getTelemetryInfo(), this._extensionService.getExtensions()]).then(([telemetryInfo, originalExtensionDescriptions]) => {
+		return TPromise.join([this._telemetryService.getTelemetryInfo(), this._extensions]).then(([telemetryInfo, originalExtensionDescriptions]) => {
 
 			let extensionDescriptions: IExtensionDescription[] = [];
 			for (let i = 0; i < originalExtensionDescriptions.length; i++) {
