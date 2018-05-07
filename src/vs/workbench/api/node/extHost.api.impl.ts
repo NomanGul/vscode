@@ -58,8 +58,8 @@ import { ExtensionActivatedByAPI } from 'vs/workbench/api/node/extHostExtensionA
 import { OverviewRulerLane } from 'vs/editor/common/model';
 import { ExtHostLogService } from 'vs/workbench/api/node/extHostLogService';
 import FileSystemProvider from 'vs/workbench/api/node/extHostFileSystemImpl';
-import { ExtHostWebviews } from 'vs/workbench/api/node/extHostWebview';
 import FileWatcher from './extHostFileWatcher';
+import { ExtHostWebviews } from 'vs/workbench/api/node/extHostWebview';
 import { ExtHostSearch } from './extHostSearch';
 import { ExtHostUrls } from './extHostUrls';
 
@@ -73,7 +73,7 @@ export function checkProposedApiEnabled(extension: IExtensionDescription): void 
 	}
 }
 
-function throwProposedApiError(extension: IExtensionDescription): void {
+function throwProposedApiError(extension: IExtensionDescription): never {
 	throw new Error(`[${extension.id}]: Proposed API is only available when running out of dev or with the following command line switch: --enable-proposed-api ${extension.id}`);
 }
 
