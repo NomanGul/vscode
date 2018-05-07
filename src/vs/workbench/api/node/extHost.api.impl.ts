@@ -53,7 +53,7 @@ import { ProxyIdentifier } from 'vs/workbench/services/extensions/node/proxyIden
 import { ExtHostDialogs } from 'vs/workbench/api/node/extHostDialogs';
 import { ExtHostFileSystem } from 'vs/workbench/api/node/extHostFileSystem';
 import { ExtHostDecorations } from 'vs/workbench/api/node/extHostDecorations';
-import { toGlobPattern, toLanguageSelector } from 'vs/workbench/api/node/extHostTypeConverters';
+import * as typeConverters from 'vs/workbench/api/node/extHostTypeConverters';
 import { ExtensionActivatedByAPI } from 'vs/workbench/api/node/extHostExtensionActivator';
 import { OverviewRulerLane } from 'vs/editor/common/model';
 import { ExtHostLogService } from 'vs/workbench/api/node/extHostLogService';
@@ -169,18 +169,23 @@ export function createApiFactory(
 		// we cannot say if the extension is doing it right or wrong...
 		let checkSelector = (function () {
 			let done = initData.environment.extensionDevelopmentPath !== extension.extensionFolderPath;
-			function inform(selector: vscode.DocumentSelector) {
-				console.info(`Extension '${extension.id}' uses a document selector without scheme. Learn more about this: https://go.microsoft.com/fwlink/?linkid=872305`);
-				done = true;
+			function informOnce(selector: vscode.DocumentSelector) {
+				if (!done) {
+					console.info(`Extension '${extension.id}' uses a document selector without scheme. Learn more about this: https://go.microsoft.com/fwlink/?linkid=872305`);
+					done = true;
+				}
 			}
 			return function perform(selector: vscode.DocumentSelector): vscode.DocumentSelector {
-				if (!done) {
-					if (Array.isArray(selector)) {
-						selector.forEach(perform);
-					} else if (typeof selector === 'string') {
-						inform(selector);
-					} else if (typeof selector.scheme === 'undefined') {
-						inform(selector);
+				if (Array.isArray(selector)) {
+					selector.forEach(perform);
+				} else if (typeof selector === 'string') {
+					informOnce(selector);
+				} else {
+					if (typeof selector.scheme === 'undefined') {
+						informOnce(selector);
+					}
+					if (!extension.enableProposedApi && typeof selector.exclusive === 'boolean') {
+						throwProposedApiError(extension);
 					}
 				}
 				return selector;
@@ -272,7 +277,7 @@ export function createApiFactory(
 				return extHostLanguages.getLanguages();
 			},
 			match(selector: vscode.DocumentSelector, document: vscode.TextDocument): number {
-				return score(toLanguageSelector(selector), document.uri, document.languageId, true);
+				return score(typeConverters.LanguageSelector.from(selector), document.uri, document.languageId, true);
 			},
 			registerCodeActionsProvider(selector: vscode.DocumentSelector, provider: vscode.CodeActionProvider, metadata?: vscode.CodeActionProviderMetadata): vscode.Disposable {
 				return extHostLanguageFeatures.registerCodeActionProvider(checkSelector(selector), provider, metadata);
@@ -491,7 +496,7 @@ export function createApiFactory(
 				return extHostWorkspace.getRelativePath(pathOrUri, includeWorkspace);
 			},
 			findFiles: (include, exclude, maxResults?, token?) => {
-				return extHostWorkspace.findFiles(toGlobPattern(include), toGlobPattern(exclude), maxResults, extension.id, token);
+				return extHostWorkspace.findFiles(typeConverters.GlobPattern.from(include), typeConverters.GlobPattern.from(exclude), maxResults, extension.id, token);
 			},
 			saveAll: (includeUntitled?) => {
 				return extHostWorkspace.saveAll(includeUntitled);
@@ -500,7 +505,7 @@ export function createApiFactory(
 				return extHostEditors.applyWorkspaceEdit(edit);
 			},
 			createFileSystemWatcher: (pattern, ignoreCreate, ignoreChange, ignoreDelete): vscode.FileSystemWatcher => {
-				return extHostFileSystemEvent.createFileSystemWatcher(toGlobPattern(pattern), ignoreCreate, ignoreChange, ignoreDelete);
+				return extHostFileSystemEvent.createFileSystemWatcher(typeConverters.GlobPattern.from(pattern), ignoreCreate, ignoreChange, ignoreDelete);
 			},
 			get textDocuments() {
 				return extHostDocuments.getAllDocumentData().map(data => data.document);
@@ -686,9 +691,9 @@ export function createApiFactory(
 			StatusBarAlignment: extHostTypes.StatusBarAlignment,
 			SymbolInformation: extHostTypes.SymbolInformation,
 			HierarchicalSymbolInformation: class extends extHostTypes.HierarchicalSymbolInformation {
-				constructor(name, kind, keyof, range) {
+				constructor(name, kind, detail, keyof, range) {
 					checkProposedApiEnabled(extension);
-					super(name, kind, keyof, range);
+					super(name, kind, detail, keyof, range);
 				}
 			},
 			SymbolKind: extHostTypes.SymbolKind,

@@ -481,15 +481,24 @@ declare module 'vscode' {
 	export class HierarchicalSymbolInformation {
 		name: string;
 		kind: SymbolKind;
+		detail: string;
 		location: Location;
 		range: Range;
 		children: HierarchicalSymbolInformation[];
 
-		constructor(name: string, kind: SymbolKind, location: Location, range: Range);
+		constructor(name: string, detail: string, kind: SymbolKind, location: Location, range: Range);
 	}
 
 	export interface DocumentSymbolProvider {
 		provideDocumentSymbols(document: TextDocument, token: CancellationToken): ProviderResult<HierarchicalSymbolInformation | SymbolInformation[]>;
+	}
+
+	//#endregion
+
+	//#region Joh -> exclusive document filters
+
+	export interface DocumentFilter {
+		exclusive?: boolean;
 	}
 
 	//#endregion
