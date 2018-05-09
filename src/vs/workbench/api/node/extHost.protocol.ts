@@ -26,7 +26,7 @@ import * as modes from 'vs/editor/common/modes';
 import { IConfigurationData, ConfigurationTarget, IConfigurationModel } from 'vs/platform/configuration/common/configuration';
 import { IConfig, IAdapterExecutable, ITerminalSettings } from 'vs/workbench/parts/debug/common/debug';
 
-import { IPickOpenEntry, IPickOptions } from 'vs/platform/quickOpen/common/quickOpen';
+import { IPickOpenEntry, IPickOptions } from 'vs/platform/quickinput/common/quickInput';
 import { SaveReason } from 'vs/workbench/services/textfile/common/textfiles';
 import { TextEditorCursorStyle } from 'vs/editor/common/config/editorOptions';
 import { EndOfLine, TextEditorLineNumbersStyle } from 'vs/workbench/api/node/extHostTypes';
@@ -365,7 +365,7 @@ export interface MainThreadTelemetryShape extends IDisposable {
 export type WebviewPanelHandle = string;
 
 export interface MainThreadWebviewsShape extends IDisposable {
-	$createWebviewPanel(handle: WebviewPanelHandle, viewType: string, title: string, viewOptions: { viewColumn: EditorPosition, preserveFocus: boolean }, options: vscode.WebviewPanelOptions & vscode.WebviewOptions, extensionFolderPath: string): void;
+	$createWebviewPanel(handle: WebviewPanelHandle, viewType: string, title: string, viewOptions: { viewColumn: EditorPosition, preserveFocus: boolean }, options: vscode.WebviewPanelOptions & vscode.WebviewOptions, extensionLocation: UriComponents): void;
 	$disposeWebview(handle: WebviewPanelHandle): void;
 	$reveal(handle: WebviewPanelHandle, viewColumn: EditorPosition | null, preserveFocus: boolean): void;
 	$setTitle(handle: WebviewPanelHandle, value: string): void;
@@ -831,7 +831,7 @@ export interface ISourceMultiBreakpointDto {
 export interface ExtHostDebugServiceShape {
 	$substituteVariables(folder: UriComponents | undefined, config: IConfig): TPromise<IConfig>;
 	$runInTerminal(args: DebugProtocol.RunInTerminalRequestArguments, config: ITerminalSettings): TPromise<void>;
-	$startDASession(handle: number, debugType: string, adapterExecutableInfo: IAdapterExecutable | null): TPromise<void>;
+	$startDASession(handle: number, debugType: string, adapterExecutableInfo: IAdapterExecutable | null, debugPort: number): TPromise<void>;
 	$stopDASession(handle: number): TPromise<void>;
 	$sendDAMessage(handle: number, message: DebugProtocol.ProtocolMessage): TPromise<void>;
 	$resolveDebugConfiguration(handle: number, folder: UriComponents | undefined, debugConfiguration: IConfig): TPromise<IConfig>;

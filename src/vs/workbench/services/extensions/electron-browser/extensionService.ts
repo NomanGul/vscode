@@ -20,7 +20,7 @@ import { USER_MANIFEST_CACHE_FILE, BUILTIN_MANIFEST_CACHE_FILE, MANIFEST_CACHE_F
 import { IExtensionEnablementService, IExtensionIdentifier, EnablementState, IExtensionManagementService, LocalExtensionType } from 'vs/platform/extensionManagement/common/extensionManagement';
 import { areSameExtensions, BetterMergeId, BetterMergeDisabledNowKey, getGalleryExtensionIdFromLocal } from 'vs/platform/extensionManagement/common/extensionManagementUtil';
 import { ExtensionsRegistry, ExtensionPoint, IExtensionPointUser, ExtensionMessageCollector, IExtensionPoint } from 'vs/workbench/services/extensions/common/extensionsRegistry';
-import { ExtensionScanner, ILog, ExtensionScannerInput, IExtensionResolver, IExtensionReference, Translations } from 'vs/workbench/services/extensions/node/extensionPoints';
+import { ExtensionScanner, ILog, ExtensionScannerInput, IExtensionResolver, IExtensionReference, Translations, IRelaxedExtensionDescription } from 'vs/workbench/services/extensions/node/extensionPoints';
 import { ProxyIdentifier } from 'vs/workbench/services/extensions/node/proxyIdentifier';
 import { ExtHostContext, ExtHostExtensionServiceShape, IExtHostContext, MainContext, IRemoteOptions } from 'vs/workbench/api/node/extHost.protocol';
 import { ITelemetryService } from 'vs/platform/telemetry/common/telemetry';
@@ -718,7 +718,7 @@ export class ExtensionService extends Disposable implements IExtensionService, I
 		const cacheFolder = path.join(environmentService.userDataPath, MANIFEST_CACHE_FOLDER);
 		const cacheFile = path.join(cacheFolder, cacheKey);
 
-		const expected = await ExtensionScanner.scanExtensions(input, new NullLogger());
+		const expected = JSON.parse(JSON.stringify(await ExtensionScanner.scanExtensions(input, new NullLogger())));
 
 		const cacheContents = await this._readExtensionCache(environmentService, cacheKey);
 		if (!cacheContents) {
@@ -803,7 +803,11 @@ export class ExtensionService extends Disposable implements IExtensionService, I
 					errors.onUnexpectedError(err);
 				}
 			}, 5000);
-			return cacheContents.result;
+			return cacheContents.result.map((extensionDescription) => {
+				// revive URI object
+				(<IRelaxedExtensionDescription>extensionDescription).extensionLocation = URI.revive(extensionDescription.extensionLocation);
+				return extensionDescription;
+			});
 		}
 
 		const counterLogger = new CounterLogger(log);
@@ -845,7 +849,7 @@ export class ExtensionService extends Disposable implements IExtensionService, I
 				notificationService,
 				environmentService,
 				BUILTIN_MANIFEST_CACHE_FILE,
-				new ExtensionScannerInput(version, commit, locale, devMode, getSystemExtensionsRoot(), true, translations),
+				new ExtensionScannerInput(version, commit, locale, devMode, getSystemExtensionsRoot(), true, false, translations),
 				log
 			);
 
@@ -860,7 +864,7 @@ export class ExtensionService extends Disposable implements IExtensionService, I
 				const controlFile = pfs.readFile(controlFilePath, 'utf8')
 					.then<IBuiltInExtensionControl>(raw => JSON.parse(raw), () => ({} as any));
 
-				const input = new ExtensionScannerInput(version, commit, locale, devMode, getExtraDevSystemExtensionsRoot(), true, translations);
+				const input = new ExtensionScannerInput(version, commit, locale, devMode, getExtraDevSystemExtensionsRoot(), true, false, translations);
 				const extraBuiltinExtensions = TPromise.join([builtInExtensions, controlFile])
 					.then(([builtInExtensions, control]) => new ExtraBuiltInExtensionResolver(builtInExtensions, control))
 					.then(resolver => ExtensionScanner.scanExtensions(input, log, resolver));
@@ -899,7 +903,7 @@ export class ExtensionService extends Disposable implements IExtensionService, I
 						notificationService,
 						environmentService,
 						USER_MANIFEST_CACHE_FILE,
-						new ExtensionScannerInput(version, commit, locale, devMode, environmentService.extensionsPath, false, translations),
+						new ExtensionScannerInput(version, commit, locale, devMode, environmentService.extensionsPath, false, false, translations),
 						log
 					)
 			);
@@ -908,7 +912,7 @@ export class ExtensionService extends Disposable implements IExtensionService, I
 			const developedExtensions = (
 				environmentService.isExtensionDevelopment
 					? ExtensionScanner.scanOneOrMultipleExtensions(
-						new ExtensionScannerInput(version, commit, locale, devMode, environmentService.extensionDevelopmentPath, false, translations), log
+						new ExtensionScannerInput(version, commit, locale, devMode, environmentService.extensionDevelopmentPath, false, true, translations), log
 					)
 					: TPromise.as([])
 			);
