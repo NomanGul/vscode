@@ -215,7 +215,12 @@ function scanBuiltinExtensions(): TPromise<IExtensionDescription[]> {
 				absoluteExtensionPath,
 				true,
 				{ devMode: true, locale: 'en', pseudo: false, translations: {} }// TODO@vs-remote
-			);
+			).then(extensionDescription => {
+				if (!extensionDescription) {
+					console.log(`Unable to resolve extension at ${absoluteExtensionPath}`);
+				}
+				return extensionDescription;
+			});
 		})
 	);
 }
@@ -243,10 +248,16 @@ async function scanExtensions(): TPromise<IExtensionDescription[]> {
 		let result: { [extensionId: string]: IExtensionDescription; } = {};
 
 		builtinExtensions.forEach((builtinExtension) => {
+			if (!builtinExtension) {
+				return;
+			}
 			result[builtinExtension.id] = builtinExtension;
 		});
 
 		installedExtensions.forEach((installedExtension) => {
+			if (!installedExtension) {
+				return;
+			}
 			if (result.hasOwnProperty(installedExtension.id)) {
 				console.warn(nls.localize('overwritingExtension', "Overwriting extension {0} with {1}.", result[installedExtension.id].extensionFolderPath, installedExtension.extensionFolderPath));
 			}
@@ -272,6 +283,7 @@ const httpServer = http.createServer((request, response) => {
 			};
 			response.end(JSON.stringify(r));
 		}, (err) => {
+			console.log('Problem scanning extensions', err);
 			response.writeHead(500);
 			response.end(err.toString());
 		});
