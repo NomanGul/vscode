@@ -213,7 +213,8 @@ function scanBuiltinExtensions(): TPromise<IExtensionDescription[]> {
 				pkg.version,
 				consoleLogger,
 				absoluteExtensionPath,
-				true,
+				true, // isBuiltin
+				true, // isUnderDevelopment
 				{ devMode: true, locale: 'en', pseudo: false, translations: {} }// TODO@vs-remote
 			).then(extensionDescription => {
 				if (!extensionDescription) {
@@ -232,7 +233,8 @@ function scanInstalledExtensions(): TPromise<IExtensionDescription[]> {
 		'en', // TODO@vs-remote
 		true,
 		EXTENSION_FOLDER,
-		false,
+		false, // isBuiltin
+		true, // isUnderDevelopment
 		{}
 	);
 
