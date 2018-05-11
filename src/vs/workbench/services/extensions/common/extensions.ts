@@ -21,7 +21,6 @@ export interface IExtensionDescription {
 	readonly publisher: string;
 	readonly isBuiltin: boolean;
 	readonly isUnderDevelopment: boolean;
-	readonly extensionFolderPath: string;
 	readonly extensionLocation: URI;
 	readonly extensionDependencies?: string[];
 	readonly activationEvents?: string[];
@@ -42,7 +41,6 @@ export const IExtensionService = createDecorator<IExtensionService>('extensionSe
 export interface IMessage {
 	type: Severity;
 	message: string;
-	source: string;
 	extensionId: string;
 	extensionPointId: string;
 }
