@@ -54,8 +54,7 @@ export class MainThreadWebviews implements MainThreadWebviewsShape, WebviewReviv
 		editorGroupService.onEditorsChanged(this.onEditorsChanged, this, this._toDispose);
 		editorGroupService.onEditorGroupMoved(this.onEditorGroupMoved, this, this._toDispose);
 
-		// TODO@vs-remote: this assumes there is at most one extension host running
-		// this._toDispose.push(_webviewService.registerReviver(MainThreadWebviews.viewType, this));
+		this._toDispose.push(_webviewService.registerReviver(MainThreadWebviews.viewType, this));
 
 		lifecycleService.onWillShutdown(e => {
 			e.veto(this._onWillShutdown());
