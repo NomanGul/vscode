@@ -27,7 +27,6 @@ export interface IAgentScanExtensionsResponse {
 	agentAppRoot: string;
 	agentAppSettingsHome: string;
 	agentLogsPath: string;
-	agentExtensionsFolder: string;
 	extensions: IExtensionDescription[];
 }
 
@@ -261,7 +260,7 @@ async function scanExtensions(): TPromise<IExtensionDescription[]> {
 				return;
 			}
 			if (result.hasOwnProperty(installedExtension.id)) {
-				console.warn(nls.localize('overwritingExtension', "Overwriting extension {0} with {1}.", result[installedExtension.id].extensionFolderPath, installedExtension.extensionFolderPath));
+				console.warn(nls.localize('overwritingExtension', "Overwriting extension {0} with {1}.", result[installedExtension.id].extensionLocation.fsPath, installedExtension.extensionLocation.fsPath));
 			}
 			result[installedExtension.id] = installedExtension;
 		});
@@ -280,7 +279,6 @@ const httpServer = http.createServer((request, response) => {
 				agentAppRoot: APP_ROOT,
 				agentAppSettingsHome: APP_SETTINGS_HOME,
 				agentLogsPath: path.join(LOGS_FOLDER, toLocalISOString(new Date()).replace(/-|:|\.\d+Z$/g, '')),
-				agentExtensionsFolder: EXTENSION_FOLDER,
 				extensions: extensions
 			};
 			response.end(JSON.stringify(r));

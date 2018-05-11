@@ -533,13 +533,9 @@ export class ExtensionService extends Disposable implements IExtensionService, I
 					agentAppSettingsHome: resp.agentAppSettingsHome,
 					agentLogsPath: resp.agentLogsPath
 				};
-				const localExtensionsFolder = path.join(os.homedir(), '.vscode-remote', 'extensions');
-				const remoteExtensionsFolder = resp.agentExtensionsFolder;
 				const extensions = resp.extensions;
 				extensions.forEach((extension) => {
 					extension.isRemote = true;
-					(<any>extension).remoteExtensionFolderPath = extension.extensionFolderPath;
-					(<any>extension).extensionFolderPath = localExtensionsFolder + path.sep + extension.extensionFolderPath.substr(remoteExtensionsFolder.length + 1);
 				});
 				return this._updateEnableProposedApi(extensions);
 			});
