@@ -13,7 +13,6 @@ import { StringDecoder, NodeStringDecoder } from 'string_decoder';
 
 import * as cp from 'child_process';
 import { rgPath } from 'vscode-ripgrep-dynamic';
-import { patternsToRgGlobs } from './ripgrepHelpers';
 import { start } from 'repl';
 
 // If vscode-ripgrep is in an .asar file, then the binary is unpacked.
@@ -35,7 +34,6 @@ export class RipgrepTextSearchEngine {
 
 	provideTextSearchResults(query: vscode.TextSearchQuery, options: vscode.TextSearchOptions, progress: vscode.Progress<vscode.TextSearchResult>, token: vscode.CancellationToken): Thenable<void> {
 		return new Promise((resolve, reject) => {
-			let isDone = false;
 			const cancel = () => {
 				this.isDone = true;
 				this.ripgrepParser.cancel();
@@ -85,7 +83,7 @@ export class RipgrepTextSearchEngine {
 
 			this.rgProc.on('close', code => {
 				process.removeListener('exit', this.killRgProcFn);
-				if (isDone) {
+				if (this.isDone) {
 					resolve();
 				} else {
 					// Trigger last result
@@ -133,6 +131,7 @@ export class RipgrepParser extends EventEmitter {
 	private static readonly RESULT_REGEX = /^\u001b\[0m(\d+)\u001b\[0m:(.*)(\r?)/;
 	private static readonly FILE_REGEX = /^\u001b\[0m(.+)\u001b\[0m$/;
 
+	private static readonly MATCH_START_CHAR = '\u001b';
 	public static readonly MATCH_START_MARKER = '\u001b[0m\u001b[31m';
 	public static readonly MATCH_END_MARKER = '\u001b[0m';
 
@@ -280,9 +279,8 @@ export class RipgrepParser extends EventEmitter {
 					uri: this.currentFile,
 					range,
 					preview: {
-						leading: preview.substring(0, range.start.character),
-						matching: preview.substring(range.start.character, range.end.character),
-						trailing: preview.substring(range.end.character)
+						text: preview,
+						match: new vscode.Range(0, range.start.character, 0, range.end.character)
 					}
 				};
 			})
@@ -303,25 +301,25 @@ function getRgArgs(query: vscode.TextSearchQuery, options: vscode.TextSearchOpti
 	const args = ['--hidden', '--heading', '--line-number', '--color', 'ansi', '--colors', 'path:none', '--colors', 'line:none', '--colors', 'match:fg:red', '--colors', 'match:style:nobold'];
 	args.push(query.isCaseSensitive ? '--case-sensitive' : '--ignore-case');
 
-	patternsToRgGlobs(options.includes)
+	// TODO@roblou
+	options.includes
 		.forEach(globArg => args.push('-g', globArg));
 
-	patternsToRgGlobs(options.excludes)
+	options.excludes
 		.forEach(rgGlob => args.push('-g', `!${rgGlob}`));
 
 	if (options.maxFileSize) {
 		args.push('--max-filesize', options.maxFileSize + '');
 	}
 
-	if (options.disregardIgnoreFiles) {
+	if (options.useIgnoreFiles) {
+		args.push('--no-ignore-parent');
+	} else {
 		// Don't use .gitignore or .ignore
 		args.push('--no-ignore');
-	} else {
-		args.push('--no-ignore-parent');
 	}
 
-	// Follow symlinks
-	if (!options.ignoreSymlinks) {
+	if (options.followSymlinks) {
 		args.push('--follow');
 	}
 
@@ -361,7 +359,7 @@ function getRgArgs(query: vscode.TextSearchQuery, options: vscode.TextSearchOpti
 	return args;
 }
 
-// TODO organize away
+// TODO@roblou organize away
 
 interface RegExpOptions {
 	matchCase?: boolean;
