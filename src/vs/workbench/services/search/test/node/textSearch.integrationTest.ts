@@ -13,7 +13,7 @@ import { TPromise } from 'vs/base/common/winjs.base';
 import { FileWalker } from 'vs/workbench/services/search/node/fileSearch';
 import { ISerializedFileMatch, IRawSearch, IFolderSearch } from 'vs/workbench/services/search/node/search';
 import { Engine as TextSearchEngine } from 'vs/workbench/services/search/node/textSearch';
-// import { RipgrepEngine } from 'vs/workbench/services/search/node/ripgrepTextSearch';
+import { RipgrepEngine } from 'vs/workbench/services/search/node/ripgrepTextSearch';
 import { TextSearchWorkerProvider } from 'vs/workbench/services/search/node/textSearchWorkerProvider';
 
 function countAll(matches: ISerializedFileMatch[]): number {
@@ -64,27 +64,27 @@ function doLegacySearchTest(config: IRawSearch, expectedResultCount: number | Fu
 function doRipgrepSearchTest(config: IRawSearch, expectedResultCount: number | Function): TPromise<void> {
 	return new TPromise<void>((resolve, reject) => {
 		resolve(null);
-		// let engine = new RipgrepEngine(config);
+		let engine = new RipgrepEngine(config);
 
-		// let c = 0;
-		// engine.search((result) => {
-		// 	if (result) {
-		// 		c += result.numMatches;
-		// 	}
-		// }, () => { }, (error) => {
-		// 	try {
-		// 		assert.ok(!error);
-		// 		if (typeof expectedResultCount === 'function') {
-		// 			assert(expectedResultCount(c));
-		// 		} else {
-		// 			assert.equal(c, expectedResultCount, 'rg');
-		// 		}
-		// 	} catch (e) {
-		// 		reject(e);
-		// 	}
+		let c = 0;
+		engine.search((result) => {
+			if (result) {
+				c += result.numMatches;
+			}
+		}, () => { }, (error) => {
+			try {
+				assert.ok(!error);
+				if (typeof expectedResultCount === 'function') {
+					assert(expectedResultCount(c));
+				} else {
+					assert.equal(c, expectedResultCount, 'rg');
+				}
+			} catch (e) {
+				reject(e);
+			}
 
-		// 	resolve(undefined);
-		// });
+			resolve(undefined);
+		});
 	});
 }
 

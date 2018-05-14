@@ -8,12 +8,11 @@ import { rgPath } from 'vscode-ripgrep';
 
 import { isMacintosh as isMac } from 'vs/base/common/platform';
 import * as glob from 'vs/base/common/glob';
-import * as objects from 'vs/base/common/objects';
-import * as paths from 'vs/base/common/paths';
-import { startsWith, rtrim } from 'vs/base/common/strings';
+import { startsWith } from 'vs/base/common/strings';
 import { normalizeNFD } from 'vs/base/common/normalization';
 
 import { IFolderSearch, IRawSearch } from './search';
+import { foldersToIncludeGlobs, foldersToRgExcludeGlobs } from './ripgrepTextSearch';
 
 // If vscode-ripgrep is in an .asar file, then the binary is unpacked.
 const rgDiskPath = rgPath.replace(/\bnode_modules\.asar\b/, 'node_modules.asar.unpacked');
@@ -85,91 +84,4 @@ function getRgArgs(config: IRawSearch, folderQuery: IFolderSearch, includePatter
 
 function anchor(glob: string) {
 	return startsWith(glob, '**') || startsWith(glob, '/') ? glob : `/${glob}`;
-}
-
-function foldersToRgExcludeGlobs(folderQueries: IFolderSearch[], globalExclude: glob.IExpression, excludesToSkip?: Set<string>, absoluteGlobs = true): IRgGlobResult {
-	const globArgs: string[] = [];
-	let siblingClauses: glob.IExpression = {};
-	folderQueries.forEach(folderQuery => {
-		const totalExcludePattern = objects.assign({}, folderQuery.excludePattern || {}, globalExclude || {});
-		const result = globExprsToRgGlobs(totalExcludePattern, absoluteGlobs && folderQuery.folder, excludesToSkip);
-		globArgs.push(...result.globArgs);
-		if (result.siblingClauses) {
-			siblingClauses = objects.assign(siblingClauses, result.siblingClauses);
-		}
-	});
-
-	return { globArgs, siblingClauses };
-}
-
-function foldersToIncludeGlobs(folderQueries: IFolderSearch[], globalInclude: glob.IExpression, absoluteGlobs = true): string[] {
-	const globArgs: string[] = [];
-	folderQueries.forEach(folderQuery => {
-		const totalIncludePattern = objects.assign({}, globalInclude || {}, folderQuery.includePattern || {});
-		const result = globExprsToRgGlobs(totalIncludePattern, absoluteGlobs && folderQuery.folder);
-		globArgs.push(...result.globArgs);
-	});
-
-	return globArgs;
-}
-
-function globExprsToRgGlobs(patterns: glob.IExpression, folder?: string, excludesToSkip?: Set<string>): IRgGlobResult {
-	const globArgs: string[] = [];
-	let siblingClauses: glob.IExpression = null;
-	Object.keys(patterns)
-		.forEach(key => {
-			if (excludesToSkip && excludesToSkip.has(key)) {
-				return;
-			}
-
-			if (!key) {
-				return;
-			}
-
-			const value = patterns[key];
-			key = trimTrailingSlash(folder ? getAbsoluteGlob(folder, key) : key);
-
-			// glob.ts requires forward slashes, but a UNC path still must start with \\
-			// #38165 and #38151
-			if (startsWith(key, '\\\\')) {
-				key = '\\\\' + key.substr(2).replace(/\\/g, '/');
-			} else {
-				key = key.replace(/\\/g, '/');
-			}
-
-			if (typeof value === 'boolean' && value) {
-				globArgs.push(fixDriveC(key));
-			} else if (value && value.when) {
-				if (!siblingClauses) {
-					siblingClauses = {};
-				}
-
-				siblingClauses[key] = value;
-			}
-		});
-
-	return { globArgs, siblingClauses };
-}
-
-interface IRgGlobResult {
-	globArgs: string[];
-	siblingClauses: glob.IExpression;
-}
-
-function getAbsoluteGlob(folder: string, key: string): string {
-	return paths.isAbsolute(key) ?
-		key :
-		paths.join(folder, key);
-}
-
-function trimTrailingSlash(str: string): string {
-	str = rtrim(str, '\\');
-	return rtrim(str, '/');
-}
-
-function fixDriveC(path: string): string {
-	const root = paths.getRoot(path);
-	return root.toLowerCase() === 'c:/' ?
-		path.replace(/^c:[/\\]/i, '/') :
-		path;
 }

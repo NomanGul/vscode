@@ -144,20 +144,3 @@ class RemoteSearchProvider implements ISearchResultProvider {
 		}
 	}
 }
-
-// function createRawSearchQuery(query: ISearchQuery): IRawSearchQuery {
-// 	return {
-// 		contentPattern: query.contentPattern,
-// 		disregardExcludeSettings: query.disregardExcludeSettings,
-// 		disregardIgnoreFiles: query.disregardIgnoreFiles,
-// 		excludePattern: query.excludePattern,
-// 		extraFileResources: query.extraFileResources,
-// 		fileEncoding: query.fileEncoding,
-// 		folderQueries: query.folderQueries.map(fq => {
-// 			const rawFq: IFolderQuery<UriComponents> = { ...fq };
-// 			rawFq.folder = fq.folder.toJSON();
-// 			return rawFq;
-// 		}),
-// 		type: query.type
-// 	}
-// }

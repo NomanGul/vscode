@@ -4,8 +4,8 @@
  *--------------------------------------------------------------------------------------------*/
 
 import * as vscode from 'vscode';
-import { RipgrepFileSearchEngine } from './ripgrepFileSearch';
 import { RipgrepTextSearchEngine } from './ripgrepTextSearch';
+import { RipgrepFileSearchEngine } from './ripgrepFileSearch';
 
 export function activate(): void {
 	const provider = new RipgrepSearchProvider();
