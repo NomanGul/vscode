@@ -97,6 +97,20 @@ export function createApiFactory(
 	extHostLogService: ExtHostLogService
 ): IExtensionApiFactory {
 
+	let schemeTransformer: ISchemeTransformer = null;
+	if (initData.remoteOptions) {
+		schemeTransformer = new class implements ISchemeTransformer {
+			transformOutgoing(scheme: string): string {
+				if (scheme === 'file') {
+					return 'vscode-remote';
+				} else if (scheme === 'vscode-local') {
+					return 'file';
+				}
+				return scheme;
+			}
+		};
+	}
+
 	// Addressable instances
 	rpcProtocol.set(ExtHostContext.ExtHostLogService, extHostLogService);
 	const extHostHeapService = rpcProtocol.set(ExtHostContext.ExtHostHeapService, new ExtHostHeapService());
@@ -114,20 +128,6 @@ export function createApiFactory(
 	const extHostDebugService = rpcProtocol.set(ExtHostContext.ExtHostDebugService, new ExtHostDebugService(rpcProtocol, extHostWorkspace, extensionService, extHostDocumentsAndEditors, extHostConfiguration));
 	rpcProtocol.set(ExtHostContext.ExtHostConfiguration, extHostConfiguration);
 	const extHostDiagnostics = rpcProtocol.set(ExtHostContext.ExtHostDiagnostics, new ExtHostDiagnostics(rpcProtocol));
-
-	let schemeTransformer: ISchemeTransformer = null;
-	if (initData.remoteOptions) {
-		schemeTransformer = new class implements ISchemeTransformer {
-			transformOutgoing(scheme: string): string {
-				if (scheme === 'file') {
-					return 'vscode-remote';
-				} else if (scheme === 'vscode-local') {
-					return 'file';
-				}
-				return scheme;
-			}
-		};
-	}
 	const extHostLanguageFeatures = rpcProtocol.set(ExtHostContext.ExtHostLanguageFeatures, new ExtHostLanguageFeatures(rpcProtocol, schemeTransformer, extHostDocuments, extHostCommands, extHostHeapService, extHostDiagnostics));
 	const extHostFileSystem = rpcProtocol.set(ExtHostContext.ExtHostFileSystem, new ExtHostFileSystem(rpcProtocol, extHostLanguageFeatures));
 	const extHostFileSystemEvent = rpcProtocol.set(ExtHostContext.ExtHostFileSystemEventService, new ExtHostFileSystemEventService());
