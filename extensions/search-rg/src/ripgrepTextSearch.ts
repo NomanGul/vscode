@@ -273,6 +273,7 @@ export class RipgrepParser extends EventEmitter {
 
 		// Get full real text line without color codes
 		const preview = realTextParts.join('');
+
 		lineMatches
 			.map(range => {
 				return <vscode.TextSearchResult>{
