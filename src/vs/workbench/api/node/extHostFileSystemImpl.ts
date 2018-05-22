@@ -7,22 +7,38 @@
 import * as path from 'path';
 import URI from 'vs/base/common/uri';
 import * as pfs from 'vs/base/node/pfs';
-import FileWatcher from './extHostFileWatcher';
+import { FileWatcher, createWatcher } from './extHostFileWatcher';
 import * as files from 'vs/platform/files/common/files';
 import * as vscode from 'vscode';
+import { Emitter } from 'vs/base/common/event';
+import { ExtHostLogService } from 'vs/workbench/api/node/extHostLogService';
+import { ExtHostFileSystemEventService } from 'vs/workbench/api/node/extHostFileSystemEventService';
+import { LogLevel } from 'vs/platform/log/common/log';
 
 export default class FileSystemProvider implements vscode.FileSystemProvider {
 
-	readonly onDidChangeFile: vscode.Event<vscode.FileChangeEvent[]>;
+	public readonly onDidChangeFile: vscode.Event<vscode.FileChangeEvent[]>;
 
-	constructor(fileWatcher: FileWatcher) {
-		this.onDidChangeFile = fileWatcher.onFileChange;
+	private readonly fileWatcher: FileWatcher;
+
+	constructor(logService: ExtHostLogService, extHostFileSystemEventService: ExtHostFileSystemEventService) {
+		const onDidChangeFileEmitter = new Emitter<vscode.FileChangeEvent[]>();
+
+		let verboseLogging = logService.getLevel() === LogLevel.Debug;
+		this.fileWatcher = createWatcher(verboseLogging, onDidChangeFileEmitter);
+		this.onDidChangeFile = onDidChangeFileEmitter.event;
+
+		if (verboseLogging) {
+			// install a ext host file system watcher to observe if our events are received
+			const fileWatcher = extHostFileSystemEventService.createFileSystemWatcher('**');
+			fileWatcher.onDidChange(u => console.info(`[FileWatcher] observing file event: [changed] ${u.toString()}`));
+			fileWatcher.onDidDelete(u => console.info(`[FileWatcher] observing file event: [deleted] ${u.toString()}`));
+			fileWatcher.onDidCreate(u => console.info(`[FileWatcher] observing file event: [created] ${u.toString()}`));
+		}
 	}
 
 	watch(uri: vscode.Uri, options: { recursive: boolean; excludes: string[]; }): vscode.Disposable {
-		return {
-			dispose: () => { }
-		};
+		return this.fileWatcher.watch(uri, options);
 	}
 
 	public async stat(resource: URI): Promise<vscode.FileStat> {

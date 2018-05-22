@@ -58,7 +58,6 @@ import { ExtensionActivatedByAPI } from 'vs/workbench/api/node/extHostExtensionA
 import { OverviewRulerLane } from 'vs/editor/common/model';
 import { ExtHostLogService } from 'vs/workbench/api/node/extHostLogService';
 import FileSystemProvider from 'vs/workbench/api/node/extHostFileSystemImpl';
-import FileWatcher from './extHostFileWatcher';
 import { ExtHostWebviews } from 'vs/workbench/api/node/extHostWebview';
 import { ExtHostSearch } from './extHostSearch';
 import { ExtHostUrls } from './extHostUrls';
@@ -141,9 +140,8 @@ export function createApiFactory(
 	const extHostProgress = rpcProtocol.set(ExtHostContext.ExtHostProgress, new ExtHostProgress(rpcProtocol.getProxy(MainContext.MainThreadProgress)));
 
 	if (initData.remoteOptions) {
-		const watcher = new FileWatcher(extHostWorkspace, extHostConfiguration, extHostFileSystemEvent, extHostLogService);
-		watcher.startWatching();
-		extHostFileSystem.registerFileSystemProvider('vscode-remote', new FileSystemProvider(watcher), { isCaseSensitive: platform.isLinux });
+		const fileSystemProvider = new FileSystemProvider(extHostLogService, extHostFileSystemEvent);
+		extHostFileSystem.registerFileSystemProvider('vscode-remote', fileSystemProvider, { isCaseSensitive: platform.isLinux });
 	}
 
 	// Check that no named customers are missing
