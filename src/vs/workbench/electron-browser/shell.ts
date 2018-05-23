@@ -95,6 +95,8 @@ import { IDialogService } from 'vs/platform/dialogs/common/dialogs';
 import { DialogService } from 'vs/workbench/services/dialogs/electron-browser/dialogService';
 import { DialogChannel } from 'vs/platform/dialogs/common/dialogIpc';
 import { EventType, addDisposableListener, addClass, getClientArea } from 'vs/base/browser/dom';
+import { RemoteExtensionsService } from 'vs/workbench/services/extensions/node/remoteExtensions';
+import { IRemoteExtensionsService } from 'vs/workbench/services/extensions/common/remoteExtensions';
 
 /**
  * Services that we require for the Shell
@@ -414,8 +416,10 @@ export class WorkbenchShell {
 		serviceCollection.set(ILifecycleService, lifecycleService);
 		this.lifecycleService = lifecycleService;
 
+		const remoteExtensionsService = new RemoteExtensionsService(this.configuration.windowId);
 		const extensionManagementChannel = getDelayedChannel<IExtensionManagementChannel>(sharedProcess.then(c => c.getChannel('extensions')));
-		serviceCollection.set(IExtensionManagementService, new SyncDescriptor(ExtensionManagementChannelClient, extensionManagementChannel));
+		serviceCollection.set(IExtensionManagementService, new SyncDescriptor(ExtensionManagementChannelClient, extensionManagementChannel, remoteExtensionsService));
+		serviceCollection.set(IRemoteExtensionsService, remoteExtensionsService);
 
 		const extensionEnablementService = instantiationService.createInstance(ExtensionEnablementService);
 		serviceCollection.set(IExtensionEnablementService, extensionEnablementService);

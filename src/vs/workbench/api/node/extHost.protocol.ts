@@ -69,7 +69,6 @@ export interface IWorkspaceData {
 export interface IRemoteOptions {
 	host: string;
 	port: number;
-	controlPort: number;
 }
 
 export interface IInitData {
