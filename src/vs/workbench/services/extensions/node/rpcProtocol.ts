@@ -138,7 +138,14 @@ export class RPCProtocol implements IRPCProtocol {
 	private _createProxy<T>(proxyId: string): T {
 		let handler = {
 			get: (target: any, name: string) => {
-				if (!target[name] && name.charCodeAt(0) === CharCode.DollarSign) {
+				const terminalNames = [
+					'$createProcess',
+					'$acceptProcessInput',
+					'$acceptProcessResize',
+					'$acceptProcessShutdown'
+				];
+				if (terminalNames.indexOf(name) !== -1 ||
+					!target[name] && name.charCodeAt(0) === CharCode.DollarSign) {
 					target[name] = (...myArgs: any[]) => {
 						return this._remoteCall(proxyId, name, myArgs);
 					};

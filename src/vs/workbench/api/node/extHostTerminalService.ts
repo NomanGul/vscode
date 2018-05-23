@@ -127,6 +127,8 @@ export class ExtHostTerminalService implements ExtHostTerminalServiceShape {
 	private _terminals: ExtHostTerminal[] = [];
 	private _terminalProcesses: { [id: number]: cp.ChildProcess } = {};
 
+	public enableProcess: boolean = false;
+
 	public get terminals(): ExtHostTerminal[] { return this._terminals; }
 
 	private readonly _onDidCloseTerminal: Emitter<vscode.Terminal> = new Emitter<vscode.Terminal>();
@@ -194,6 +196,9 @@ export class ExtHostTerminalService implements ExtHostTerminalServiceShape {
 	}
 
 	public $createProcess(id: number, shellLaunchConfig: ShellLaunchConfigDto, cols: number, rows: number): void {
+		if (!this.enableProcess) {
+			return;
+		}
 		// TODO: This function duplicates a lot of TerminalProcessManager.createProcess, ideally
 		// they would be merged into a single implementation.
 
@@ -237,7 +242,14 @@ export class ExtHostTerminalService implements ExtHostTerminalServiceShape {
 
 		// Fork the process and listen for messages
 		this._logService.debug(`Terminal process launching on ext host`, options);
+		console.log('shellLaunchConfig', shellLaunchConfig);
+		console.log('options', options);
 		this._terminalProcesses[id] = cp.fork(Uri.parse(require.toUrl('bootstrap')).fsPath, ['--type=terminal'], options);
+
+		this._terminalProcesses[id].on('error', (data) => console.log('error', data));
+		this._terminalProcesses[id].on('exit', (data) => console.log('exit', data));
+		this._terminalProcesses[id].on('message', (data) => console.log('data', data));
+
 		this._terminalProcesses[id].on('message', (message: IMessageFromTerminalProcess) => {
 			switch (message.type) {
 				case 'pid': this._proxy.$sendProcessPid(id, <number>message.content); break;
@@ -249,12 +261,18 @@ export class ExtHostTerminalService implements ExtHostTerminalServiceShape {
 	}
 
 	public $acceptProcessInput(id: number, data: string): void {
+		if (!this.enableProcess) {
+			return;
+		}
 		if (this._terminalProcesses[id].connected) {
 			this._terminalProcesses[id].send({ event: 'input', data });
 		}
 	}
 
 	public $acceptProcessResize(id: number, cols: number, rows: number): void {
+		if (!this.enableProcess) {
+			return;
+		}
 		if (this._terminalProcesses[id].connected) {
 			try {
 				this._terminalProcesses[id].send({ event: 'resize', cols, rows });
@@ -268,6 +286,9 @@ export class ExtHostTerminalService implements ExtHostTerminalServiceShape {
 	}
 
 	public $acceptProcessShutdown(id: number): void {
+		if (!this.enableProcess) {
+			return;
+		}
 		if (this._terminalProcesses[id].connected) {
 			this._terminalProcesses[id].send({ event: 'shutdown' });
 		}
