@@ -32,6 +32,10 @@ declare namespace monaco {
 		Error = 3,
 	}
 
+	export enum MarkerTag {
+		Unnecessary = 1,
+	}
+
 	export enum MarkerSeverity {
 		Hint = 1,
 		Info = 2,
@@ -1089,6 +1093,7 @@ declare namespace monaco.editor {
 		endLineNumber: number;
 		endColumn: number;
 		relatedInformation?: IRelatedInformation[];
+		customTags?: MarkerTag[];
 	}
 
 	/**
@@ -1104,6 +1109,7 @@ declare namespace monaco.editor {
 		endLineNumber: number;
 		endColumn: number;
 		relatedInformation?: IRelatedInformation[];
+		customTags?: MarkerTag[];
 	}
 
 	/**
@@ -4893,6 +4899,7 @@ declare namespace monaco.languages {
 	 * the [go to symbol](https://code.visualstudio.com/docs/editor/editingevolved#_goto-symbol)-feature.
 	 */
 	export interface DocumentSymbolProvider {
+		extensionId?: string;
 		/**
 		 * Provide symbol information for the given document.
 		 */

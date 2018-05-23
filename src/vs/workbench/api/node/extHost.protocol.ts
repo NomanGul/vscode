@@ -46,9 +46,9 @@ import { IStat, FileChangeType, IWatchOptions, FileSystemProviderCapabilities, F
 import { ConfigurationScope } from 'vs/platform/configuration/common/configurationRegistry';
 import { CommentRule, CharacterPair, EnterAction } from 'vs/editor/common/modes/languageConfiguration';
 import { ISingleEditOperation } from 'vs/editor/common/model';
-import { IPatternInfo, IRawSearchQuery, IRawFileMatch2 } from 'vs/platform/search/common/search';
+import { IPatternInfo, IRawSearchQuery, IRawFileMatch2, ISearchCompleteStats } from 'vs/platform/search/common/search';
 import { LogLevel } from 'vs/platform/log/common/log';
-import { TaskExecutionDTO, TaskDTO, TaskHandleDTO, TaskFilterDTO } from 'vs/workbench/api/shared/tasks';
+import { TaskExecutionDTO, TaskDTO, TaskHandleDTO, TaskFilterDTO, TaskProcessStartedDTO, TaskProcessEndedDTO } from 'vs/workbench/api/shared/tasks';
 
 export interface IEnvironment {
 	isExtensionDevelopmentDebug: boolean;
@@ -215,7 +215,7 @@ export interface MainThreadTextEditorsShape extends IDisposable {
 
 export interface MainThreadTreeViewsShape extends IDisposable {
 	$registerTreeViewDataProvider(treeViewId: string): void;
-	$refresh(treeViewId: string, itemsToRefresh?: { [treeItemHandle: string]: ITreeItem }): void;
+	$refresh(treeViewId: string, itemsToRefresh?: { [treeItemHandle: string]: ITreeItem }): TPromise<void>;
 	$reveal(treeViewId: string, treeItem: ITreeItem, parentChain: ITreeItem[], options?: { select?: boolean }): TPromise<void>;
 }
 
@@ -272,7 +272,7 @@ export interface ISerializedDocumentFilter {
 
 export interface MainThreadLanguageFeaturesShape extends IDisposable {
 	$unregister(handle: number): void;
-	$registerOutlineSupport(handle: number, selector: ISerializedDocumentFilter[]): void;
+	$registerOutlineSupport(handle: number, selector: ISerializedDocumentFilter[], extensionId: string): void;
 	$registerCodeLensSupport(handle: number, selector: ISerializedDocumentFilter[], eventHandle: number): void;
 	$emitCodeLensEvent(eventHandle: number, event?: any): void;
 	$registerDeclaractionSupport(handle: number, selector: ISerializedDocumentFilter[]): void;
@@ -341,10 +341,11 @@ export interface MyQuickPickItems extends IPickOpenEntry {
 	handle: number;
 }
 export interface MainThreadQuickOpenShape extends IDisposable {
-	$show(options: IPickOptions): TPromise<number | number[]>;
+	$show(multiStepHandle: number | undefined, options: IPickOptions): TPromise<number | number[]>;
 	$setItems(items: MyQuickPickItems[]): TPromise<any>;
 	$setError(error: Error): TPromise<any>;
-	$input(options: vscode.InputBoxOptions, validateInput: boolean): TPromise<string>;
+	$input(multiStepHandle: number | undefined, options: vscode.InputBoxOptions, validateInput: boolean): TPromise<string>;
+	$multiStep(handle: number): TPromise<never>;
 }
 
 export interface MainThreadStatusBarShape extends IDisposable {
@@ -380,7 +381,6 @@ export interface ExtHostWebviewsShape {
 	$onDidChangeWebviewPanelViewState(handle: WebviewPanelHandle, active: boolean, position: EditorPosition): void;
 	$onDidDisposeWebviewPanel(handle: WebviewPanelHandle): Thenable<void>;
 	$deserializeWebviewPanel(newWebviewHandle: WebviewPanelHandle, viewType: string, title: string, state: any, position: EditorPosition, options: vscode.WebviewOptions): Thenable<void>;
-	$serializeWebviewPanel(webviewHandle: WebviewPanelHandle): Thenable<any>;
 }
 
 export interface MainThreadUrlsShape extends IDisposable {
@@ -414,6 +414,7 @@ export interface MainThreadSearchShape extends IDisposable {
 	$registerSearchProvider(handle: number, scheme: string): void;
 	$unregisterProvider(handle: number): void;
 	$handleFindMatch(handle: number, session: number, data: UriComponents | IRawFileMatch2[]): void;
+	$handleTelemetry(eventName: string, data: any): void;
 }
 
 export interface MainThreadTaskShape extends IDisposable {
@@ -538,6 +539,7 @@ export interface ExtHostDocumentsShape {
 	$acceptModelSaved(strURL: UriComponents): void;
 	$acceptDirtyStateChanged(strURL: UriComponents, isDirty: boolean): void;
 	$acceptModelChanged(strURL: UriComponents, e: IModelChangedEvent, isDirty: boolean): void;
+	$onDidRename(oldURL: UriComponents, newURL: UriComponents): void;
 }
 
 export interface ExtHostDocumentSaveParticipantShape {
@@ -584,6 +586,8 @@ export interface ExtHostDocumentsAndEditorsShape {
 
 export interface ExtHostTreeViewsShape {
 	$getChildren(treeViewId: string, treeItemHandle?: string): TPromise<ITreeItem[]>;
+	$setExpanded(treeViewId: string, treeItemHandle: string, expanded: boolean): void;
+	$setSelection(treeViewId: string, treeItemHandles: string[]): void;
 }
 
 export interface ExtHostWorkspaceShape {
@@ -604,8 +608,8 @@ export interface ExtHostFileSystemShape {
 }
 
 export interface ExtHostSearchShape {
-	$provideFileSearchResults(handle: number, session: number, query: IRawSearchQuery): TPromise<void>;
-	$provideTextSearchResults(handle: number, session: number, pattern: IPatternInfo, query: IRawSearchQuery): TPromise<void>;
+	$provideFileSearchResults(handle: number, session: number, query: IRawSearchQuery): TPromise<ISearchCompleteStats>;
+	$provideTextSearchResults(handle: number, session: number, pattern: IPatternInfo, query: IRawSearchQuery): TPromise<ISearchCompleteStats>;
 }
 
 export interface ExtHostExtensionServiceShape {
@@ -673,6 +677,8 @@ export interface SymbolInformationDto extends IdObject {
 	containerName?: string;
 	kind: modes.SymbolKind;
 	location: LocationDto;
+	definingRange: IRange;
+	children?: SymbolInformationDto[];
 }
 
 export interface WorkspaceSymbolsDto extends IdObject {
@@ -782,8 +788,10 @@ export interface ExtHostSCMShape {
 
 export interface ExtHostTaskShape {
 	$provideTasks(handle: number): TPromise<TaskSet>;
-	$taskStarted(execution: TaskExecutionDTO): void;
-	$taskEnded(execution: TaskExecutionDTO): void;
+	$onDidStartTask(execution: TaskExecutionDTO): void;
+	$onDidStartTaskProcess(value: TaskProcessStartedDTO): void;
+	$onDidEndTaskProcess(value: TaskProcessEndedDTO): void;
+	$OnDidEndTask(execution: TaskExecutionDTO): void;
 }
 
 export interface IBreakpointDto {

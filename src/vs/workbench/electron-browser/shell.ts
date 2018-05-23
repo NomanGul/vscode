@@ -278,16 +278,6 @@ export class WorkbenchShell {
 
 		// Telemetry: startup metrics
 		perf.mark('didStartWorkbench');
-		this.extensionService.whenInstalledExtensionsRegistered().done(() => {
-			/* __GDPR__
-				"startupTime" : {
-					"${include}": [
-						"${IStartupMetrics}"
-					]
-				}
-			*/
-			this.telemetryService.publicLog('startupTime', this.timerService.startupMetrics);
-		});
 	}
 
 	private logLocalStorageMetrics(): void {

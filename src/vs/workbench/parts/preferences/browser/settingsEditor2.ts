@@ -37,7 +37,8 @@ import { SearchWidget, SettingsTarget, SettingsTargetsWidget } from 'vs/workbenc
 import { IPreferencesService, ISearchResult, ISetting, ISettingsEditorModel } from 'vs/workbench/services/preferences/common/preferences';
 import { SettingsEditor2Input } from 'vs/workbench/services/preferences/common/preferencesEditorInput';
 import { DefaultSettingsEditorModel } from 'vs/workbench/services/preferences/common/preferencesModels';
-import { IPreferencesSearchService, ISearchProvider } from '../common/preferences';
+import { IPreferencesSearchService, ISearchProvider } from 'vs/workbench/parts/preferences/common/preferences';
+import { KeyCode } from 'vs/base/common/keyCodes';
 
 const SETTINGS_ENTRY_TEMPLATE_ID = 'settings.entry.template';
 const SETTINGS_GROUP_ENTRY_TEMPLATE_ID = 'settings.group.template';
@@ -51,11 +52,15 @@ interface IListEntry {
 }
 
 interface ISettingItemEntry extends IListEntry {
+	templateId: typeof SETTINGS_ENTRY_TEMPLATE_ID;
 	key: string;
 	value: any;
 	isConfigured: boolean;
 	description: string;
 	overriddenScopeList: string[];
+	isExpanded: boolean;
+	isExpandable?: boolean;
+	isFocused?: boolean;
 	type?: string | string[];
 	enum?: string[];
 }
@@ -67,13 +72,17 @@ enum ExpandState {
 }
 
 interface IGroupTitleEntry extends IListEntry {
+	templateId: typeof SETTINGS_GROUP_ENTRY_TEMPLATE_ID;
 	title: string;
 	expandState: ExpandState;
 }
 
 interface IButtonRowEntry extends IListEntry {
+	templateId: typeof BUTTON_ROW_ENTRY_TEMPLATE;
 	label: string;
 }
+
+type ListEntry = ISettingItemEntry | IGroupTitleEntry | IButtonRowEntry;
 
 enum SearchResultIdx {
 	Local = 0,
@@ -82,11 +91,11 @@ enum SearchResultIdx {
 
 const $ = DOM.$;
 
-export const configuredItemForeground = registerColor('settings.configuredItemForeground', {
+export const modifiedItemForeground = registerColor('settings.modifiedItemForeground', {
 	light: '#019001',
 	dark: '#73C991',
 	hc: '#73C991'
-}, localize('configuredItemForeground', "The foreground color for a configured setting."));
+}, localize('modifiedItemForeground', "The foreground color for a modified setting."));
 
 export class SettingsEditor2 extends BaseEditor {
 
@@ -98,12 +107,10 @@ export class SettingsEditor2 extends BaseEditor {
 	private searchWidget: SearchWidget;
 	private settingsTargetsWidget: SettingsTargetsWidget;
 
-	private showConfiguredSettingsOnly = false;
-	private showAllSettings = false;
 	private showConfiguredSettingsOnlyCheckbox: HTMLInputElement;
 
 	private settingsListContainer: HTMLElement;
-	private settingsList: List<IListEntry>;
+	private settingsList: List<ListEntry>;
 
 	private dimension: DOM.Dimension;
 	private searchFocusContextKey: IContextKey<boolean>;
@@ -116,10 +123,16 @@ export class SettingsEditor2 extends BaseEditor {
 	private currentLocalSearchProvider: ISearchProvider;
 	private currentRemoteSearchProvider: ISearchProvider;
 
-	private searchResultModel: SearchResultModel;
 	private pendingSettingModifiedReport: { key: string, value: any };
 
+	// <TODO@roblou> factor out tree/list viewmodel to somewhere outside this class
+	private searchResultModel: SearchResultModel;
 	private groupExpanded = new Map<string, boolean>();
+	private itemExpanded = new Map<string, boolean>();
+	private showConfiguredSettingsOnly = false;
+	private showAllSettings = false;
+	private inRender = false;
+	// </TODO>
 
 	constructor(
 		@ITelemetryService telemetryService: ITelemetryService,
@@ -190,6 +203,24 @@ export class SettingsEditor2 extends BaseEditor {
 	private createHeader(parent: HTMLElement): void {
 		this.headerContainer = DOM.append(parent, $('.settings-header'));
 
+		const previewHeader = DOM.append(this.headerContainer, $('.settings-preview-header'));
+
+		const previewAlert = DOM.append(previewHeader, $('span.settings-preview-warning'));
+		previewAlert.textContent = localize('previewWarning', "Preview");
+
+		const previewTextLabel = DOM.append(previewHeader, $('span.settings-preview-label'));
+		previewTextLabel.textContent = localize('previewLabel', "This is a preview of our new settings editor. You can also ");
+		const openSettingsButton = this._register(new Button(previewHeader, { title: true, buttonBackground: null, buttonHoverBackground: null }));
+		this._register(attachButtonStyler(openSettingsButton, this.themeService, {
+			buttonBackground: Color.transparent.toString(),
+			buttonHoverBackground: Color.transparent.toString(),
+			buttonForeground: 'foreground'
+		}));
+		openSettingsButton.label = localize('openSettingsLabel', "open the original editor.");
+		openSettingsButton.element.classList.add('open-settings-button');
+
+		this._register(openSettingsButton.onDidClick(() => this.openSettingsFile()));
+
 		const searchContainer = DOM.append(this.headerContainer, $('.search-container'));
 		this.searchWidget = this._register(this.instantiationService.createInstance(SearchWidget, searchContainer, {
 			ariaLabel: localize('SearchSettings.AriaLabel', "Search settings"),
@@ -197,6 +228,12 @@ export class SettingsEditor2 extends BaseEditor {
 			focusKey: this.searchFocusContextKey
 		}));
 		this._register(this.searchWidget.onDidChange(() => this.onInputChanged()));
+		this._register(DOM.addStandardDisposableListener(this.searchWidget.domNode, 'keydown', e => {
+			if (e.keyCode === KeyCode.DownArrow) {
+				this.settingsList.focusFirst();
+				this.settingsList.domFocus();
+			}
+		}));
 
 		const headerControlsContainer = DOM.append(this.headerContainer, $('.settings-header-controls'));
 		const targetWidgetContainer = DOM.append(headerControlsContainer, $('.settings-target-container'));
@@ -213,21 +250,10 @@ export class SettingsEditor2 extends BaseEditor {
 		this.showConfiguredSettingsOnlyCheckbox = DOM.append(headerControlsContainerRight, $('input#configured-only-checkbox'));
 		this.showConfiguredSettingsOnlyCheckbox.type = 'checkbox';
 		const showConfiguredSettingsOnlyLabel = <HTMLLabelElement>DOM.append(headerControlsContainerRight, $('label.configured-only-label'));
-		showConfiguredSettingsOnlyLabel.textContent = localize('showOverriddenOnly', "Show configured only");
+		showConfiguredSettingsOnlyLabel.textContent = localize('showOverriddenOnly', "Show modified only");
 		showConfiguredSettingsOnlyLabel.htmlFor = 'configured-only-checkbox';
 
 		this._register(DOM.addDisposableListener(this.showConfiguredSettingsOnlyCheckbox, 'change', e => this.onShowConfiguredOnlyClicked()));
-
-		const openSettingsButton = this._register(new Button(headerControlsContainerRight, { title: true, buttonBackground: null, buttonHoverBackground: null }));
-		this._register(attachButtonStyler(openSettingsButton, this.themeService, {
-			buttonBackground: Color.transparent.toString(),
-			buttonHoverBackground: Color.transparent.toString(),
-			buttonForeground: 'foreground'
-		}));
-		openSettingsButton.label = localize('openSettingsLabel', "Open settings.json");
-		openSettingsButton.element.classList.add('open-settings-button');
-
-		this._register(openSettingsButton.onDidClick(() => this.openSettingsFile()));
 	}
 
 	private openSettingsFile(): TPromise<IEditor> {
@@ -246,44 +272,89 @@ export class SettingsEditor2 extends BaseEditor {
 		const bodyContainer = DOM.append(parent, $('.settings-body'));
 
 		this.createList(bodyContainer);
+		this.createFeedbackButton(bodyContainer);
 	}
 
 	private createList(parent: HTMLElement): void {
 		this.settingsListContainer = DOM.append(parent, $('.settings-list-container'));
 
-		const settingItemRenderer = this.instantiationService.createInstance(SettingItemRenderer);
+		const settingItemRenderer = this.instantiationService.createInstance(SettingItemRenderer, this.settingsListContainer);
 		this._register(settingItemRenderer.onDidChangeSetting(e => this.onDidChangeSetting(e.key, e.value)));
 		this._register(settingItemRenderer.onDidOpenSettings(() => this.openSettingsFile()));
+		this._register(settingItemRenderer.onDidToggleExpandSetting(e => this.toggleSettingExpanded(e)));
 
-		const buttonItemRenderer = new ButtonRowRenderer();
-		this._register(buttonItemRenderer.onDidClick(e => this.onShowAllSettingsClicked()));
+		const buttonItemRenderer = this.instantiationService.createInstance(ButtonRowRenderer);
+		this._register(buttonItemRenderer.onDidClick(e => this.onShowAllSettingsToggled()));
 
 		const groupTitleRenderer = new GroupTitleRenderer();
-		this._register(groupTitleRenderer.onDidClickGroup(e => {
-			const isExpanded = !!this.groupExpanded.get(e);
-			this.groupExpanded.set(e, !isExpanded);
-			this.renderEntries();
-		}));
+		this._register(groupTitleRenderer.onDidClickGroup(id => this.toggleGroupExpanded(id)));
 
 		this.settingsList = this._register(this.instantiationService.createInstance(
 			WorkbenchList,
 			this.settingsListContainer,
-			new SettingItemDelegate(),
+			new SettingItemDelegate(this.settingsListContainer),
 			[settingItemRenderer, groupTitleRenderer, buttonItemRenderer],
 			{
 				identityProvider: e => e.id,
-				ariaLabel: localize('settingsListLabel', "Settings"),
-				focusOnMouseDown: false,
-				selectOnMouseDown: false,
-				keyboardSupport: false,
-				mouseSupport: false
+				ariaLabel: localize('settingsListLabel', "Settings")
 			})
-		) as WorkbenchList<IListEntry>;
+		) as WorkbenchList<ListEntry>;
 
-		this.settingsList.style({ listHoverBackground: Color.transparent, listFocusOutline: Color.transparent });
+		this._register(this.settingsList.onDidFocus(() => {
+			DOM.addClass(this.settingsList.getHTMLElement(), 'focused');
+		}));
+		this._register(this.settingsList.onDidBlur(() => {
+			DOM.removeClass(this.settingsList.getHTMLElement(), 'focused');
+		}));
+
+		this.settingsList.onOpen(e => {
+			const entry = e.elements[0];
+			if (!entry) {
+				return;
+			}
+
+			if (entry.templateId === SETTINGS_GROUP_ENTRY_TEMPLATE_ID) {
+				this.toggleGroupExpanded(entry.id);
+			} else if (entry.templateId === SETTINGS_ENTRY_TEMPLATE_ID) {
+				this.toggleSettingExpanded(entry);
+			} else if (entry.templateId === BUTTON_ROW_ENTRY_TEMPLATE) {
+				this.onShowAllSettingsToggled();
+			}
+		});
+
+		this._register(this.settingsList.onFocusChange(e => {
+			if (!this.inRender) {
+				this.renderEntries();
+			}
+		}));
 	}
 
-	private onShowAllSettingsClicked(): void {
+	private createFeedbackButton(parent: HTMLElement): void {
+		const feedbackButton = this._register(new Button(parent));
+		feedbackButton.label = localize('feedbackButtonLabel', "Provide Feedback");
+		feedbackButton.element.classList.add('settings-feedback-button');
+
+		this._register(attachButtonStyler(feedbackButton, this.themeService));
+		this._register(feedbackButton.onDidClick(() => {
+			// Github master issue
+			window.open('https://go.microsoft.com/fwlink/?linkid=2000807');
+		}));
+	}
+
+	private toggleGroupExpanded(id: string): void {
+		const isExpanded = !!this.groupExpanded.get(id);
+		this.groupExpanded.set(id, !isExpanded);
+		this.renderEntries();
+	}
+
+	private toggleSettingExpanded(entry: ISettingItemEntry): void {
+		if (entry.isExpandable) {
+			this.itemExpanded.set(entry.key, !entry.isExpanded);
+			this.renderEntries();
+		}
+	}
+
+	private onShowAllSettingsToggled(): void {
 		this.showAllSettings = !this.showAllSettings;
 		this.render();
 	}
@@ -359,7 +430,7 @@ export class SettingsEditor2 extends BaseEditor {
 		};
 
 		/* __GDPR__
-			"settingEditor.settingModified" : {
+			"settingsEditor.settingModified" : {
 				"key" : { "classification": "SystemMetaData", "purpose": "FeatureInsight" },
 				"query" : { "classification": "CustomerContent", "purpose": "FeatureInsight" },
 				"groupId" : { "classification": "SystemMetaData", "purpose": "FeatureInsight" },
@@ -370,7 +441,7 @@ export class SettingsEditor2 extends BaseEditor {
 				"target" : { "classification": "SystemMetaData", "purpose": "FeatureInsight" }
 			}
 		*/
-		this.telemetryService.publicLog('settingEditor.settingModified', data);
+		this.telemetryService.publicLog('settingsEditor.settingModified', data);
 	}
 
 	private render(): TPromise<any> {
@@ -442,7 +513,7 @@ export class SettingsEditor2 extends BaseEditor {
 				"requestCount" : { "classification": "SystemMetaData", "purpose": "FeatureInsight", "isMeasurement": true }
 			}
 		*/
-		this.telemetryService.publicLog('defaultSettings.filter', data);
+		this.telemetryService.publicLog('settingsEditor.filter', data);
 	}
 
 	private localFilterPreferences(query: string): TPromise<void> {
@@ -473,7 +544,7 @@ export class SettingsEditor2 extends BaseEditor {
 					return TPromise.wrapError(err);
 				} else {
 					/* __GDPR__
-						"defaultSettings.searchError" : {
+						"settingsEditor.searchError" : {
 							"message": { "classification": "CallstackOrException", "purpose": "FeatureInsight" },
 							"filter": { "classification": "SystemMetaData", "purpose": "FeatureInsight" }
 						}
@@ -481,7 +552,7 @@ export class SettingsEditor2 extends BaseEditor {
 					const message = getErrorMessage(err).trim();
 					if (message && message !== 'Error') {
 						// "Error" = any generic network error
-						this.telemetryService.publicLog('defaultSettings.searchError', { message, filter });
+						this.telemetryService.publicLog('settingsEditor.searchError', { message, filter });
 						this.logService.info('Setting search error: ' + message);
 					}
 					return null;
@@ -489,10 +560,12 @@ export class SettingsEditor2 extends BaseEditor {
 			});
 	}
 
-	private getEntriesFromSearch(searchResults: ISearchResult[]): IListEntry[] {
+	private getEntriesFromSearch(searchResults: ISearchResult[]): ListEntry[] {
 		const entries: ISettingItemEntry[] = [];
 		const seenSettings = new Set<string>();
 
+		const focusedElement = this.settingsList.getFocusedElements()[0];
+		const focusedId = focusedElement && focusedElement.id;
 		for (let result of searchResults) {
 			if (!result) {
 				continue;
@@ -500,7 +573,9 @@ export class SettingsEditor2 extends BaseEditor {
 
 			for (let match of result.filterMatches) {
 				if (!seenSettings.has(match.setting.key)) {
-					const entry = this.settingToEntry(match.setting);
+					const entry = this.settingToEntry(match.setting, 'search');
+					entry.isFocused = entry.id === focusedId;
+
 					if (!this.showConfiguredSettingsOnly || entry.isConfigured) {
 						seenSettings.add(entry.key);
 						entries.push(entry);
@@ -513,6 +588,7 @@ export class SettingsEditor2 extends BaseEditor {
 	}
 
 	private renderEntries(): void {
+		this.inRender = true;
 		if (!this.defaultSettingsEditorModel) {
 			return;
 		}
@@ -535,10 +611,15 @@ export class SettingsEditor2 extends BaseEditor {
 				inputElementToFocus.focus();
 			}
 		}
+
+		this.inRender = false;
 	}
 
-	private getEntriesFromModel(): IListEntry[] {
-		const entries: IListEntry[] = [];
+	private getEntriesFromModel(): ListEntry[] {
+		const entries: ListEntry[] = [];
+		const focusedElement = this.settingsList.getFocusedElements()[0];
+		const focusedId = focusedElement && focusedElement.id;
+
 		for (let groupIdx = 0; groupIdx < this.defaultSettingsEditorModel.settingsGroups.length; groupIdx++) {
 			if (groupIdx > 0 && !this.showAllSettings && !this.showConfiguredSettingsOnly) {
 				break;
@@ -551,7 +632,9 @@ export class SettingsEditor2 extends BaseEditor {
 			if (isExpanded) {
 				for (const section of group.sections) {
 					for (const setting of section.settings) {
-						const entry = this.settingToEntry(setting);
+						const entry = this.settingToEntry(setting, group.id);
+						entry.isFocused = entry.id === focusedId;
+
 						if (!this.showConfiguredSettingsOnly || entry.isConfigured) {
 							groupEntries.push(entry);
 						}
@@ -589,7 +672,7 @@ export class SettingsEditor2 extends BaseEditor {
 		return entries;
 	}
 
-	private settingToEntry(s: ISetting): ISettingItemEntry {
+	private settingToEntry(s: ISetting, groupId: string): ISettingItemEntry {
 		const targetSelector = this.settingsTargetsWidget.settingsTarget === ConfigurationTarget.USER ? 'user' : 'workspace';
 		const inspected = this.configurationService.inspect(s.key);
 		const isConfigured = typeof inspected[targetSelector] !== 'undefined';
@@ -603,8 +686,10 @@ export class SettingsEditor2 extends BaseEditor {
 			overriddenScopeList.push('User');
 		}
 
+		const isExpanded = !!this.itemExpanded.get(s.key);
+
 		return <ISettingItemEntry>{
-			id: s.key,
+			id: `${groupId}_${s.key}`,
 			key: s.key,
 			value: displayValue,
 			isConfigured,
@@ -612,7 +697,8 @@ export class SettingsEditor2 extends BaseEditor {
 			description: s.description.join('\n'),
 			enum: s.enum,
 			type: s.type,
-			templateId: SETTINGS_ENTRY_TEMPLATE_ID
+			templateId: SETTINGS_ENTRY_TEMPLATE_ID,
+			isExpanded
 		};
 	}
 
@@ -623,16 +709,23 @@ export class SettingsEditor2 extends BaseEditor {
 	}
 }
 
-class SettingItemDelegate implements IDelegate<IListEntry> {
+class SettingItemDelegate implements IDelegate<ListEntry> {
 
-	getHeight(entry: IListEntry) {
+	constructor(private measureContainer: HTMLElement) {
+
+	}
+
+	getHeight(entry: ListEntry) {
 		if (entry.templateId === SETTINGS_GROUP_ENTRY_TEMPLATE_ID) {
-			return 42;
+			return 30;
 		}
 
 		if (entry.templateId === SETTINGS_ENTRY_TEMPLATE_ID) {
-			// TODO dynamic height
-			return 68;
+			if (entry.isExpanded) {
+				return this.getDynamicHeight(entry);
+			} else {
+				return 68;
+			}
 		}
 
 		if (entry.templateId === BUTTON_ROW_ENTRY_TEMPLATE) {
@@ -642,9 +735,24 @@ class SettingItemDelegate implements IDelegate<IListEntry> {
 		return 0;
 	}
 
-	getTemplateId(element: IListEntry) {
+	getTemplateId(element: ListEntry) {
 		return element.templateId;
 	}
+
+	private getDynamicHeight(entry: ISettingItemEntry): number {
+		return measureSettingItemEntry(entry, this.measureContainer);
+	}
+}
+
+function measureSettingItemEntry(entry: ISettingItemEntry, measureContainer: HTMLElement): number {
+	const measureHelper = DOM.append(measureContainer, $('.setting-item-measure-helper.monaco-list-row'));
+
+	const template = SettingItemRenderer.renderTemplate(measureHelper);
+	SettingItemRenderer.renderElement(entry, 0, template);
+
+	const height = measureHelper.offsetHeight;
+	measureContainer.removeChild(measureHelper);
+	return height;
 }
 
 interface IDisposableTemplate {
@@ -654,10 +762,12 @@ interface IDisposableTemplate {
 interface ISettingItemTemplate extends IDisposableTemplate {
 	parent: HTMLElement;
 
+	context?: ISettingItemEntry;
 	containerElement: HTMLElement;
 	categoryElement: HTMLElement;
 	labelElement: HTMLElement;
 	descriptionElement: HTMLElement;
+	showMoreElement: HTMLElement;
 	valueElement: HTMLElement;
 	overridesElement: HTMLElement;
 }
@@ -688,14 +798,22 @@ class SettingItemRenderer implements IRenderer<ISettingItemEntry, ISettingItemTe
 	private readonly _onDidOpenSettings: Emitter<void> = new Emitter<void>();
 	public readonly onDidOpenSettings: Event<void> = this._onDidOpenSettings.event;
 
+	private readonly _onDidToggleExpandSetting: Emitter<ISettingItemEntry> = new Emitter<ISettingItemEntry>();
+	public readonly onDidToggleExpandSetting: Event<ISettingItemEntry> = this._onDidToggleExpandSetting.event;
+
 	get templateId(): string { return SETTINGS_ENTRY_TEMPLATE_ID; }
 
 	constructor(
+		private measureContainer: HTMLElement,
 		@IContextViewService private contextViewService: IContextViewService,
 		@IThemeService private themeService: IThemeService
 	) { }
 
 	renderTemplate(parent: HTMLElement): ISettingItemTemplate {
+		return SettingItemRenderer.renderTemplate(parent, this);
+	}
+
+	static renderTemplate(parent: HTMLElement, that?: SettingItemRenderer): ISettingItemTemplate {
 		DOM.addClass(parent, 'setting-item');
 
 		const itemContainer = DOM.append(parent, $('.setting-item-container'));
@@ -707,30 +825,52 @@ class SettingItemRenderer implements IRenderer<ISettingItemEntry, ISettingItemTe
 		const labelElement = DOM.append(titleElement, $('span.setting-item-label'));
 		const overridesElement = DOM.append(titleElement, $('span.setting-item-overrides'));
 		const descriptionElement = DOM.append(leftElement, $('.setting-item-description'));
+		const showMoreElement = DOM.append(leftElement, $('.setting-show-more'));
 
 		const valueElement = DOM.append(rightElement, $('.setting-item-value'));
 
-		return {
+		const toDispose = [];
+		const template: ISettingItemTemplate = {
 			parent: parent,
-			toDispose: [],
+			toDispose,
 
 			containerElement: itemContainer,
 			categoryElement,
 			labelElement,
 			descriptionElement,
+			showMoreElement,
 			valueElement,
 			overridesElement
 		};
+
+		if (that) {
+			toDispose.push(DOM.addDisposableListener(descriptionElement, 'click', () => {
+				const entry = template.context;
+				if (entry && entry.isExpandable) {
+					that._onDidToggleExpandSetting.fire(entry);
+				}
+			}));
+
+			// Hack to prevent mousedown on value from causing list 'open'
+			toDispose.push(DOM.addDisposableListener(valueElement, 'mousedown', e => {
+				e.stopPropagation();
+			}));
+		}
+
+		return template;
 	}
 
 	renderElement(entry: ISettingItemEntry, index: number, template: ISettingItemTemplate): void {
+		return SettingItemRenderer.renderElement(entry, index, template, this);
+	}
+
+	static renderElement(entry: ISettingItemEntry, index: number, template: ISettingItemTemplate, that?: SettingItemRenderer): void {
+		template.context = entry;
 		DOM.toggleClass(template.parent, 'odd', index % 2 === 1);
+		DOM.toggleClass(template.parent, 'is-configured', entry.isConfigured);
+		DOM.toggleClass(template.parent, 'is-expanded', entry.isExpanded);
 
-		let titleTooltip = entry.key;
-		if (entry.isConfigured) {
-			titleTooltip += ' - ' + localize('configuredTitleToolip', "This setting is configured");
-		}
-
+		const titleTooltip = entry.key;
 		const settingKeyDisplay = settingKeyToDisplayFormat(entry.key);
 		template.categoryElement.textContent = settingKeyDisplay.category + ': ';
 		template.categoryElement.title = titleTooltip;
@@ -740,24 +880,43 @@ class SettingItemRenderer implements IRenderer<ISettingItemEntry, ISettingItemTe
 		template.descriptionElement.textContent = entry.description;
 		template.descriptionElement.title = entry.description;
 
-		DOM.toggleClass(template.parent, 'is-configured', entry.isConfigured);
-		this.renderValue(entry, template);
+		if (that) {
+			const expandedHeight = measureSettingItemEntry(entry, that.measureContainer);
+			entry.isExpandable = expandedHeight > 68;
+			DOM.toggleClass(template.parent, 'is-expandable', entry.isExpandable);
+		}
+
+		if (that) {
+			that.renderValue(entry, template);
+		}
 
 		const resetButton = new Button(template.valueElement);
 		resetButton.element.title = localize('resetButtonTitle', "Reset");
 		resetButton.element.classList.add('setting-reset-button');
-		attachButtonStyler(resetButton, this.themeService, {
-			buttonBackground: Color.transparent.toString(),
-			buttonHoverBackground: Color.transparent.toString()
-		});
-		template.toDispose.push(resetButton.onDidClick(e => {
-			this._onDidChangeSetting.fire({ key: entry.key, value: undefined });
-		}));
+		resetButton.element.tabIndex = entry.isFocused ? 0 : -1;
+
+		if (that) {
+			attachButtonStyler(resetButton, that.themeService, {
+				buttonBackground: Color.transparent.toString(),
+				buttonHoverBackground: Color.transparent.toString()
+			});
+		}
+
+		if (that) {
+			template.toDispose.push(resetButton.onDidClick(e => {
+				that._onDidChangeSetting.fire({ key: entry.key, value: undefined });
+			}));
+		}
 		template.toDispose.push(resetButton);
 
-		const alsoConfiguredInLabel = localize('alsoConfiguredIn', "Also configured in:");
-		template.overridesElement.textContent = entry.overriddenScopeList.length ? `(${alsoConfiguredInLabel} ${entry.overriddenScopeList.join(', ')})` :
-			'';
+		const alsoConfiguredInLabel = localize('alsoConfiguredIn', "Also modified in:");
+		let overridesElementText = entry.isConfigured ? 'Modified ' : '';
+
+		if (entry.overriddenScopeList.length) {
+			overridesElementText = overridesElementText + `(${alsoConfiguredInLabel} ${entry.overriddenScopeList.join(', ')})`;
+		}
+
+		template.overridesElement.textContent = overridesElementText;
 	}
 
 	private renderValue(entry: ISettingItemEntry, template: ISettingItemTemplate): void {
@@ -780,6 +939,7 @@ class SettingItemRenderer implements IRenderer<ISettingItemEntry, ISettingItemTe
 		const checkboxElement = <HTMLInputElement>DOM.append(template.valueElement, $('input.setting-value-checkbox.setting-value-input'));
 		checkboxElement.type = 'checkbox';
 		checkboxElement.checked = entry.value;
+		checkboxElement.tabIndex = entry.isFocused ? 0 : -1;
 
 		template.toDispose.push(DOM.addDisposableListener(checkboxElement, 'change', e => onChange(checkboxElement.checked)));
 	}
@@ -790,6 +950,9 @@ class SettingItemRenderer implements IRenderer<ISettingItemEntry, ISettingItemTe
 		template.toDispose.push(selectBox);
 		template.toDispose.push(attachSelectBoxStyler(selectBox, this.themeService));
 		selectBox.render(template.valueElement);
+		if (template.valueElement.firstElementChild) {
+			template.valueElement.firstElementChild.setAttribute('tabindex', entry.isFocused ? '0' : '-1');
+		}
 
 		template.toDispose.push(
 			selectBox.onDidSelect(e => onChange(entry.enum[e.index])));
@@ -800,6 +963,7 @@ class SettingItemRenderer implements IRenderer<ISettingItemEntry, ISettingItemTe
 		template.toDispose.push(attachInputBoxStyler(inputBox, this.themeService));
 		template.toDispose.push(inputBox);
 		inputBox.value = entry.value;
+		inputBox.inputElement.tabIndex = entry.isFocused ? 0 : -1;
 
 		template.toDispose.push(
 			inputBox.onDidChange(e => onChange(e)));
@@ -810,6 +974,8 @@ class SettingItemRenderer implements IRenderer<ISettingItemEntry, ISettingItemTe
 		openSettingsButton.onDidClick(() => this._onDidOpenSettings.fire());
 		openSettingsButton.label = localize('editInSettingsJson', "Edit in settings.json");
 		openSettingsButton.element.classList.add('edit-in-settings-button');
+		openSettingsButton.element.tabIndex = entry.isFocused ? 0 : -1;
+
 		template.toDispose.push(openSettingsButton);
 		template.toDispose.push(attachButtonStyler(openSettingsButton, this.themeService, {
 			buttonBackground: Color.transparent.toString(),
@@ -824,9 +990,9 @@ class SettingItemRenderer implements IRenderer<ISettingItemEntry, ISettingItemTe
 }
 
 registerThemingParticipant((theme: ITheme, collector: ICssStyleCollector) => {
-	const configuredItemForegroundColor = theme.getColor(configuredItemForeground);
-	if (configuredItemForegroundColor) {
-		collector.addRule(`.settings-editor > .settings-body > .settings-list-container .monaco-list-row.is-configured .setting-item-title { color: ${configuredItemForegroundColor}; }`);
+	const modifiedItemForegroundColor = theme.getColor(modifiedItemForeground);
+	if (modifiedItemForegroundColor) {
+		collector.addRule(`.settings-editor > .settings-body > .settings-list-container .monaco-list-row.is-configured .setting-item-title { color: ${modifiedItemForegroundColor}; }`);
 	}
 });
 
@@ -885,6 +1051,8 @@ class ButtonRowRenderer implements IRenderer<IButtonRowEntry, IButtonRowTemplate
 	private readonly _onDidClick: Emitter<string> = new Emitter<string>();
 	public readonly onDidClick: Event<string> = this._onDidClick.event;
 
+	constructor(@IThemeService private themeService: IThemeService) { }
+
 	get templateId(): string { return BUTTON_ROW_ENTRY_TEMPLATE; }
 
 	renderTemplate(parent: HTMLElement): IButtonRowTemplate {
@@ -894,6 +1062,7 @@ class ButtonRowRenderer implements IRenderer<IButtonRowEntry, IButtonRowTemplate
 
 		const button = new Button(buttonElement);
 		const toDispose: IDisposable[] = [button];
+		toDispose.push(attachButtonStyler(button, this.themeService));
 
 		const template: IButtonRowTemplate = {
 			parent: parent,
