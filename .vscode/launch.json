@@ -17,7 +17,7 @@
 			"request": "attach",
 			"name": "Attach to Extension Host",
 			"protocol": "inspector",
-			"port": 5870,
+			"port": 5871,
 			// "restart": true,
 			"outFiles": [
 				"${workspaceFolder}/out/**/*.js"
@@ -83,6 +83,7 @@
 			"name": "VS Code API Tests (single folder)",
 			"runtimeExecutable": "${execPath}",
 			"args": [
+				// "${workspaceFolder}", // Uncomment for running out of sources.
 				"${workspaceFolder}/extensions/vscode-api-tests/testWorkspace",
 				"--extensionDevelopmentPath=${workspaceFolder}/extensions/vscode-api-tests",
 				"--extensionTestsPath=${workspaceFolder}/extensions/vscode-api-tests/out/singlefolder-tests"

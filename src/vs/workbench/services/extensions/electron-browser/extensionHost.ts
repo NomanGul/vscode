@@ -24,7 +24,7 @@ import { IMessagePassingProtocol } from 'vs/base/parts/ipc/common/ipc';
 import { generateRandomPipeName, Protocol } from 'vs/base/parts/ipc/node/ipc.net';
 import { createServer, Server, Socket, createConnection } from 'net';
 import { Event, Emitter, debounceEvent, mapEvent, anyEvent, fromNodeEventEmitter } from 'vs/base/common/event';
-import { IInitData, IWorkspaceData, IConfigurationInitData, IRemoteOptions } from 'vs/workbench/api/node/extHost.protocol';
+import { IInitData, IWorkspaceData, IConfigurationInitData } from 'vs/workbench/api/node/extHost.protocol';
 import { IExtensionDescription } from 'vs/workbench/services/extensions/common/extensions';
 import { IWorkspaceConfigurationService } from 'vs/workbench/services/configuration/common/configuration';
 import { ICrashReporterService } from 'vs/workbench/services/crashReporter/electron-browser/crashReporterService';
@@ -36,6 +36,7 @@ import { IRemoteConsoleLog, log, parse } from 'vs/base/node/console';
 import { getScopes } from 'vs/platform/configuration/common/configurationRegistry';
 import { ILogService } from 'vs/platform/log/common/log';
 import { INotificationService, Severity } from 'vs/platform/notification/common/notification';
+import { IRemoteConnectionInformation, IRemoteExtensionsEnvironmentData } from 'vs/workbench/services/extensions/common/remoteExtensions';
 
 export interface IExtensionHostStarter {
 	readonly onCrashed: Event<[number, string]>;
@@ -45,15 +46,9 @@ export interface IExtensionHostStarter {
 	dispose(): void;
 }
 
-export interface IRuntimeRemoteOptions {
-	agentPid: number;
-	agentAppRoot: string;
-	agentAppSettingsHome: string;
-	agentLogsPath: string;
-}
-
-export interface IRuntimeRemoteOptionsProvider {
-	getRuntimeRemoteOptions(): IRuntimeRemoteOptions;
+export interface IInitDataProvider {
+	readonly connectionInformation: IRemoteConnectionInformation;
+	getInitData(): TPromise<IRemoteExtensionsEnvironmentData>;
 }
 
 export class ExtensionHostRemoteProcess implements IExtensionHostStarter {
@@ -65,9 +60,7 @@ export class ExtensionHostRemoteProcess implements IExtensionHostStarter {
 	private _protocol: IMessagePassingProtocol;
 
 	constructor(
-		private readonly _options: IRemoteOptions,
-		private readonly _extensions: TPromise<IExtensionDescription[]>,
-		/* intentionally not injected */private readonly _extensionService: IRuntimeRemoteOptionsProvider,
+		private readonly _initDataProvider: IInitDataProvider,
 		@IWorkspaceContextService private readonly _contextService: IWorkspaceContextService,
 		@IWindowService private readonly _windowService: IWindowService,
 		@IEnvironmentService private readonly _environmentService: IEnvironmentService,
@@ -84,8 +77,8 @@ export class ExtensionHostRemoteProcess implements IExtensionHostStarter {
 		return new TPromise<IMessagePassingProtocol>((resolve, reject) => {
 
 			const socket = createConnection({
-				host: this._options.host,
-				port: this._options.port
+				host: this._initDataProvider.connectionInformation.host,
+				port: this._initDataProvider.connectionInformation.extensionHostPort
 			}, () => {
 				socket.removeListener('error', reject);
 				this._connection = socket;
@@ -144,40 +137,30 @@ export class ExtensionHostRemoteProcess implements IExtensionHostStarter {
 	}
 
 	private _createExtHostInitData(): TPromise<IInitData> {
-		return TPromise.join([this._telemetryService.getTelemetryInfo(), this._extensions]).then(([telemetryInfo, originalExtensionDescriptions]) => {
-
-			const runtimeRemoteOptions = this._extensionService.getRuntimeRemoteOptions();
-
-			let extensionDescriptions: IExtensionDescription[] = [];
-			for (let i = 0; i < originalExtensionDescriptions.length; i++) {
-				if (!originalExtensionDescriptions[i].isRemote) {
-					continue;
-				}
-				const extension = objects.assign({}, originalExtensionDescriptions[i]);
-				(<any>extension).extensionFolderPath = (<any>extension).remoteExtensionFolderPath;
-				extensionDescriptions.push(extension);
-			}
-
+		return TPromise.join([this._telemetryService.getTelemetryInfo(), this._initDataProvider.getInitData()]).then(([telemetryInfo, remoteExtensionHostData]) => {
 			const configurationData: IConfigurationInitData = { ...this._configurationService.getConfigurationData(), configurationScopes: {} };
 			const r: IInitData = {
-				parentPid: runtimeRemoteOptions.agentPid,
+				parentPid: remoteExtensionHostData.agentPid,
 				environment: {
 					isExtensionDevelopmentDebug: false,// TODO@vs-remote this._isExtensionDevDebug,
-					appRoot: runtimeRemoteOptions.agentAppRoot,
-					appSettingsHome: runtimeRemoteOptions.agentAppSettingsHome,
+					appRoot: remoteExtensionHostData.agentAppRoot,
+					appSettingsHome: remoteExtensionHostData.agentAppSettingsHome,
 					disableExtensions: this._environmentService.disableExtensions,
 					extensionDevelopmentPath: this._environmentService.extensionDevelopmentPath,
 					extensionTestsPath: this._environmentService.extensionTestsPath,
 				},
 				workspace: this._contextService.getWorkbenchState() === WorkbenchState.EMPTY ? null : <IWorkspaceData>this._contextService.getWorkspace(),
-				extensions: extensionDescriptions,
+				extensions: remoteExtensionHostData.extensions,
 				// Send configurations scopes only in development mode.
 				configuration: !this._environmentService.isBuilt || this._environmentService.isExtensionDevelopment ? { ...configurationData, configurationScopes: getScopes() } : configurationData,
 				telemetryInfo,
 				windowId: this._windowService.getCurrentWindowId(),
 				logLevel: this._logService.getLevel(),
-				logsPath: runtimeRemoteOptions.agentLogsPath,
-				remoteOptions: this._options
+				logsPath: remoteExtensionHostData.agentLogsPath,
+				remoteOptions: {
+					host: this._initDataProvider.connectionInformation.host,
+					port: this._initDataProvider.connectionInformation.extensionHostPort
+				}
 			};
 			return r;
 		});

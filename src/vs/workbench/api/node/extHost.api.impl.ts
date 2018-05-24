@@ -58,7 +58,6 @@ import { ExtensionActivatedByAPI } from 'vs/workbench/api/node/extHostExtensionA
 import { OverviewRulerLane } from 'vs/editor/common/model';
 import { ExtHostLogService } from 'vs/workbench/api/node/extHostLogService';
 import FileSystemProvider from 'vs/workbench/api/node/extHostFileSystemImpl';
-import FileWatcher from './extHostFileWatcher';
 import { ExtHostWebviews } from 'vs/workbench/api/node/extHostWebview';
 import { ExtHostSearch } from './extHostSearch';
 import { ExtHostUrls } from './extHostUrls';
@@ -144,9 +143,8 @@ export function createApiFactory(
 	const extHostProgress = rpcProtocol.set(ExtHostContext.ExtHostProgress, new ExtHostProgress(rpcProtocol.getProxy(MainContext.MainThreadProgress)));
 
 	if (initData.remoteOptions) {
-		const watcher = new FileWatcher(extHostWorkspace, extHostConfiguration, extHostFileSystemEvent, extHostLogService);
-		watcher.startWatching();
-		extHostFileSystem.registerFileSystemProvider('vscode-remote', new FileSystemProvider(watcher), { isCaseSensitive: platform.isLinux });
+		const fileSystemProvider = new FileSystemProvider(extHostLogService, extHostFileSystemEvent);
+		extHostFileSystem.registerFileSystemProvider('vscode-remote', fileSystemProvider, { isCaseSensitive: platform.isLinux });
 	}
 
 	// Check that no named customers are missing
@@ -310,7 +308,7 @@ export function createApiFactory(
 				return extHostLanguageFeatures.registerRenameProvider(checkSelector(selector), provider);
 			},
 			registerDocumentSymbolProvider(selector: vscode.DocumentSelector, provider: vscode.DocumentSymbolProvider): vscode.Disposable {
-				return extHostLanguageFeatures.registerDocumentSymbolProvider(checkSelector(selector), provider);
+				return extHostLanguageFeatures.registerDocumentSymbolProvider(checkSelector(selector), provider, extension.id);
 			},
 			registerWorkspaceSymbolProvider(provider: vscode.WorkspaceSymbolProvider): vscode.Disposable {
 				return extHostLanguageFeatures.registerWorkspaceSymbolProvider(provider);
@@ -409,13 +407,16 @@ export function createApiFactory(
 				return extHostMessageService.showMessage(extension, Severity.Error, message, first, rest);
 			},
 			showQuickPick(items: any, options: vscode.QuickPickOptions, token?: vscode.CancellationToken): any {
-				return extHostQuickOpen.showQuickPick(items, options, token);
+				return extHostQuickOpen.showQuickPick(undefined, items, options, token);
 			},
 			showWorkspaceFolderPick(options: vscode.WorkspaceFolderPickOptions) {
 				return extHostQuickOpen.showWorkspaceFolderPick(options);
 			},
 			showInputBox(options?: vscode.InputBoxOptions, token?: vscode.CancellationToken) {
-				return extHostQuickOpen.showInput(options, token);
+				return extHostQuickOpen.showInput(undefined, options, token);
+			},
+			multiStepInput<T>(handler: (input: vscode.QuickInput, token: vscode.CancellationToken) => Thenable<T>, token?: vscode.CancellationToken): Thenable<T> {
+				return extHostQuickOpen.multiStepInput(handler, token);
 			},
 			showOpenDialog(options) {
 				return extHostDialogs.showOpenDialog(options);
@@ -588,7 +589,10 @@ export function createApiFactory(
 			}),
 			registerSearchProvider: proposedApiFunction(extension, (scheme, provider) => {
 				return extHostSearch.registerSearchProvider(scheme, provider);
-			})
+			}),
+			onDidRenameResource: proposedApiFunction(extension, (listener, thisArg?, disposables?) => {
+				return extHostDocuments.onDidRenameResource(listener, thisArg, disposables);
+			}),
 		};
 
 		// namespace: scm
@@ -641,6 +645,32 @@ export function createApiFactory(
 			}
 		};
 
+		const tasks: typeof vscode.tasks = {
+			registerTaskProvider: (type: string, provider: vscode.TaskProvider) => {
+				return extHostTask.registerTaskProvider(extension, provider);
+			},
+			fetchTasks: proposedApiFunction(extension, (filter?: vscode.TaskFilter): Thenable<vscode.Task[]> => {
+				return extHostTask.fetchTasks(filter);
+			}),
+			executeTask: proposedApiFunction(extension, (task: vscode.Task): Thenable<vscode.TaskExecution> => {
+				return extHostTask.executeTask(extension, task);
+			}),
+			get taskExecutions(): vscode.TaskExecution[] {
+				return extHostTask.taskExecutions;
+			},
+			onDidStartTask: (listeners, thisArgs?, disposables?) => {
+				return extHostTask.onDidStartTask(listeners, thisArgs, disposables);
+			},
+			onDidEndTask: (listeners, thisArgs?, disposables?) => {
+				return extHostTask.onDidEndTask(listeners, thisArgs, disposables);
+			},
+			onDidStartTaskProcess: (listeners, thisArgs?, disposables?) => {
+				return extHostTask.onDidStartTaskProcess(listeners, thisArgs, disposables);
+			},
+			onDidEndTaskProcess: (listeners, thisArgs?, disposables?) => {
+				return extHostTask.onDidEndTaskProcess(listeners, thisArgs, disposables);
+			}
+		};
 
 		return <typeof vscode>{
 			version: pkg.version,
@@ -653,6 +683,7 @@ export function createApiFactory(
 			workspace,
 			scm,
 			debug,
+			tasks,
 			// types
 			Breakpoint: extHostTypes.Breakpoint,
 			CancellationTokenSource: CancellationTokenSource,
@@ -662,6 +693,7 @@ export function createApiFactory(
 			Color: extHostTypes.Color,
 			ColorPresentation: extHostTypes.ColorPresentation,
 			ColorInformation: extHostTypes.ColorInformation,
+			CodeActionTrigger: extHostTypes.CodeActionTrigger,
 			EndOfLine: extHostTypes.EndOfLine,
 			CompletionItem: extHostTypes.CompletionItem,
 			CompletionItemKind: extHostTypes.CompletionItemKind,
@@ -670,6 +702,7 @@ export function createApiFactory(
 			DebugAdapterExecutable: extHostTypes.DebugAdapterExecutable,
 			Diagnostic: extHostTypes.Diagnostic,
 			DiagnosticRelatedInformation: extHostTypes.DiagnosticRelatedInformation,
+			DiagnosticTag: extHostTypes.DiagnosticTag,
 			DiagnosticSeverity: extHostTypes.DiagnosticSeverity,
 			Disposable: extHostTypes.Disposable,
 			DocumentHighlight: extHostTypes.DocumentHighlight,
@@ -693,10 +726,16 @@ export function createApiFactory(
 			SourceBreakpoint: extHostTypes.SourceBreakpoint,
 			StatusBarAlignment: extHostTypes.StatusBarAlignment,
 			SymbolInformation: extHostTypes.SymbolInformation,
-			HierarchicalSymbolInformation: class extends extHostTypes.HierarchicalSymbolInformation {
-				constructor(name, kind, detail, keyof, range) {
+			SymbolInformation2: class extends extHostTypes.SymbolInformation2 {
+				constructor(name, detail, kind, range, location) {
 					checkProposedApiEnabled(extension);
-					super(name, kind, detail, keyof, range);
+					super(name, detail, kind, range, location);
+				}
+			},
+			Hierarchy: class <T> extends extHostTypes.Hierarchy<T> {
+				constructor(parent: T) {
+					checkProposedApiEnabled(extension);
+					super(parent);
 				}
 			},
 			SymbolKind: extHostTypes.SymbolKind,
