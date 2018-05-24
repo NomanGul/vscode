@@ -7,14 +7,16 @@
 import { IDisposable, dispose } from 'vs/base/common/lifecycle';
 import { ITerminalService, ITerminalInstance, IShellLaunchConfig, ITerminalProcessExtHostProxy, ITerminalProcessExtHostRequest } from 'vs/workbench/parts/terminal/common/terminal';
 import { TPromise } from 'vs/base/common/winjs.base';
-import { ExtHostContext, ExtHostTerminalServiceShape, MainThreadTerminalServiceShape, MainContext, IExtHostContext, ShellLaunchConfigDto } from '../node/extHost.protocol';
+import { ExtHostContext, ExtHostTerminalServiceShape, MainThreadTerminalServiceShape, MainContext, IExtHostContext, ShellLaunchConfigDto } from 'vs/workbench/api/node/extHost.protocol';
 import { extHostNamedCustomer } from 'vs/workbench/api/electron-browser/extHostCustomers';
-import { IRemoteExtensionsService } from 'vs/workbench/services/extensions/common/remoteExtensions';
+import { IRemoteExtensionsService, IRemoteConnectionInformation } from 'vs/workbench/services/extensions/common/remoteExtensions';
+import { IWorkspaceContextService, IWorkspaceFolder } from 'vs/platform/workspace/common/workspace';
 
 @extHostNamedCustomer(MainContext.MainThreadTerminalService)
 export class MainThreadTerminalService implements MainThreadTerminalServiceShape {
 
 	private _proxy: ExtHostTerminalServiceShape;
+	private _connectionInformation: IRemoteConnectionInformation;
 	private _toDispose: IDisposable[] = [];
 	private _terminalProcesses: { [id: number]: ITerminalProcessExtHostProxy } = {};
 	private _dataListeners: { [id: number]: IDisposable } = {};
@@ -22,8 +24,10 @@ export class MainThreadTerminalService implements MainThreadTerminalServiceShape
 	constructor(
 		extHostContext: IExtHostContext,
 		@ITerminalService private terminalService: ITerminalService,
-		@IRemoteExtensionsService private remoteExtensionsService: IRemoteExtensionsService
+		@IRemoteExtensionsService private remoteExtensionsService: IRemoteExtensionsService,
+		@IWorkspaceContextService private readonly _contextService: IWorkspaceContextService
 	) {
+		this._connectionInformation = extHostContext.connectionInformation;
 		console.log(extHostContext.connectionInformation);
 		this._proxy = extHostContext.getProxy(ExtHostContext.ExtHostTerminalService);
 
@@ -116,13 +120,26 @@ export class MainThreadTerminalService implements MainThreadTerminalServiceShape
 		this._proxy.$acceptTerminalProcessId(terminalInstance.id, terminalInstance.processId);
 	}
 
-	private _onTerminalRequestExtHostProcess(request: ITerminalProcessExtHostRequest): void {
-
+	private _ownsWorkspace(workspaceFolder: IWorkspaceFolder): boolean {
 		const connection = this.remoteExtensionsService.getRemoteWorkspaceFolderConnection(workspaceFolder);
-		if both connections are null
-	if (connection.connectionInformation.getHashCode() = context.connection....) {
-
+		console.log('_onTerminalRequestExtHostProcess', connection);
+		if (this._connectionInformation === null && connection === null) {
+			console.log('local');
+			return true;
+		} else if (connection && this._connectionInformation && connection.connectionInformation.getHashCode() === this._connectionInformation.getHashCode()) {
+			console.log('remote');
+			return true;
+		}
+		return false;
 	}
+
+	private _onTerminalRequestExtHostProcess(request: ITerminalProcessExtHostRequest): void {
+		// TODO: Get IWorkspaceFolder from IShellLaunchConfig
+		// Determine whether this is the correct MainThreadTerminalService to use.
+		const activeFolder = this._contextService.getWorkspace().folders[0];
+		if (!this._ownsWorkspace(activeFolder)) {
+			return;
+		}
 
 		this._terminalProcesses[request.proxy.terminalId] = request.proxy;
 		const shellLaunchConfigDto: ShellLaunchConfigDto = {
