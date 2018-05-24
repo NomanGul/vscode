@@ -134,6 +134,8 @@ export interface IShellLaunchConfig {
 	 */
 	cwd?: string;
 
+	workspaceFolder: IWorkspaceFolder;
+
 	/**
 	 * A custom environment for the terminal, if this is not set the environment will be inherited
 	 * from the VS Code process.

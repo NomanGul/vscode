@@ -9,6 +9,7 @@ import { ITerminalService, ITerminalInstance, IShellLaunchConfig, ITerminalProce
 import { TPromise } from 'vs/base/common/winjs.base';
 import { ExtHostContext, ExtHostTerminalServiceShape, MainThreadTerminalServiceShape, MainContext, IExtHostContext, ShellLaunchConfigDto } from '../node/extHost.protocol';
 import { extHostNamedCustomer } from 'vs/workbench/api/electron-browser/extHostCustomers';
+import { IRemoteExtensionsService } from 'vs/workbench/services/extensions/common/remoteExtensions';
 
 @extHostNamedCustomer(MainContext.MainThreadTerminalService)
 export class MainThreadTerminalService implements MainThreadTerminalServiceShape {
@@ -20,9 +21,12 @@ export class MainThreadTerminalService implements MainThreadTerminalServiceShape
 
 	constructor(
 		extHostContext: IExtHostContext,
-		@ITerminalService private terminalService: ITerminalService
+		@ITerminalService private terminalService: ITerminalService,
+		@IRemoteExtensionsService private remoteExtensionsService: IRemoteExtensionsService
 	) {
+		console.log(extHostContext.connectionInformation);
 		this._proxy = extHostContext.getProxy(ExtHostContext.ExtHostTerminalService);
+
 		this._toDispose.push(terminalService.onInstanceCreated((terminalInstance) => {
 			// Delay this message so the TerminalInstance constructor has a chance to finish and
 			// return the ID normally to the extension host. The ID that is passed here will be used
@@ -113,6 +117,13 @@ export class MainThreadTerminalService implements MainThreadTerminalServiceShape
 	}
 
 	private _onTerminalRequestExtHostProcess(request: ITerminalProcessExtHostRequest): void {
+
+		const connection = this.remoteExtensionsService.getRemoteWorkspaceFolderConnection(workspaceFolder);
+		if both connections are null
+	if (connection.connectionInformation.getHashCode() = context.connection....) {
+
+	}
+
 		this._terminalProcesses[request.proxy.terminalId] = request.proxy;
 		const shellLaunchConfigDto: ShellLaunchConfigDto = {
 			name: request.shellLaunchConfig.name,
