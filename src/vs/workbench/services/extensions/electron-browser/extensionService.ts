@@ -541,7 +541,7 @@ export class ExtensionService extends Disposable implements IExtensionService {
 					agentAppSettingsHome: remoteExtensionInfo.agentAppSettingsHome,
 					agentLogsPath: remoteExtensionInfo.agentLogsPath,
 					agentExtensionsPath: remoteExtensionInfo.agentExtensionsPath,
-					extensions: actualExtensions
+					extensions: this._updateEnableProposedApi(actualExtensions)
 				});
 			}
 
