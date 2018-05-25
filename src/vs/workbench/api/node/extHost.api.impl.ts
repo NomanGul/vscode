@@ -142,6 +142,9 @@ export function createApiFactory(
 	if (initData.remoteOptions) {
 		const fileSystemProvider = new FileSystemProvider(extHostLogService, extHostFileSystemEvent);
 		extHostFileSystem.registerFileSystemProvider('vscode-remote', fileSystemProvider, { isCaseSensitive: platform.isLinux });
+		extHostTask.registerTaskSystem('vscode-remote', {
+			platform: process.platform
+		});
 	}
 
 	// Check that no named customers are missing
