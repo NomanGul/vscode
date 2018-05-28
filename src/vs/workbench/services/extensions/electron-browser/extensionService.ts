@@ -43,7 +43,7 @@ import { RPCProtocol } from 'vs/workbench/services/extensions/node/rpcProtocol';
 import { IWorkspaceContextService } from 'vs/platform/workspace/common/workspace';
 import { INotificationService, Severity } from 'vs/platform/notification/common/notification';
 import { isFalsyOrEmpty } from 'vs/base/common/arrays';
-import { IRemoteExtensionsService, IRemoteExtensionsEnvironmentData, IRemoteWorkspaceFolderConnection } from 'vs/workbench/services/extensions/common/remoteExtensions';
+import { IRemoteExtensionsService, IRemoteExtensionsEnvironmentData, IRemoteWorkspaceFolderConnection, IRemoteConnectionInformation } from 'vs/workbench/services/extensions/common/remoteExtensions';
 import { RemoteExtensionsEnvironmentChannelClient } from 'vs/workbench/services/extensions/node/remoteExtensionsIpc';
 
 let _SystemExtensionsRoot: string = null;
@@ -128,6 +128,7 @@ export class ExtensionHostProcessManager extends Disposable {
 
 	constructor(
 		extensionHostProcessWorker: IExtensionHostStarter,
+		private readonly _connectionInformation: IRemoteConnectionInformation,
 		initialActivationEvents: string[],
 		@IInstantiationService private readonly _instantiationService: IInstantiationService,
 		@IEnvironmentService private readonly _environmentService: IEnvironmentService,
@@ -185,7 +186,12 @@ export class ExtensionHostProcessManager extends Disposable {
 		}
 
 		this._extensionHostProcessRPCProtocol = new RPCProtocol(protocol);
-		const extHostContext: IExtHostContext = this._extensionHostProcessRPCProtocol;
+		const extHostContext: IExtHostContext = {
+			connectionInformation: this._connectionInformation,
+			getProxy: <T>(identifier: ProxyIdentifier<T>): T => this._extensionHostProcessRPCProtocol.getProxy(identifier),
+			set: <T, R extends T>(identifier: ProxyIdentifier<T>, instance: R): R => this._extensionHostProcessRPCProtocol.set(identifier, instance),
+			assertRegistered: (identifiers: ProxyIdentifier<any>[]): void => this._extensionHostProcessRPCProtocol.assertRegistered(identifiers),
+		};
 
 		// Named customers
 		const namedCustomers = ExtHostCustomersRegistry.getNamedCustomers();
@@ -371,7 +377,7 @@ export class ExtensionService extends Disposable implements IExtensionService {
 		this._stopExtensionHostProcess();
 
 		const extHostProcessWorker = this._instantiationService.createInstance(ExtensionHostProcessWorker, this.getExtensions());
-		const extHostProcessManager = this._instantiationService.createInstance(ExtensionHostProcessManager, extHostProcessWorker, initialActivationEvents);
+		const extHostProcessManager = this._instantiationService.createInstance(ExtensionHostProcessManager, extHostProcessWorker, null, initialActivationEvents);
 		extHostProcessManager.onDidCrash(([code, signal]) => this._onExtensionHostCrashed(code, signal));
 		this._extensionHostProcessManagers.push(extHostProcessManager);
 
@@ -379,7 +385,7 @@ export class ExtensionService extends Disposable implements IExtensionService {
 		for (let i = 0; i < remoteWorkspaceFolderConnections.length; i++) {
 			const connection = remoteWorkspaceFolderConnections[i];
 			const remoteExtHostProcessWorker = this._instantiationService.createInstance(ExtensionHostRemoteProcess, this._createProvider(connection));
-			const remoteExtHostProcessManager = this._instantiationService.createInstance(ExtensionHostProcessManager, remoteExtHostProcessWorker, initialActivationEvents);
+			const remoteExtHostProcessManager = this._instantiationService.createInstance(ExtensionHostProcessManager, remoteExtHostProcessWorker, connection.connectionInformation, initialActivationEvents);
 			remoteExtHostProcessManager.onDidCrash(([code, signal]) => this._onExtensionHostCrashed(code, signal));
 			this._extensionHostProcessManagers.push(remoteExtHostProcessManager);
 		}
