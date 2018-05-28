@@ -27,7 +27,7 @@ import {
 import { ExtensionsInput } from 'vs/workbench/parts/extensions/common/extensionsInput';
 import { ViewletRegistry, Extensions as ViewletExtensions, ViewletDescriptor } from 'vs/workbench/browser/viewlet';
 import { ExtensionEditor } from 'vs/workbench/parts/extensions/electron-browser/extensionEditor';
-import { StatusUpdater, ExtensionsViewlet, MaliciousExtensionChecker, ExtensionsViewletViewsContribution } from 'vs/workbench/parts/extensions/electron-browser/extensionsViewlet';
+import { StatusUpdater, MaliciousExtensionChecker, ExtensionsViewletViewsContribution } from 'vs/workbench/parts/extensions/electron-browser/extensionsViewlet';
 import { IQuickOpenRegistry, Extensions, QuickOpenHandlerDescriptor } from 'vs/workbench/browser/quickopen';
 import { IConfigurationRegistry, Extensions as ConfigurationExtensions, ConfigurationScope } from 'vs/platform/configuration/common/configurationRegistry';
 import * as jsonContributionRegistry from 'vs/platform/jsonschemas/common/jsonContributionRegistry';
@@ -42,6 +42,7 @@ import { LifecyclePhase } from 'vs/platform/lifecycle/common/lifecycle';
 import { RuntimeExtensionsEditor, RuntimeExtensionsInput, ShowRuntimeExtensionsAction, IExtensionHostProfileService } from 'vs/workbench/parts/extensions/electron-browser/runtimeExtensionsEditor';
 import { EditorInput, IEditorInputFactory, IEditorInputFactoryRegistry, Extensions as EditorInputExtensions } from 'vs/workbench/common/editor';
 import { ExtensionHostProfileService } from 'vs/workbench/parts/extensions/electron-browser/extensionProfileService';
+import { ExtensionsViewlet } from 'vs/workbench/parts/extensions/electron-browser/remoteExtensionsViewlet';
 
 // Singletons
 registerSingleton(IExtensionGalleryService, ExtensionGalleryService);
