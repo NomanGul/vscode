@@ -17,8 +17,8 @@ import { ExtensionsViewlet as BaseExtensionsViewlet } from 'vs/workbench/parts/e
 import { IPartService } from 'vs/workbench/services/part/common/partService';
 import { ITelemetryService } from 'vs/platform/telemetry/common/telemetry';
 import { IProgressService } from 'vs/platform/progress/common/progress';
-import { IWorkbenchEditorService } from 'vs/workbench/services/editor/common/editorService';
-import { IEditorGroupService } from 'vs/workbench/services/group/common/groupService';
+import { IEditorGroupsService } from 'vs/workbench/services/group/common/editorGroupsService';
+import { IEditorService } from 'vs/workbench/services/editor/common/editorService';
 import { IExtensionManagementService, IExtensionTipsService } from 'vs/platform/extensionManagement/common/extensionManagement';
 import { INotificationService } from 'vs/platform/notification/common/notification';
 import { IViewletService } from 'vs/workbench/services/viewlet/browser/viewlet';
@@ -59,8 +59,7 @@ export class ExtensionsViewlet extends BaseExtensionsViewlet {
 		@ITelemetryService telemetryService: ITelemetryService,
 		@IProgressService progressService: IProgressService,
 		@IInstantiationService instantiationService: IInstantiationService,
-		@IWorkbenchEditorService editorService: IWorkbenchEditorService,
-		@IEditorGroupService editorInputService: IEditorGroupService,
+		@IEditorGroupsService editorGroupService: IEditorGroupsService,
 		@IExtensionManagementService extensionManagementService: IExtensionManagementService,
 		@INotificationService notificationService: INotificationService,
 		@IViewletService viewletService: IViewletService,
@@ -73,7 +72,7 @@ export class ExtensionsViewlet extends BaseExtensionsViewlet {
 		@IExtensionService extensionService: IExtensionService,
 		@IRemoteExtensionsService private remoteExtensionService: IRemoteExtensionsService
 	) {
-		super(partService, telemetryService, progressService, instantiationService, editorService, editorInputService, extensionManagementService,
+		super(partService, telemetryService, progressService, instantiationService, editorGroupService, extensionManagementService,
 			notificationService, viewletService, themeService, configurationService, storageService, contextService, contextKeyService, contextMenuService, extensionService);
 		this.remoteExtensionsContextKey = RemoteExtensionsContext.bindTo(contextKeyService);
 		this.donotShowInstalledExtensionsContext = DonotShowInstalledExtensionsContext.bindTo(contextKeyService);
@@ -298,8 +297,8 @@ class ExtensionManagementServers extends ViewsViewletPanel {
 		@IThemeService themeService: IThemeService,
 		@IExtensionService extensionService: IExtensionService,
 		@IExtensionsWorkbenchService extensionsWorkbenchService: IExtensionsWorkbenchService,
-		@IWorkbenchEditorService editorService: IWorkbenchEditorService,
-		@IEditorGroupService editorInputService: IEditorGroupService,
+		@IEditorService editorService: IEditorService,
+		@IEditorGroupsService editorInputService: IEditorGroupsService,
 		@IExtensionTipsService tipsService: IExtensionTipsService,
 		@IModeService modeService: IModeService,
 		@ITelemetryService telemetryService: ITelemetryService,
