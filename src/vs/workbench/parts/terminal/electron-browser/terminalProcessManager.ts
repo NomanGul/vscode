@@ -90,7 +90,9 @@ export class TerminalProcessManager implements ITerminalProcessManager {
 		cols: number,
 		rows: number
 	): void {
-		const extensionHostOwned = (<any>this._configHelper.config).extHostProcess;
+		// TODO: The shellLaunchConfig should have an IWorkspaceFolder set which can determine
+		// whether to run it in an extension host or not.
+		const extensionHostOwned = this._workspaceContextService.getWorkspace().folders[0].uri.scheme === 'vscode-remote';
 		if (extensionHostOwned) {
 			this._process = this._instantiationService.createInstance(TerminalProcessExtHostProxy, this._terminalId, shellLaunchConfig, cols, rows);
 		} else {
