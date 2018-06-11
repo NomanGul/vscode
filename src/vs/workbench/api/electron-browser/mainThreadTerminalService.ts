@@ -28,9 +28,7 @@ export class MainThreadTerminalService implements MainThreadTerminalServiceShape
 		@IWorkspaceContextService private readonly _contextService: IWorkspaceContextService
 	) {
 		this._connectionInformation = extHostContext.connectionInformation;
-		console.log(extHostContext.connectionInformation);
 		this._proxy = extHostContext.getProxy(ExtHostContext.ExtHostTerminalService);
-
 		this._toDispose.push(terminalService.onInstanceCreated((terminalInstance) => {
 			// Delay this message so the TerminalInstance constructor has a chance to finish and
 			// return the ID normally to the extension host. The ID that is passed here will be used
@@ -122,19 +120,21 @@ export class MainThreadTerminalService implements MainThreadTerminalServiceShape
 
 	private _ownsWorkspace(workspaceFolder: IWorkspaceFolder): boolean {
 		const connection = this.remoteExtensionsService.getRemoteWorkspaceFolderConnection(workspaceFolder);
-		console.log('_onTerminalRequestExtHostProcess', connection);
 		if (this._connectionInformation === null && connection === null) {
-			console.log('local');
+			// Both the extension host and workspace is local
 			return true;
 		} else if (connection && this._connectionInformation && connection.connectionInformation.getHashCode() === this._connectionInformation.getHashCode()) {
-			console.log('remote');
+			// Both the extension host and workspace are remote
 			return true;
 		}
+		// The extension host does not own the workspace
 		return false;
 	}
 
 	private _onTerminalRequestExtHostProcess(request: ITerminalProcessExtHostRequest): void {
-		// TODO: Get IWorkspaceFolder from IShellLaunchConfig
+		// TODO: Allow extensions to set an IWorkspaceFolder in IShellLaunchConfig and use that for
+		// the terminal. Currently we always just take the first workspace folder.
+
 		// Determine whether this is the correct MainThreadTerminalService to use.
 		const activeFolder = this._contextService.getWorkspace().folders[0];
 		if (!this._ownsWorkspace(activeFolder)) {

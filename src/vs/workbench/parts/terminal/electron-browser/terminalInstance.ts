@@ -65,7 +65,6 @@ export class TerminalInstance implements ITerminalInstance {
 	private _rows: number;
 	private _windowsShellHelper: WindowsShellHelper;
 	private _onLineDataListeners: ((lineData: string) => void)[];
-	private _onDataListeners: ((data: string) => void)[];
 	private _xtermReadyPromise: TPromise<void>;
 
 	private _disposables: lifecycle.IDisposable[];
@@ -120,7 +119,6 @@ export class TerminalInstance implements ITerminalInstance {
 		this._disposables = [];
 		this._skipTerminalCommands = [];
 		this._onLineDataListeners = [];
-		this._onDataListeners = [];
 		this._isExiting = false;
 		this._hadFocusOnExit = false;
 		this._isVisible = false;
@@ -281,7 +279,7 @@ export class TerminalInstance implements ITerminalInstance {
 		this._xterm.winptyCompatInit();
 		this._xterm.on('linefeed', () => this._onLineFeed());
 		if (this._processManager) {
-			this._processManager.onProcessData(data => this._onProcessData(data));
+			this._processManager.onProcessData(data => this._sendPtyDataToXterm(data));
 			this._xterm.on('data', data => this._processManager.write(data));
 			// TODO: How does the cwd work on detached processes?
 			this._linkHandler = this._instantiationService.createInstance(TerminalLinkHandler, this._xterm, platform.platform, this._processManager.initialCwd);
@@ -677,20 +675,13 @@ export class TerminalInstance implements ITerminalInstance {
 		}
 	}
 
-	private _onProcessData(data: string): void {
+	private _sendPtyDataToXterm(data: string): void {
 		if (this._widgetManager) {
 			this._widgetManager.closeMessage();
 		}
 		if (this._xterm) {
 			this._xterm.write(data);
 		}
-		this._onDataListeners.forEach(listener => {
-			try {
-				listener(data);
-			} catch (err) {
-				console.error(`onData listener threw`, err);
-			}
-		});
 	}
 
 	private _onProcessExit(exitCode: number): void {
@@ -784,7 +775,7 @@ export class TerminalInstance implements ITerminalInstance {
 		if (oldTitle !== this._title) {
 			this.setTitle(this._title, true);
 		}
-		this._processManager.onProcessData(data => this._onProcessData(data));
+		this._processManager.onProcessData(data => this._sendPtyDataToXterm(data));
 
 		// Clean up waitOnExit state
 		if (this._isExiting && this._shellLaunchConfig.waitOnExit) {
@@ -797,15 +788,7 @@ export class TerminalInstance implements ITerminalInstance {
 	}
 
 	public onData(listener: (data: string) => void): lifecycle.IDisposable {
-		this._onDataListeners.push(listener);
-		return {
-			dispose: () => {
-				const i = this._onDataListeners.indexOf(listener);
-				if (i >= 0) {
-					this._onDataListeners.splice(i, 1);
-				}
-			}
-		};
+		return this._processManager.onProcessData(data => listener(data));
 	}
 
 	public onLineData(listener: (lineData: string) => void): lifecycle.IDisposable {
