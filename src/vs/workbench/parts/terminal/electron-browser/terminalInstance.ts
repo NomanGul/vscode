@@ -279,7 +279,7 @@ export class TerminalInstance implements ITerminalInstance {
 		this._xterm.winptyCompatInit();
 		this._xterm.on('linefeed', () => this._onLineFeed());
 		if (this._processManager) {
-			this._processManager.onProcessData(data => this._sendPtyDataToXterm(data));
+			this._processManager.onProcessData(data => this._onProcessData(data));
 			this._xterm.on('data', data => this._processManager.write(data));
 			// TODO: How does the cwd work on detached processes?
 			this._linkHandler = this._instantiationService.createInstance(TerminalLinkHandler, this._xterm, platform.platform, this._processManager.initialCwd);
@@ -675,7 +675,7 @@ export class TerminalInstance implements ITerminalInstance {
 		}
 	}
 
-	private _sendPtyDataToXterm(data: string): void {
+	private _onProcessData(data: string): void {
 		if (this._widgetManager) {
 			this._widgetManager.closeMessage();
 		}
@@ -775,7 +775,7 @@ export class TerminalInstance implements ITerminalInstance {
 		if (oldTitle !== this._title) {
 			this.setTitle(this._title, true);
 		}
-		this._processManager.onProcessData(data => this._sendPtyDataToXterm(data));
+		this._processManager.onProcessData(data => this._onProcessData(data));
 
 		// Clean up waitOnExit state
 		if (this._isExiting && this._shellLaunchConfig.waitOnExit) {
