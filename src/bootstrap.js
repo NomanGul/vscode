@@ -22,7 +22,7 @@
 				paths.splice(i, 0, NODE_MODULES_ASAR_PATH);
 				// TODO@vs-remote: Look for native node modules in ./remote/node_modules
 				// when being launched via node (not via electron)
-				if (!isElectron && (request === 'native-watchdog' || request === 'spdlog')) {
+				if (!isElectron && (request === 'node-pty')) {
 					paths.splice(i, 0, ALTERNATIVE_NODE_MODULES_PATH);
 				}
 				break;

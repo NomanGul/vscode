@@ -17,8 +17,8 @@ RUN git clone https://github.com/Microsoft/vscode-smoketest-express
 # RUN echo "setInterval(function() {\n\tconsole.log('Hello');\n}, 1000);" > test.js
 
 # run the agent: /vscode linked to the host's vscode folder (set up by docker-compose)
-# CMD cd /vscode/remote && npm install . && cd /vscode && node out/remoteExtensionHostAgent.js && cd /data
-CMD cd /vscode && ./scripts/remoteExtensionAgent.sh && cd /data
+CMD cd /vscode/remote && npm install . && cd /vscode && ./scripts/remoteExtensionAgent.sh && cd /data
+# CMD cd /vscode && ./scripts/remoteExtensionAgent.sh && cd /data
 EXPOSE 8000
 EXPOSE 8001
 EXPOSE 3000
