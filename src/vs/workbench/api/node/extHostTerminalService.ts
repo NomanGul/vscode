@@ -238,6 +238,12 @@ export class ExtHostTerminalService implements ExtHostTerminalServiceShape {
 		// Fork the process and listen for messages
 		this._logService.debug(`Terminal process launching on ext host`, options);
 		this._terminalProcesses[id] = cp.fork(Uri.parse(require.toUrl('bootstrap')).fsPath, ['--type=terminal'], options);
+
+		// Good for debugging issues with the remote shell
+		// this._terminalProcesses[id].on('error', (data) => console.log('error', data));
+		// this._terminalProcesses[id].on('exit', (data) => console.log('exit', data));
+		// this._terminalProcesses[id].on('message', (data) => console.log('data', data));
+
 		this._terminalProcesses[id].on('message', (message: IMessageFromTerminalProcess) => {
 			switch (message.type) {
 				case 'pid': this._proxy.$sendProcessPid(id, <number>message.content); break;
