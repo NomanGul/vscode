@@ -431,6 +431,8 @@ export interface CustomTask extends CommonTask, ConfigurationProperties {
 
 	identifier: string;
 
+	hasDefinedMatchers: boolean;
+
 	/**
 	 * The command configuration
 	 */
@@ -455,6 +457,12 @@ export namespace CustomTask {
 			id: task._id
 		};
 		return result;
+	}
+	export function customizes(task: CustomTask): TaskIdentifier {
+		if (task._source && task._source.customizes) {
+			return task._source.customizes;
+		}
+		return undefined;
 	}
 }
 

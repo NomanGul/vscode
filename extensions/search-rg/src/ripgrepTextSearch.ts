@@ -5,15 +5,14 @@
 
 'use strict';
 
-import * as vscode from 'vscode';
-
-import { EventEmitter } from 'events';
-import * as path from 'path';
-import { StringDecoder, NodeStringDecoder } from 'string_decoder';
-
 import * as cp from 'child_process';
-import { rgPath } from 'vscode-ripgrep-dynamic';
-import { start } from 'repl';
+import { EventEmitter } from 'events';
+import { NodeStringDecoder, StringDecoder } from 'string_decoder';
+import * as vscode from 'vscode';
+import { rgPath } from 'vscode-ripgrep';
+import { anchorGlob } from './ripgrepHelpers';
+
+
 
 // If vscode-ripgrep is in an .asar file, then the binary is unpacked.
 const rgDiskPath = rgPath.replace(/\bnode_modules\.asar\b/, 'node_modules.asar.unpacked');
@@ -314,11 +313,12 @@ function getRgArgs(query: vscode.TextSearchQuery, options: vscode.TextSearchOpti
 	const args = ['--hidden', '--heading', '--line-number', '--color', 'ansi', '--colors', 'path:none', '--colors', 'line:none', '--colors', 'match:fg:red', '--colors', 'match:style:nobold'];
 	args.push(query.isCaseSensitive ? '--case-sensitive' : '--ignore-case');
 
-	// TODO@roblou
 	options.includes
+		.map(anchorGlob)
 		.forEach(globArg => args.push('-g', globArg));
 
 	options.excludes
+		.map(anchorGlob)
 		.forEach(rgGlob => args.push('-g', `!${rgGlob}`));
 
 	if (options.maxFileSize) {
