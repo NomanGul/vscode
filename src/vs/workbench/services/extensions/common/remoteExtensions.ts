@@ -29,7 +29,7 @@ export interface IRemoteExtensionsEnvironmentData {
 }
 
 export interface IRemoteExtensionsEnvironment {
-	getRemoteExtensionInformation(): TPromise<IRemoteExtensionsEnvironmentData>;
+	getRemoteExtensionInformation(remoteAuthority: string): TPromise<IRemoteExtensionsEnvironmentData>;
 }
 
 export interface IRemoteExtensionsService {

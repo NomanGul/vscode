@@ -9,7 +9,7 @@ import * as platform from 'vs/base/common/platform';
 import { IURITransformer } from 'vs/workbench/services/extensions/node/rpcProtocol';
 import URI, { UriComponents } from 'vs/base/common/uri';
 
-export function createURITransformer(remoteAuthority: string): IURITransformer {
+export function createRemoteURITransformer(remoteAuthority: string): IURITransformer {
 	return new class implements IURITransformer {
 		transformIncoming(uri: UriComponents): UriComponents {
 			// TODO@vs-remote

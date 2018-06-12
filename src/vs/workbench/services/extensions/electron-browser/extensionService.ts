@@ -522,7 +522,8 @@ export class ExtensionService extends Disposable implements IExtensionService {
 		for (let i = 0; i < remoteWorkspaceFolderConnections.length; i++) {
 			const connection = remoteWorkspaceFolderConnections[i];
 			const client = new RemoteExtensionsEnvironmentChannelClient(connection.getChannel('remoteextensionsenvironment'));
-			remoteExtensionsPromiseArr.push(client.getRemoteExtensionInformation());
+			const remoteAuthority = `${connection.connectionInformation.host}:${connection.connectionInformation.extensionHostPort}`;
+			remoteExtensionsPromiseArr.push(client.getRemoteExtensionInformation(remoteAuthority));
 		}
 		let remoteExtensionsPromise = TPromise.join(remoteExtensionsPromiseArr);
 

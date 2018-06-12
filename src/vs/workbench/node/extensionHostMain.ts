@@ -24,7 +24,7 @@ import { IMessagePassingProtocol } from 'vs/base/parts/ipc/common/ipc';
 import { RPCProtocol, IURITransformer } from 'vs/workbench/services/extensions/node/rpcProtocol';
 import URI from 'vs/base/common/uri';
 import { ExtHostLogService } from 'vs/workbench/api/node/extHostLogService';
-import { createURITransformer } from 'vs/workbench/node/remoteUriTransformer';
+import { createRemoteURITransformer } from 'vs/workbench/node/remoteUriTransformer';
 
 const nativeExit = process.exit.bind(process);
 function patchProcess(allowExit: boolean) {
@@ -95,7 +95,7 @@ export class ExtensionHostMain {
 		let uriTransformer: IURITransformer = null;
 		if (initData.remoteOptions) {
 			const remoteAuthority = `${initData.remoteOptions.host}:${initData.remoteOptions.port}`;
-			uriTransformer = createURITransformer(remoteAuthority);
+			uriTransformer = createRemoteURITransformer(remoteAuthority);
 		}
 		const rpcProtocol = new RPCProtocol(protocol, uriTransformer);
 		this._workspace = rpcProtocol.transformIncomingURIs(initData.workspace);

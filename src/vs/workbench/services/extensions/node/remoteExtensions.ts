@@ -15,6 +15,8 @@ import { IWorkspaceFolder } from 'vs/platform/workspace/common/workspace';
 import { connect, Client } from 'vs/base/parts/ipc/node/ipc.net';
 import { getDelayedChannel, IChannel } from 'vs/base/parts/ipc/common/ipc';
 import { Disposable } from 'vs/base/common/lifecycle';
+import { createRemoteURITransformer } from 'vs/workbench/node/remoteUriTransformer';
+import { transformOutgoingURIs } from 'vs/workbench/services/extensions/node/rpcProtocol';
 
 export class RemoteExtensionsService implements IRemoteExtensionsService {
 
@@ -99,7 +101,8 @@ export class RemoteExtensionsEnvironment implements IRemoteExtensionsEnvironment
 		private environmentService: IEnvironmentService
 	) { }
 
-	getRemoteExtensionInformation(): TPromise<IRemoteExtensionsEnvironmentData> {
+	getRemoteExtensionInformation(remoteAuthority: string): TPromise<IRemoteExtensionsEnvironmentData> {
+		const uriTransformer = createRemoteURITransformer(remoteAuthority);
 		return this.scanExtensions()
 			.then(extensions => {
 				return <IRemoteExtensionsEnvironmentData>{
@@ -108,7 +111,7 @@ export class RemoteExtensionsEnvironment implements IRemoteExtensionsEnvironment
 					agentAppSettingsHome: this.environmentService.appSettingsHome,
 					agentLogsPath: this.environmentService.logsPath,
 					agentExtensionsPath: this.environmentService.extensionsPath,
-					extensions: extensions
+					extensions: transformOutgoingURIs(extensions, uriTransformer)
 				};
 			});
 	}
