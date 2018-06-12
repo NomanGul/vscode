@@ -293,7 +293,12 @@ export class ExtensionService extends Disposable implements IExtensionService {
 		this.startDelayed(lifecycleService);
 
 		if (this._environmentService.disableExtensions) {
-			this._notificationService.info(nls.localize('extensionsDisabled', "All extensions are disabled."));
+			this._notificationService.prompt(Severity.Info, nls.localize('extensionsDisabled', "All extensions are temporarily disabled. Reload the window to return to the previous state."), [{
+				label: nls.localize('Reload', "Reload"),
+				run: () => {
+					this._windowService.reloadWindow();
+				}
+			}]);
 		}
 	}
 
@@ -531,6 +536,8 @@ export class ExtensionService extends Disposable implements IExtensionService {
 				let actualExtensions: IExtensionDescription[] = [];
 				for (let j = 0, lenJ = remoteExtensionInfo.extensions.length; j < lenJ; j++) {
 					const extension = remoteExtensionInfo.extensions[j];
+					// ensure URIs are revived
+					(<any>extension).extensionLocation = URI.revive(extension.extensionLocation);
 					extension.isRemote = true; // TODO@vs-remote
 					if (seenExtension[extension.id]) {
 						continue;

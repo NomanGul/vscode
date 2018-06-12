@@ -35,8 +35,8 @@ import { parse } from 'vs/base/common/json';
 import { ICodeEditor, getCodeEditor } from 'vs/editor/browser/editorBrowser';
 import { INotificationService } from 'vs/platform/notification/common/notification';
 import { assign } from 'vs/base/common/objects';
-import { IEditorService, SIDE_GROUP } from 'vs/workbench/services/editor/common/editorService';
-import { IEditorGroup, IEditorGroupsService } from 'vs/workbench/services/group/common/editorGroupsService';
+import { IEditorService } from 'vs/workbench/services/editor/common/editorService';
+import { IEditorGroup, IEditorGroupsService, GroupDirection } from 'vs/workbench/services/group/common/editorGroupsService';
 
 const emptyEditableSettingsContent = '{\n}';
 
@@ -224,9 +224,12 @@ export class PreferencesService extends Disposable implements IPreferencesServic
 
 			// Create as needed and open in editor
 			return this.createIfNotExists(editableKeybindings, emptyContents).then(() => {
+				const activeEditorGroup = this.editorGroupService.activeGroup;
+				const sideEditorGroup = this.editorGroupService.addGroup(activeEditorGroup.id, GroupDirection.RIGHT);
+
 				return TPromise.join([
 					this.editorService.openEditor({ resource: this.defaultKeybindingsResource, options: { pinned: true, preserveFocus: true }, label: nls.localize('defaultKeybindings', "Default Keybindings"), description: '' }),
-					this.editorService.openEditor({ resource: editableKeybindings, options: { pinned: true } }, SIDE_GROUP)
+					this.editorService.openEditor({ resource: editableKeybindings, options: { pinned: true } }, sideEditorGroup.id)
 				]).then(editors => void 0);
 			});
 		}
@@ -278,14 +281,16 @@ export class PreferencesService extends Disposable implements IPreferencesServic
 	private doSwitchSettings(target: ConfigurationTarget, resource: URI, input: PreferencesEditorInput, group: IEditorGroup): TPromise<IEditor> {
 		return this.getOrCreateEditableSettingsEditorInput(target, this.getEditableSettingsURI(target, resource))
 			.then(toInput => {
-				const replaceWith = new PreferencesEditorInput(this.getPreferencesEditorInputName(target, resource), toInput.getDescription(), this.instantiationService.createInstance(DefaultPreferencesEditorInput, this.getDefaultSettingsResource(target)), toInput);
+				return group.openEditor(input).then(() => {
+					const replaceWith = new PreferencesEditorInput(this.getPreferencesEditorInputName(target, resource), toInput.getDescription(), this.instantiationService.createInstance(DefaultPreferencesEditorInput, this.getDefaultSettingsResource(target)), toInput);
 
-				return group.replaceEditors([{
-					editor: input,
-					replacement: replaceWith
-				}]).then(() => {
-					this.lastOpenedSettingsInput = replaceWith;
-					return group.activeControl;
+					return group.replaceEditors([{
+						editor: input,
+						replacement: replaceWith
+					}]).then(() => {
+						this.lastOpenedSettingsInput = replaceWith;
+						return group.activeControl;
+					});
 				});
 			});
 	}

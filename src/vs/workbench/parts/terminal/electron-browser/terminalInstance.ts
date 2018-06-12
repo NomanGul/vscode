@@ -114,7 +114,7 @@ export class TerminalInstance implements ITerminalInstance {
 		@IThemeService private readonly _themeService: IThemeService,
 		@IConfigurationService private readonly _configurationService: IConfigurationService,
 		@ILogService private _logService: ILogService,
-		@IStorageService private readonly _storageService: IStorageService,
+		@IStorageService private readonly _storageService: IStorageService
 	) {
 		this._disposables = [];
 		this._skipTerminalCommands = [];
@@ -566,13 +566,15 @@ export class TerminalInstance implements ITerminalInstance {
 	}
 
 	public focus(force?: boolean): void {
-		if (!this._xterm) {
-			return;
-		}
-		const text = window.getSelection().toString();
-		if (!text || force) {
-			this._xterm.focus();
-		}
+		this._xtermReadyPromise.then(() => {
+			if (!this._xterm) {
+				return;
+			}
+			const text = window.getSelection().toString();
+			if (!text || force) {
+				this._xterm.focus();
+			}
+		});
 	}
 
 	public paste(): void {

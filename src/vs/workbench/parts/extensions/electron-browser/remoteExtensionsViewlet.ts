@@ -26,9 +26,9 @@ import { IThemeService } from 'vs/platform/theme/common/themeService';
 import { IStorageService } from 'vs/platform/storage/common/storage';
 import { IWorkspaceContextService } from 'vs/platform/workspace/common/workspace';
 import { IExtensionService } from 'vs/workbench/services/extensions/common/extensions';
-import { ViewLocation, IViewDescriptor, ViewsRegistry } from 'vs/workbench/common/views';
-import { IViewletViewOptions, ViewsViewletPanel } from 'vs/workbench/browser/parts/views/viewsViewlet';
-import { IExtensionsWorkbenchService } from 'vs/workbench/parts/extensions/common/extensions';
+import { IViewDescriptor, ViewsRegistry } from 'vs/workbench/common/views';
+import { IViewletViewOptions } from 'vs/workbench/browser/parts/views/viewsViewlet';
+import { IExtensionsWorkbenchService, VIEW_CONTAINER } from 'vs/workbench/parts/extensions/common/extensions';
 import { IModeService } from 'vs/editor/common/services/modeService';
 import { append, $ } from 'vs/base/browser/dom';
 import { WorkbenchList } from 'vs/platform/list/browser/listService';
@@ -39,6 +39,7 @@ import { flatten } from 'vs/base/common/arrays';
 import { SyncDescriptor } from 'vs/platform/instantiation/common/descriptors';
 import { ExtensionsWorkbenchService } from 'vs/workbench/parts/extensions/node/extensionsWorkbenchService';
 import { ExtensionsListView, InstalledExtensionsView, RecommendedExtensionsView, WorkspaceRecommendedExtensionsView, BuiltInExtensionsView, BuiltInThemesExtensionsView, BuiltInBasicsExtensionsView } from 'vs/workbench/parts/extensions/electron-browser/extensionsViews';
+import { ViewletPanel } from 'vs/workbench/browser/parts/views/panelViewlet';
 
 const RemoteExtensionsContext = new RawContextKey<boolean>('remoteExtensions', false);
 const DonotShowInstalledExtensionsContext = new RawContextKey<boolean>('donotshowExtensions', false);
@@ -87,7 +88,7 @@ export class ExtensionsViewlet extends BaseExtensionsViewlet {
 		return {
 			id: ExtensionManagementServers.ID,
 			name: localize('extensions.servers', "Extension Management Servers"),
-			location: ViewLocation.Extensions,
+			container: VIEW_CONTAINER,
 			ctor: ExtensionManagementServers,
 			weight: 50,
 			order: 0,
@@ -100,14 +101,14 @@ export class ExtensionsViewlet extends BaseExtensionsViewlet {
 		return [{
 			id: 'extensions.remote.listView',
 			name: localize('marketPlace', "Marketplace"),
-			location: ViewLocation.Extensions,
+			container: VIEW_CONTAINER,
 			ctor: ExtensionsListView,
 			when: ContextKeyExpr.and(ContextKeyExpr.has('donotshowExtensions'), ContextKeyExpr.has('searchExtensions'), ContextKeyExpr.not('searchInstalledExtensions'), ContextKeyExpr.not('searchBuiltInExtensions'), ContextKeyExpr.not('recommendedExtensions')),
 			weight: 100
 		}, {
 			id: 'extensions.remote.recommendedList',
 			name: localize('recommendedExtensions', "Recommended"),
-			location: ViewLocation.Extensions,
+			container: VIEW_CONTAINER,
 			ctor: RecommendedExtensionsView,
 			when: ContextKeyExpr.and(ContextKeyExpr.has('donotshowExtensions'), ContextKeyExpr.not('searchExtensions'), ContextKeyExpr.has('defaultRecommendedExtensions')),
 			weight: 70,
@@ -116,7 +117,7 @@ export class ExtensionsViewlet extends BaseExtensionsViewlet {
 		}, {
 			id: 'extensions.remomte.otherrecommendedList',
 			name: localize('otherRecommendedExtensions', "Other Recommendations"),
-			location: ViewLocation.Extensions,
+			container: VIEW_CONTAINER,
 			ctor: RecommendedExtensionsView,
 			when: ContextKeyExpr.and(ContextKeyExpr.has('donotshowExtensions'), ContextKeyExpr.has('recommendedExtensions')),
 			weight: 50,
@@ -125,7 +126,7 @@ export class ExtensionsViewlet extends BaseExtensionsViewlet {
 		}, {
 			id: 'extensions.remote.workspaceRecommendedList',
 			name: localize('workspaceRecommendedExtensions', "Workspace Recommendations"),
-			location: ViewLocation.Extensions,
+			container: VIEW_CONTAINER,
 			ctor: WorkspaceRecommendedExtensionsView,
 			when: ContextKeyExpr.and(ContextKeyExpr.has('donotshowExtensions'), ContextKeyExpr.has('recommendedExtensions'), ContextKeyExpr.has('nonEmptyWorkspace')),
 			weight: 50,
@@ -138,7 +139,7 @@ export class ExtensionsViewlet extends BaseExtensionsViewlet {
 		return [{
 			id: `${remoteConnectionInformation.getHashCode()}.installedList`,
 			name: localize('installed extensions in remote management server', "Installed: {0}", `${remoteConnectionInformation.host}:${remoteConnectionInformation.extensionManagementPort}`),
-			location: ViewLocation.Extensions,
+			container: VIEW_CONTAINER,
 			ctor: InstalledExtensionsView,
 			when: ContextKeyExpr.not('searchExtensions'),
 			order: 1,
@@ -146,7 +147,7 @@ export class ExtensionsViewlet extends BaseExtensionsViewlet {
 		}, {
 			id: `${remoteConnectionInformation.getHashCode()}.searchInstalledList`,
 			name: localize('installed extensions in remote management server', "Installed: {0}", `${remoteConnectionInformation.host}:${remoteConnectionInformation.extensionManagementPort}`),
-			location: ViewLocation.Extensions,
+			container: VIEW_CONTAINER,
 			ctor: InstalledExtensionsView,
 			when: ContextKeyExpr.and(ContextKeyExpr.has('searchInstalledExtensions')),
 			order: 1,
@@ -154,7 +155,7 @@ export class ExtensionsViewlet extends BaseExtensionsViewlet {
 		}, {
 			id: `${remoteConnectionInformation.getHashCode()}.builtInExtensionsList`,
 			name: localize('builtInExtensions extensions in remote management server', "Features: {0}", `${remoteConnectionInformation.host}:${remoteConnectionInformation.extensionManagementPort}`),
-			location: ViewLocation.Extensions,
+			container: VIEW_CONTAINER,
 			ctor: BuiltInExtensionsView,
 			when: ContextKeyExpr.has('searchBuiltInExtensions'),
 			weight: 100,
@@ -162,7 +163,7 @@ export class ExtensionsViewlet extends BaseExtensionsViewlet {
 		}, {
 			id: `${remoteConnectionInformation.getHashCode()}.builtInThemesExtensionsList`,
 			name: localize('builtInThemesExtensions extensions in remote management server', "Themes: {0}", `${remoteConnectionInformation.host}:${remoteConnectionInformation.extensionManagementPort}`),
-			location: ViewLocation.Extensions,
+			container: VIEW_CONTAINER,
 			ctor: BuiltInThemesExtensionsView,
 			when: ContextKeyExpr.has('searchBuiltInExtensions'),
 			weight: 100,
@@ -170,7 +171,7 @@ export class ExtensionsViewlet extends BaseExtensionsViewlet {
 		}, {
 			id: `${remoteConnectionInformation.getHashCode()}.builtInBasicsExtensionsList`,
 			name: localize('builtInBasicsExtensions extensions in remote management server', "Programming Languages: {0}", `${remoteConnectionInformation.host}:${remoteConnectionInformation.extensionManagementPort}`),
-			location: ViewLocation.Extensions,
+			container: VIEW_CONTAINER,
 			ctor: BuiltInBasicsExtensionsView,
 			when: ContextKeyExpr.has('searchBuiltInExtensions'),
 			weight: 100,
@@ -178,7 +179,7 @@ export class ExtensionsViewlet extends BaseExtensionsViewlet {
 		}];
 	}
 
-	protected createView(viewDescriptor: IViewDescriptor, options: IViewletViewOptions): ViewsViewletPanel {
+	protected createView(viewDescriptor: IViewDescriptor, options: IViewletViewOptions): ViewletPanel {
 		if (viewDescriptor.id === ExtensionManagementServers.ID) {
 			return this.instantiationService.createInstance(ExtensionManagementServers, options, (servers) => this.onDidSelectServers(servers));
 		}
@@ -187,7 +188,7 @@ export class ExtensionsViewlet extends BaseExtensionsViewlet {
 		if (viewDescriptor.id.indexOf('extensions.remote') === 0) {
 			if (this.selectedRemoteConnectionInformations.length) {
 				const remoteWorkspaceFolderConnection = remoteWorkspaceFolderConnections.filter(r => r.connectionInformation.getHashCode() === this.selectedRemoteConnectionInformations[0].getHashCode())[0];
-				options.name = `${options.name}: ${remoteWorkspaceFolderConnection.connectionInformation.host}:${remoteWorkspaceFolderConnection.connectionInformation.extensionManagementPort}`;
+				options.title = `${options.title}: ${remoteWorkspaceFolderConnection.connectionInformation.host}:${remoteWorkspaceFolderConnection.connectionInformation.extensionManagementPort}`;
 				return this.createExtensionsView(viewDescriptor, options, remoteWorkspaceFolderConnection);
 			}
 			return super.createView(viewDescriptor, options);
@@ -202,12 +203,12 @@ export class ExtensionsViewlet extends BaseExtensionsViewlet {
 		return super.createView(viewDescriptor, options);
 	}
 
-	private createExtensionsView(viewDescriptor: IViewDescriptor, options: IViewletViewOptions, remoteWorkspaceFolderConnection: IRemoteWorkspaceFolderConnection): ViewsViewletPanel {
+	private createExtensionsView(viewDescriptor: IViewDescriptor, options: IViewletViewOptions, remoteWorkspaceFolderConnection: IRemoteWorkspaceFolderConnection): ViewletPanel {
 		const servicesCollection: ServiceCollection = new ServiceCollection();
 		servicesCollection.set(IExtensionManagementService, new ExtensionManagementChannelClient(remoteWorkspaceFolderConnection.getChannel<IExtensionManagementChannel>('extensions')));
 		servicesCollection.set(IExtensionsWorkbenchService, new SyncDescriptor(ExtensionsWorkbenchService));
 		const instantiationService = this.instantiationService.createChild(servicesCollection);
-		return instantiationService.createInstance(viewDescriptor.ctor, options) as ViewsViewletPanel;
+		return instantiationService.createInstance(viewDescriptor.ctor, options) as ViewletPanel;
 	}
 
 	private onDidSelectServers(servers: IExtensionManagementServer[]): void {
@@ -228,7 +229,7 @@ export class ExtensionsViewlet extends BaseExtensionsViewlet {
 					`${r.getHashCode()}.builtInExtensionsList`,
 					`${r.getHashCode()}.builtInThemesExtensionsList`,
 					`${r.getHashCode()}.builtInBasicsExtensionsList`
-				])), ViewLocation.Extensions);
+				])), VIEW_CONTAINER);
 		}
 
 		if (toAdd.length) {
@@ -281,7 +282,7 @@ class ExtensionManagementServerRenderer implements IRenderer<IExtensionManagemen
 }
 
 
-class ExtensionManagementServers extends ViewsViewletPanel {
+class ExtensionManagementServers extends ViewletPanel {
 
 	static ID = 'extensions.servers';
 

@@ -126,6 +126,8 @@ export class ExtensionHostMain {
 		}
 		const rpcProtocol = new RPCProtocol(protocol, uriTransformer);
 		this._workspace = rpcProtocol.transformIncomingURIs(initData.workspace);
+		// ensure URIs are revived
+		initData.extensions.forEach((ext) => (<any>ext).extensionLocation = URI.revive(ext.extensionLocation));
 
 		this._extHostLogService = new ExtHostLogService(initData.windowId, initData.logLevel, initData.logsPath);
 		this.disposables.push(this._extHostLogService);

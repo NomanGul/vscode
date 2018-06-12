@@ -70,7 +70,7 @@ import { TextFileService } from 'vs/workbench/services/textfile/electron-browser
 import { ITextFileService } from 'vs/workbench/services/textfile/common/textfiles';
 import { ISCMService } from 'vs/workbench/services/scm/common/scm';
 import { SCMService } from 'vs/workbench/services/scm/common/scmService';
-import { IProgressService2 } from 'vs/platform/progress/common/progress';
+import { IProgressService2 } from 'vs/workbench/services/progress/common/progress';
 import { ProgressService2 } from 'vs/workbench/services/progress/browser/progressService2';
 import { TextModelResolverService } from 'vs/workbench/services/textmodelResolver/common/textModelResolverService';
 import { ITextModelService } from 'vs/editor/common/services/resolverService';
@@ -361,9 +361,9 @@ export class Workbench extends Disposable implements IPartService {
 		this._register(toDisposable(() => this.panelPart.shutdown()));
 		serviceCollection.set(IPanelService, this.panelPart);
 
-		// Custom views service
-		const customViewsService = this.instantiationService.createInstance(ViewsService);
-		serviceCollection.set(IViewsService, customViewsService);
+		// views service
+		const viewsService = this.instantiationService.createInstance(ViewsService);
+		serviceCollection.set(IViewsService, viewsService);
 
 		// Activity service (activitybar part)
 		this.activitybarPart = this.instantiationService.createInstance(ActivitybarPart, Identifiers.ACTIVITYBAR_PART);
@@ -389,7 +389,6 @@ export class Workbench extends Disposable implements IPartService {
 		this.titlebarPart = this.instantiationService.createInstance(TitlebarPart, Identifiers.TITLEBAR_PART);
 		this._register(toDisposable(() => this.titlebarPart.shutdown()));
 		serviceCollection.set(ITitleService, this.titlebarPart);
-
 		// History
 		serviceCollection.set(IHistoryService, new SyncDescriptor(HistoryService));
 

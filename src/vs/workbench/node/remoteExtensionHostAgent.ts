@@ -6,9 +6,9 @@
 
 import * as os from 'os';
 import * as path from 'path';
+import * as minimist from 'minimist';
 import * as fs from 'fs';
 import URI from 'vs/base/common/uri';
-import { deepClone } from 'vs/base/common/objects';
 import { ParsedArgs } from 'vs/platform/environment/common/environment';
 import { RemoteExtensionManagementServer } from 'vs/workbench/node/remoteExtensionManagement';
 import { RemoteExtensionHostServer } from 'vs/workbench/node/remoteExtensionHost';
@@ -24,33 +24,28 @@ Object.keys(ifaces).forEach(function (ifname) {
 	});
 });
 
-const args: ParsedArgs = deepClone(process.env);
+const args = minimist(process.argv.slice(2), {
+	string: [
+		'builtin-extensions'
+	],
+}) as ParsedArgs;
 
 const REMOTE_DATA_FOLDER = path.join(os.homedir(), '.vscode-remote');
 const USER_DATA_PATH = path.join(REMOTE_DATA_FOLDER, 'data');
 const APP_SETTINGS_HOME = path.join(USER_DATA_PATH, 'User');
 const LOGS_FOLDER = path.join(USER_DATA_PATH, 'logs');
-if (!args['user-data-dir']) {
-	args['user-data-dir'] = USER_DATA_PATH;
-}
-
+args['user-data-dir'] = USER_DATA_PATH;
 const APP_ROOT = path.dirname(URI.parse(require.toUrl('')).fsPath);
 const BUILTIN_EXTENSIONS_FOLDER_PATH = path.join(APP_ROOT, 'extensions');
-if (!args['builtin-extensions-dir']) {
-	args['builtin-extensions-dir'] = BUILTIN_EXTENSIONS_FOLDER_PATH;
+args['builtin-extensions-dir'] = BUILTIN_EXTENSIONS_FOLDER_PATH;
+if (typeof args['builtin-extensions'] === 'string') {
+	args['builtin-extensions'] = args['builtin-extensions'].split(',');
+} else {
+	args['builtin-extensions'] = [];
 }
-args['builtin-extensions'] = [];
-process.argv.forEach((arg) => {
-	if (/^--builtin-extensions=/.test(arg)) {
-		arg = arg.substr('--builtin-extensions='.length);
-		args['builtin-extensions'] = arg.split(',');
-	}
-});
 
 const EXTENSIONS_PATH = path.join(REMOTE_DATA_FOLDER, 'extensions');
-if (!args['extensions-dir']) {
-	args['extensions-dir'] = EXTENSIONS_PATH;
-}
+args['extensions-dir'] = EXTENSIONS_PATH;
 
 [REMOTE_DATA_FOLDER, EXTENSIONS_PATH, USER_DATA_PATH, APP_SETTINGS_HOME, LOGS_FOLDER].forEach(f => {
 	try {
