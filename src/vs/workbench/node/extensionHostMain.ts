@@ -18,13 +18,13 @@ import { DiskSearch } from 'vs/workbench/services/search/node/searchService';
 import { IInitData, IEnvironment, IWorkspaceData, MainContext } from 'vs/workbench/api/node/extHost.protocol';
 import * as errors from 'vs/base/common/errors';
 import * as glob from 'vs/base/common/glob';
-import * as platform from 'vs/base/common/platform';
 import { ExtensionActivatedByEvent } from 'vs/workbench/api/node/extHostExtensionActivator';
 import { IDisposable, dispose } from 'vs/base/common/lifecycle';
 import { IMessagePassingProtocol } from 'vs/base/parts/ipc/common/ipc';
 import { RPCProtocol, IURITransformer } from 'vs/workbench/services/extensions/node/rpcProtocol';
-import URI, { UriComponents } from 'vs/base/common/uri';
+import URI from 'vs/base/common/uri';
 import { ExtHostLogService } from 'vs/workbench/api/node/extHostLogService';
+import { createURITransformer } from 'vs/workbench/node/remoteUriTransformer';
 
 const nativeExit = process.exit.bind(process);
 function patchProcess(allowExit: boolean) {
@@ -95,34 +95,7 @@ export class ExtensionHostMain {
 		let uriTransformer: IURITransformer = null;
 		if (initData.remoteOptions) {
 			const remoteAuthority = `${initData.remoteOptions.host}:${initData.remoteOptions.port}`;
-			uriTransformer = new class implements IURITransformer {
-				transformIncoming(uri: UriComponents): UriComponents {
-					// TODO@vs-remote
-					if (uri.scheme === 'vscode-remote') {
-						const r = URI.file(uri.path);
-						// console.log(`INCOMING: ${URI.revive(uri)} ====> ${r}`);
-						return <UriComponents>r.toJSON();
-					} else if (uri.scheme === 'file') {
-						const r = URI.from({ scheme: 'vscode-local', authority: '', path: uri.path.replace(/\\/g, '/') });
-						// console.log(`INCOMING: ${URI.revive(uri)} ====> ${r}`);
-						return r;
-					}
-					return uri;
-				}
-				transformOutgoing(uri: URI): URI {
-					// TODO@vs-remote
-					if (uri.scheme === 'file') {
-						const r = URI.from({ scheme: 'vscode-remote', authority: remoteAuthority, path: (platform.isWindows ? '/' : '') + uri.fsPath.replace(/\\/g, '/') });
-						// console.log(`OUTGOING: ${uri} ====> ${r}`);
-						return r;
-					} else if (uri.scheme === 'vscode-local') {
-						const r = URI.file(uri.path);
-						// console.log(`OUTGOING: ${URI.revive(uri)} ====> ${r}`);
-						return r;
-					}
-					return uri;
-				}
-			};
+			uriTransformer = createURITransformer(remoteAuthority);
 		}
 		const rpcProtocol = new RPCProtocol(protocol, uriTransformer);
 		this._workspace = rpcProtocol.transformIncomingURIs(initData.workspace);
