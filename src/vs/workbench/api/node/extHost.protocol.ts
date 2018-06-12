@@ -49,7 +49,7 @@ import { ISingleEditOperation } from 'vs/editor/common/model';
 import { IPatternInfo, IRawSearchQuery, IRawFileMatch2, ISearchCompleteStats } from 'vs/platform/search/common/search';
 import { LogLevel } from 'vs/platform/log/common/log';
 import { TaskExecutionDTO, TaskDTO, TaskHandleDTO, TaskFilterDTO, TaskProcessStartedDTO, TaskProcessEndedDTO, TaskSystemInfoDTO } from 'vs/workbench/api/shared/tasks';
-import { IRemoteConnectionInformation } from 'vs/workbench/services/extensions/common/remoteExtensions';
+import { IRemoteConnectionInformation } from 'vs/workbench/services/extensions/common/remoteExtensionsService';
 
 export interface IEnvironment {
 	isExtensionDevelopmentDebug: boolean;

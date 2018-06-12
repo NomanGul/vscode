@@ -4,7 +4,7 @@
  *--------------------------------------------------------------------------------------------*/
 
 import { List } from 'vs/base/browser/ui/list/listWidget';
-import { IRemoteExtensionsService, IRemoteConnectionInformation, IRemoteWorkspaceFolderConnection } from 'vs/workbench/services/extensions/common/remoteExtensions';
+import { IRemoteExtensionsService, IRemoteConnectionInformation, IRemoteWorkspaceFolderConnection } from 'vs/workbench/services/extensions/common/remoteExtensionsService';
 import { dispose } from 'vs/base/common/lifecycle';
 import { IKeybindingService } from 'vs/platform/keybinding/common/keybinding';
 import { IContextMenuService } from 'vs/platform/contextview/browser/contextView';

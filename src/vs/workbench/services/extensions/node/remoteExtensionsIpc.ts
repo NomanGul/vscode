@@ -7,7 +7,7 @@
 
 import { TPromise } from 'vs/base/common/winjs.base';
 import { IChannel } from 'vs/base/parts/ipc/common/ipc';
-import { IRemoteExtensionsEnvironmentData, IRemoteExtensionsEnvironment } from 'vs/workbench/services/extensions/common/remoteExtensions';
+import { IRemoteExtensionsEnvironmentData, IRemoteExtensionsEnvironment } from 'vs/workbench/services/extensions/common/remoteExtensionsService';
 
 export interface IRemoteExtensionsEnvironmentChannel extends IChannel {
 	call(command: 'getData'): TPromise<IRemoteExtensionsEnvironmentData>;

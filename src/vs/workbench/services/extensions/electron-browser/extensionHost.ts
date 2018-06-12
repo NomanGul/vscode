@@ -36,7 +36,7 @@ import { IRemoteConsoleLog, log, parse } from 'vs/base/node/console';
 import { getScopes } from 'vs/platform/configuration/common/configurationRegistry';
 import { ILogService } from 'vs/platform/log/common/log';
 import { INotificationService, Severity } from 'vs/platform/notification/common/notification';
-import { IRemoteConnectionInformation, IRemoteExtensionsEnvironmentData } from 'vs/workbench/services/extensions/common/remoteExtensions';
+import { IRemoteConnectionInformation, IRemoteExtensionsEnvironmentData } from 'vs/workbench/services/extensions/common/remoteExtensionsService';
 
 export interface IExtensionHostStarter {
 	readonly onCrashed: Event<[number, string]>;

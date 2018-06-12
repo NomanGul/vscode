@@ -23,7 +23,7 @@ import { DialogChannelClient } from 'vs/platform/dialogs/common/dialogIpc';
 import { ExtensionManagementService } from 'vs/platform/extensionManagement/node/extensionManagementService';
 import { InstantiationService } from 'vs/platform/instantiation/common/instantiationService';
 import { ExtensionManagementChannel } from 'vs/platform/extensionManagement/common/extensionManagementIpc';
-import { RemoteExtensionsEnvironment } from 'vs/workbench/services/extensions/node/remoteExtensions';
+import { RemoteExtensionsEnvironment } from 'vs/workbench/services/extensions/node/remoteExtensionsServiceImpl';
 import { RemoteExtensionsEnvironmentChannel } from 'vs/workbench/services/extensions/node/remoteExtensionsIpc';
 
 export interface IExtensionsManagementProcessInitData {

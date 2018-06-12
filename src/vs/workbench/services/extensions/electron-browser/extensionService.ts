@@ -43,7 +43,7 @@ import { RPCProtocol } from 'vs/workbench/services/extensions/node/rpcProtocol';
 import { IWorkspaceContextService } from 'vs/platform/workspace/common/workspace';
 import { INotificationService, Severity } from 'vs/platform/notification/common/notification';
 import { isFalsyOrEmpty } from 'vs/base/common/arrays';
-import { IRemoteExtensionsService, IRemoteExtensionsEnvironmentData, IRemoteWorkspaceFolderConnection, IRemoteConnectionInformation } from 'vs/workbench/services/extensions/common/remoteExtensions';
+import { IRemoteExtensionsService, IRemoteExtensionsEnvironmentData, IRemoteWorkspaceFolderConnection, IRemoteConnectionInformation } from 'vs/workbench/services/extensions/common/remoteExtensionsService';
 import { RemoteExtensionsEnvironmentChannelClient } from 'vs/workbench/services/extensions/node/remoteExtensionsIpc';
 
 let _SystemExtensionsRoot: string = null;

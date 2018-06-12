@@ -9,7 +9,7 @@ import { ITerminalService, ITerminalInstance, IShellLaunchConfig, ITerminalProce
 import { TPromise } from 'vs/base/common/winjs.base';
 import { ExtHostContext, ExtHostTerminalServiceShape, MainThreadTerminalServiceShape, MainContext, IExtHostContext, ShellLaunchConfigDto } from 'vs/workbench/api/node/extHost.protocol';
 import { extHostNamedCustomer } from 'vs/workbench/api/electron-browser/extHostCustomers';
-import { IRemoteExtensionsService, IRemoteConnectionInformation } from 'vs/workbench/services/extensions/common/remoteExtensions';
+import { IRemoteExtensionsService, IRemoteConnectionInformation } from 'vs/workbench/services/extensions/common/remoteExtensionsService';
 import { IWorkspaceContextService, IWorkspaceFolder } from 'vs/platform/workspace/common/workspace';
 
 @extHostNamedCustomer(MainContext.MainThreadTerminalService)
