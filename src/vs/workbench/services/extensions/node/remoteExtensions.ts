@@ -99,7 +99,7 @@ export class RemoteExtensionsEnvironment implements IRemoteExtensionsEnvironment
 		private environmentService: IEnvironmentService
 	) { }
 
-	getData(): TPromise<IRemoteExtensionsEnvironmentData> {
+	getRemoteExtensionInformation(): TPromise<IRemoteExtensionsEnvironmentData> {
 		return this.scanExtensions()
 			.then(extensions => {
 				return <IRemoteExtensionsEnvironmentData>{

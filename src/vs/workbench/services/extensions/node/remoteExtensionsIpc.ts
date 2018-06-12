@@ -20,7 +20,7 @@ export class RemoteExtensionsEnvironmentChannel implements IRemoteExtensionsEnvi
 
 	call(command: string, arg?: any): TPromise<any> {
 		switch (command) {
-			case 'getData': return this.service.getData();
+			case 'getRemoteExtensionInformation': return this.service.getRemoteExtensionInformation();
 		}
 		return undefined;
 	}
@@ -32,8 +32,8 @@ export class RemoteExtensionsEnvironmentChannelClient implements IRemoteExtensio
 
 	constructor(private channel: IRemoteExtensionsEnvironmentChannel) { }
 
-	getData(): TPromise<IRemoteExtensionsEnvironmentData> {
-		return this.channel.call('getData');
+	getRemoteExtensionInformation(): TPromise<IRemoteExtensionsEnvironmentData> {
+		return this.channel.call('getRemoteExtensionInformation');
 	}
 
 }
