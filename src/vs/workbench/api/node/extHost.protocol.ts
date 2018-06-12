@@ -85,7 +85,7 @@ export interface IInitData {
 	/**
 	 * The remote information.
 	 */
-	remoteOptions: IRemoteOptions;
+	remoteOptions?: IRemoteOptions;
 }
 
 export interface IConfigurationInitData extends IConfigurationData {

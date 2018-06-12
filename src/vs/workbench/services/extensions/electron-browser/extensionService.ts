@@ -381,7 +381,12 @@ export class ExtensionService extends Disposable implements IExtensionService {
 	private _startExtensionHostProcess(initialActivationEvents: string[]): void {
 		this._stopExtensionHostProcess();
 
-		const extHostProcessWorker = this._instantiationService.createInstance(ExtensionHostProcessWorker, this.getExtensions());
+		const localExtensions = this.getExtensions().then((extensions) => {
+			return extensions.filter((extension) => {
+				return (extension.extensionLocation.scheme === 'file');
+			});
+		});
+		const extHostProcessWorker = this._instantiationService.createInstance(ExtensionHostProcessWorker, localExtensions);
 		const extHostProcessManager = this._instantiationService.createInstance(ExtensionHostProcessManager, extHostProcessWorker, null, initialActivationEvents);
 		extHostProcessManager.onDidCrash(([code, signal]) => this._onExtensionHostCrashed(code, signal));
 		this._extensionHostProcessManagers.push(extHostProcessManager);

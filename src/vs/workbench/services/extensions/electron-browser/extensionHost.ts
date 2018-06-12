@@ -518,16 +518,7 @@ export class ExtensionHostProcessWorker implements IExtensionHostStarter {
 	}
 
 	private _createExtHostInitData(): TPromise<IInitData> {
-		return TPromise.join([this._telemetryService.getTelemetryInfo(), this._extensions]).then(([telemetryInfo, originalExtensionDescriptions]) => {
-
-			let extensionDescriptions: IExtensionDescription[] = [];
-			for (let i = 0; i < originalExtensionDescriptions.length; i++) {
-				if (originalExtensionDescriptions[i].isRemote) {
-					continue;
-				}
-				extensionDescriptions.push(originalExtensionDescriptions[i]);
-			}
-
+		return TPromise.join([this._telemetryService.getTelemetryInfo(), this._extensions]).then(([telemetryInfo, extensionDescriptions]) => {
 			const configurationData: IConfigurationInitData = { ...this._configurationService.getConfigurationData(), configurationScopes: {} };
 			const r: IInitData = {
 				parentPid: process.pid,
@@ -546,8 +537,7 @@ export class ExtensionHostProcessWorker implements IExtensionHostStarter {
 				telemetryInfo,
 				windowId: this._windowService.getCurrentWindowId(),
 				logLevel: this._logService.getLevel(),
-				logsPath: this._environmentService.logsPath,
-				remoteOptions: null
+				logsPath: this._environmentService.logsPath
 			};
 			return r;
 		});
