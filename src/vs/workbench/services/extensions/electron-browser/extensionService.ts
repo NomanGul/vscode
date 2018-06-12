@@ -575,7 +575,6 @@ export class ExtensionService extends Disposable implements IExtensionService {
 
 			return allExtensions;
 		}).then((allExtensions) => {
-
 			this._registry = new ExtensionDescriptionRegistry(allExtensions);
 
 			let availableExtensions = this._registry.getAllExtensionDescriptions();
