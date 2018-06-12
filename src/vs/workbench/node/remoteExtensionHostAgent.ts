@@ -10,8 +10,8 @@ import * as minimist from 'minimist';
 import * as fs from 'fs';
 import URI from 'vs/base/common/uri';
 import { ParsedArgs } from 'vs/platform/environment/common/environment';
-import { RemoteExtensionManagementServer } from 'vs/workbench/node/remoteExtensionManagement';
-import { RemoteExtensionHostServer } from 'vs/workbench/node/remoteExtensionHost';
+import { RemoteExtensionManagementServer } from 'vs/workbench/node/remoteExtensionsManagement';
+import { RemoteExtensionHostServer } from 'vs/workbench/node/remoteExtensionHostServer';
 import { EnvironmentService } from 'vs/platform/environment/node/environmentService';
 
 const ifaces = os.networkInterfaces();
