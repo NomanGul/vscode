@@ -25,6 +25,7 @@ import { InstantiationService } from 'vs/platform/instantiation/common/instantia
 import { ExtensionManagementChannel } from 'vs/platform/extensionManagement/common/extensionManagementIpc';
 import { RemoteExtensionsEnvironment } from 'vs/workbench/services/extensions/node/remoteExtensionsServiceImpl';
 import { RemoteExtensionsEnvironmentChannel } from 'vs/workbench/services/extensions/node/remoteExtensionsIpc';
+import { REMOTE_EXTENSIONS_FILE_SYSTEM_CHANNEL_NAME, RemoteExtensionsFileSystemImpl, RemoteExtensionsFileSystemChannel } from 'vs/platform/remote/node/remoteFileSystemIpc';
 
 export interface IExtensionsManagementProcessInitData {
 	args: ParsedArgs;
@@ -78,6 +79,9 @@ export class RemoteExtensionManagementServer {
 		instantiationService.invokeFunction(accessor => {
 			const remoteExtensionsEnvironemntChannel = new RemoteExtensionsEnvironmentChannel(new RemoteExtensionsEnvironment(this.environmentService));
 			server.registerChannel('remoteextensionsenvironment', remoteExtensionsEnvironemntChannel);
+
+			const remoteExtensionsFileSystemChannel = new RemoteExtensionsFileSystemChannel(new RemoteExtensionsFileSystemImpl());
+			server.registerChannel(REMOTE_EXTENSIONS_FILE_SYSTEM_CHANNEL_NAME, remoteExtensionsFileSystemChannel);
 
 			const extensionManagementService = accessor.get(IExtensionManagementService);
 			const channel = new ExtensionManagementChannel(extensionManagementService);

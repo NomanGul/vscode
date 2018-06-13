@@ -5,7 +5,7 @@
 
 'use strict';
 
-import { app, ipcMain as ipc } from 'electron';
+import { app, ipcMain as ipc, protocol } from 'electron';
 import * as platform from 'vs/base/common/platform';
 import { WindowsManager } from 'vs/code/electron-main/windows';
 import { IWindowsService, OpenContext, ActiveWindowManager } from 'vs/platform/windows/common/windows';
@@ -58,9 +58,11 @@ import { IIssueService } from 'vs/platform/issue/common/issue';
 import { IssueChannel } from 'vs/platform/issue/common/issueIpc';
 import { IssueService } from 'vs/platform/issue/electron-main/issueService';
 import { LogLevelSetterChannel } from 'vs/platform/log/common/logIpc';
-import { setUnexpectedErrorHandler } from 'vs/base/common/errors';
+import * as errors from 'vs/base/common/errors';
 import { ElectronURLListener } from 'vs/platform/url/electron-main/electronUrlListener';
 import { serve as serveDriver } from 'vs/platform/driver/electron-main/driver';
+import { REMOTE_EXTENSIONS_FILE_SYSTEM_CHANNEL_NAME, RemoteExtensionsFileSystemChannelClient } from 'vs/platform/remote/node/remoteFileSystemIpc';
+import { RunOnceScheduler } from 'vs/base/common/async';
 
 export class CodeApplication {
 
@@ -93,7 +95,7 @@ export class CodeApplication {
 	private registerListeners(): void {
 
 		// We handle uncaught exceptions here to prevent electron from opening a dialog to the user
-		setUnexpectedErrorHandler(err => this.onUnexpectedError(err));
+		errors.setUnexpectedErrorHandler(err => this.onUnexpectedError(err));
 		process.on('uncaughtException', err => this.onUnexpectedError(err));
 
 		app.on('will-quit', () => {
@@ -147,6 +149,61 @@ export class CodeApplication {
 				this.logService.error('webContents#will-navigate: Prevented webcontent navigation');
 				event.preventDefault();
 			});
+		});
+
+		const connectionPool: Map<string, ActiveConnection> = new Map<string, ActiveConnection>();
+
+		class ActiveConnection {
+			private _authority: string;
+			private _client: TPromise<Client>;
+			private _disposeRunner: RunOnceScheduler;
+
+			constructor(authority: string) {
+				this._authority = authority;
+				const pieces = authority.split(':');
+				const host = pieces[0];
+				const port = parseInt(pieces[1], 10) + 1; // TODO@vs-remote
+				this._client = connect({ host, port }, `main`);
+				this._disposeRunner = new RunOnceScheduler(() => this._dispose(), 1000);
+			}
+
+			private _dispose(): void {
+				this._disposeRunner.dispose();
+				connectionPool.delete(this._authority);
+				this._client.then((connection) => {
+					connection.dispose();
+				});
+			}
+
+			public getClient(): TPromise<Client> {
+				this._disposeRunner.schedule();
+				return this._client;
+			}
+		}
+
+		protocol.registerBufferProtocol('vscode-remote', async (request, callback) => {
+			if (request.method !== 'GET') {
+				return callback(null);
+			}
+			const uri = URI.parse(request.url);
+			console.log(`REMOTE-FETCH: ${uri.toString()}`);
+
+			let activeConnection: ActiveConnection = null;
+			if (connectionPool.has(uri.authority)) {
+				activeConnection = connectionPool.get(uri.authority);
+			} else {
+				activeConnection = new ActiveConnection(uri.authority);
+				connectionPool.set(uri.authority, activeConnection);
+			}
+			try {
+				const rawClient = await activeConnection.getClient();
+				const client = new RemoteExtensionsFileSystemChannelClient(rawClient.getChannel(REMOTE_EXTENSIONS_FILE_SYSTEM_CHANNEL_NAME));
+				const fileContents = await client.getFile(uri.path);
+				callback(Buffer.from(fileContents, 'base64'));
+			} catch (err) {
+				errors.onUnexpectedError(err);
+				callback(null);
+			}
 		});
 
 		let macOpenFiles: string[] = [];

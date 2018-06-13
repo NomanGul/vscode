@@ -10,8 +10,7 @@ import { IChannel } from 'vs/base/parts/ipc/common/ipc';
 import { IRemoteExtensionsEnvironmentData, IRemoteExtensionsEnvironment } from 'vs/workbench/services/extensions/common/remoteExtensionsService';
 
 export interface IRemoteExtensionsEnvironmentChannel extends IChannel {
-	call(command: 'getData'): TPromise<IRemoteExtensionsEnvironmentData>;
-	call(command: string, arg?: any): TPromise<any>;
+	call(command: 'getRemoteExtensionInformation', arg: any): TPromise<IRemoteExtensionsEnvironmentData>;
 }
 
 export class RemoteExtensionsEnvironmentChannel implements IRemoteExtensionsEnvironmentChannel {
