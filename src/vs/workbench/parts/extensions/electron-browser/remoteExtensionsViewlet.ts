@@ -40,7 +40,7 @@ import { SyncDescriptor } from 'vs/platform/instantiation/common/descriptors';
 import { ExtensionsWorkbenchService } from 'vs/workbench/parts/extensions/node/extensionsWorkbenchService';
 import { ExtensionsListView, InstalledExtensionsView, RecommendedExtensionsView, WorkspaceRecommendedExtensionsView, BuiltInExtensionsView, BuiltInThemesExtensionsView, BuiltInBasicsExtensionsView } from 'vs/workbench/parts/extensions/electron-browser/extensionsViews';
 import { ViewletPanel } from 'vs/workbench/browser/parts/views/panelViewlet';
-import { DefaultURITransformer } from 'vs/base/parts/ipc/common/ipc';
+import { DefaultURITransformer } from 'vs/base/common/uriIpc';
 
 const RemoteExtensionsContext = new RawContextKey<boolean>('remoteExtensions', false);
 const DonotShowInstalledExtensionsContext = new RawContextKey<boolean>('donotshowExtensions', false);

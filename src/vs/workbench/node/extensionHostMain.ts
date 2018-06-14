@@ -20,11 +20,12 @@ import * as errors from 'vs/base/common/errors';
 import * as glob from 'vs/base/common/glob';
 import { ExtensionActivatedByEvent } from 'vs/workbench/api/node/extHostExtensionActivator';
 import { IDisposable, dispose } from 'vs/base/common/lifecycle';
-import { IMessagePassingProtocol, IURITransformer } from 'vs/base/parts/ipc/common/ipc';
+import { IMessagePassingProtocol } from 'vs/base/parts/ipc/common/ipc';
 import { RPCProtocol } from 'vs/workbench/services/extensions/node/rpcProtocol';
 import URI from 'vs/base/common/uri';
 import { ExtHostLogService } from 'vs/workbench/api/node/extHostLogService';
 import { createRemoteURITransformer } from 'vs/workbench/node/remoteUriTransformer';
+import { IURITransformer } from 'vs/base/common/uriIpc';
 
 const nativeExit = process.exit.bind(process);
 function patchProcess(allowExit: boolean) {

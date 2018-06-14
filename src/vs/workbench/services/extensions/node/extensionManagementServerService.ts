@@ -9,8 +9,8 @@ import { IWorkspaceContextService } from 'vs/platform/workspace/common/workspace
 import { IExtensionManagementService, IExtensionManagementServerService, IExtensionManagementServer } from 'vs/platform/extensionManagement/common/extensionManagement';
 import URI, { UriComponents } from 'vs/base/common/uri';
 import { Disposable } from 'vs/base/common/lifecycle';
-import { IURITransformer } from 'vs/base/parts/ipc/common/ipc';
 import { Schemas } from 'vs/base/common/network';
+import { IURITransformer } from 'vs/base/common/uriIpc';
 
 function createRemoteUriTransformer(authority: string): IURITransformer {
 	return <IURITransformer>{
