@@ -12,6 +12,7 @@ import { IPartService } from 'vs/workbench/services/part/common/partService';
 import { ITerminalService, ITerminalInstance, IShellLaunchConfig, ITerminalConfigHelper, KEYBINDING_CONTEXT_TERMINAL_FOCUS, KEYBINDING_CONTEXT_TERMINAL_FIND_WIDGET_VISIBLE, TERMINAL_PANEL_ID, ITerminalTab, ITerminalProcessExtHostProxy, ITerminalProcessExtHostRequest } from 'vs/workbench/parts/terminal/common/terminal';
 import { TPromise } from 'vs/base/common/winjs.base';
 import { IStorageService, StorageScope } from 'vs/platform/storage/common/storage';
+import URI from 'vs/base/common/uri';
 
 const TERMINAL_STATE_STORAGE_KEY = 'terminal.state';
 
@@ -75,7 +76,7 @@ export abstract class TerminalService implements ITerminalService {
 	public abstract getActiveOrCreateInstance(wasNewTerminalAction?: boolean): ITerminalInstance;
 	public abstract selectDefaultWindowsShell(): TPromise<string>;
 	public abstract setContainers(panelContainer: HTMLElement, terminalContainer: HTMLElement): void;
-	public abstract requestExtHostProcess(proxy: ITerminalProcessExtHostProxy, shellLaunchConfig: IShellLaunchConfig, cols: number, rows: number): void;
+	public abstract requestExtHostProcess(proxy: ITerminalProcessExtHostProxy, shellLaunchConfig: IShellLaunchConfig, activeWorkspaceRootUri: URI, cols: number, rows: number): void;
 
 	private _restoreTabs(): void {
 		if (!this.configHelper.config.experimentalRestore) {

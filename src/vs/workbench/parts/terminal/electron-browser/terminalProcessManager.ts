@@ -90,22 +90,20 @@ export class TerminalProcessManager implements ITerminalProcessManager {
 		cols: number,
 		rows: number
 	): void {
-		// TODO: The shellLaunchConfig should have an IWorkspaceFolder set which can determine
-		// whether to run it in an extension host or not.
-		const extensionHostOwned = this._workspaceContextService.getWorkspace().folders[0].uri.scheme === 'vscode-remote';
+		const activeWorkspaceRootUri = this._historyService.getLastActiveWorkspaceRoot();
+		const extensionHostOwned = activeWorkspaceRootUri.scheme === 'vscode-remote';
 		if (extensionHostOwned) {
-			this._process = this._instantiationService.createInstance(TerminalProcessExtHostProxy, this._terminalId, shellLaunchConfig, cols, rows);
+			this._process = this._instantiationService.createInstance(TerminalProcessExtHostProxy, this._terminalId, shellLaunchConfig, activeWorkspaceRootUri, cols, rows);
 		} else {
 			const locale = this._configHelper.config.setLocaleVariables ? platform.locale : undefined;
 			if (!shellLaunchConfig.executable) {
 				this._configHelper.mergeDefaultShellPathAndArgs(shellLaunchConfig);
 			}
 
-			const lastActiveWorkspaceRootUri = this._historyService.getLastActiveWorkspaceRoot('file');
-			this.initialCwd = terminalEnvironment.getCwd(shellLaunchConfig, lastActiveWorkspaceRootUri, this._configHelper);
+			this.initialCwd = terminalEnvironment.getCwd(shellLaunchConfig, activeWorkspaceRootUri, this._configHelper.config.cwd);
 
 			// Resolve env vars from config and shell
-			const lastActiveWorkspaceRoot = this._workspaceContextService.getWorkspaceFolder(lastActiveWorkspaceRootUri);
+			const lastActiveWorkspaceRoot = this._workspaceContextService.getWorkspaceFolder(activeWorkspaceRootUri);
 			const platformKey = platform.isWindows ? 'windows' : (platform.isMacintosh ? 'osx' : 'linux');
 			const envFromConfig = terminalEnvironment.resolveConfigurationVariables(this._configurationResolverService, { ...this._configHelper.config.env[platformKey] }, lastActiveWorkspaceRoot);
 			const envFromShell = terminalEnvironment.resolveConfigurationVariables(this._configurationResolverService, { ...shellLaunchConfig.env }, lastActiveWorkspaceRoot);

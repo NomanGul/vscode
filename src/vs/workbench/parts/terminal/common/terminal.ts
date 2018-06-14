@@ -8,6 +8,7 @@ import { IDisposable } from 'vs/base/common/lifecycle';
 import { RawContextKey, ContextKeyExpr, IContextKey } from 'vs/platform/contextkey/common/contextkey';
 import { TPromise } from 'vs/base/common/winjs.base';
 import { createDecorator } from 'vs/platform/instantiation/common/instantiation';
+import URI from 'vs/base/common/uri';
 
 export const TERMINAL_PANEL_ID = 'workbench.panel.terminal';
 
@@ -210,7 +211,7 @@ export interface ITerminalService {
 	selectDefaultWindowsShell(): TPromise<string>;
 	setWorkspaceShellAllowed(isAllowed: boolean): void;
 
-	requestExtHostProcess(proxy: ITerminalProcessExtHostProxy, shellLaunchConfig: IShellLaunchConfig, cols: number, rows: number): void;
+	requestExtHostProcess(proxy: ITerminalProcessExtHostProxy, shellLaunchConfig: IShellLaunchConfig, activeWorkspaceRootUri: URI, cols: number, rows: number): void;
 }
 
 export const enum Direction {
@@ -551,6 +552,7 @@ export interface ITerminalProcessExtHostProxy extends IDisposable {
 export interface ITerminalProcessExtHostRequest {
 	proxy: ITerminalProcessExtHostProxy;
 	shellLaunchConfig: IShellLaunchConfig;
+	activeWorkspaceRootUri: URI;
 	cols: number;
 	rows: number;
 }

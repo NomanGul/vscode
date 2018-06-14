@@ -29,6 +29,7 @@ import { ipcRenderer as ipc } from 'electron';
 import { IOpenFileRequest } from 'vs/platform/windows/common/windows';
 import { TerminalInstance } from 'vs/workbench/parts/terminal/electron-browser/terminalInstance';
 import { IExtensionService } from 'vs/workbench/services/extensions/common/extensions';
+import URI from 'vs/base/common/uri';
 
 export class TerminalService extends AbstractTerminalService implements ITerminalService {
 	private _configHelper: TerminalConfigHelper;
@@ -97,12 +98,12 @@ export class TerminalService extends AbstractTerminalService implements ITermina
 		return instance;
 	}
 
-	public requestExtHostProcess(proxy: ITerminalProcessExtHostProxy, shellLaunchConfig: IShellLaunchConfig, cols: number, rows: number): void {
+	public requestExtHostProcess(proxy: ITerminalProcessExtHostProxy, shellLaunchConfig: IShellLaunchConfig, activeWorkspaceRootUri: URI, cols: number, rows: number): void {
 		// Ensure extension host is ready before requesting a process
 		this._extensionService.whenInstalledExtensionsRegistered().then(() => {
 			// TODO: MainThreadTerminalService is not ready at this point, fix this
 			setTimeout(() => {
-				this._onInstanceRequestExtHostProcess.fire({ proxy, shellLaunchConfig, cols, rows });
+				this._onInstanceRequestExtHostProcess.fire({ proxy, shellLaunchConfig, activeWorkspaceRootUri, cols, rows });
 			}, 500);
 		});
 	}

@@ -132,12 +132,9 @@ export class MainThreadTerminalService implements MainThreadTerminalServiceShape
 	}
 
 	private _onTerminalRequestExtHostProcess(request: ITerminalProcessExtHostRequest): void {
-		// TODO: Allow extensions to set an IWorkspaceFolder in IShellLaunchConfig and use that for
-		// the terminal. Currently we always just take the first workspace folder.
-
 		// Determine whether this is the correct MainThreadTerminalService to use.
-		const activeFolder = this._contextService.getWorkspace().folders[0];
-		if (!this._ownsWorkspace(activeFolder)) {
+		const activeWorkspaceFolder = this._contextService.getWorkspaceFolder(request.activeWorkspaceRootUri);
+		if (!this._ownsWorkspace(activeWorkspaceFolder)) {
 			return;
 		}
 
@@ -149,7 +146,7 @@ export class MainThreadTerminalService implements MainThreadTerminalServiceShape
 			cwd: request.shellLaunchConfig.cwd,
 			env: request.shellLaunchConfig.env
 		};
-		this._proxy.$createProcess(request.proxy.terminalId, shellLaunchConfigDto, request.cols, request.rows);
+		this._proxy.$createProcess(request.proxy.terminalId, shellLaunchConfigDto, request.activeWorkspaceRootUri, request.cols, request.rows);
 		request.proxy.onInput(data => this._proxy.$acceptProcessInput(request.proxy.terminalId, data));
 		request.proxy.onResize((cols, rows) => this._proxy.$acceptProcessResize(request.proxy.terminalId, cols, rows));
 		request.proxy.onShutdown(() => this._proxy.$acceptProcessShutdown(request.proxy.terminalId));

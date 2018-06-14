@@ -7,6 +7,7 @@ import { ITerminalChildProcess, IMessageToTerminalProcess, IMessageFromTerminalP
 import { EventEmitter } from 'events';
 import { ITerminalService, ITerminalProcessExtHostProxy, IShellLaunchConfig } from 'vs/workbench/parts/terminal/common/terminal';
 import { IDisposable, toDisposable } from 'vs/base/common/lifecycle';
+import URI from 'vs/base/common/uri';
 
 export class TerminalProcessExtHostProxy extends EventEmitter implements ITerminalChildProcess, ITerminalProcessExtHostProxy {
 	// For ext host processes connected checks happen on the ext host
@@ -17,6 +18,7 @@ export class TerminalProcessExtHostProxy extends EventEmitter implements ITermin
 	constructor(
 		public terminalId: number,
 		shellLaunchConfig: IShellLaunchConfig,
+		activeWorkspaceRootUri: URI,
 		cols: number,
 		rows: number,
 		@ITerminalService private _terminalService: ITerminalService
@@ -24,7 +26,7 @@ export class TerminalProcessExtHostProxy extends EventEmitter implements ITermin
 		super();
 
 		// TODO: Return TPromise<boolean> indicating success? Teardown if failure?
-		this._terminalService.requestExtHostProcess(this, shellLaunchConfig, cols, rows);
+		this._terminalService.requestExtHostProcess(this, shellLaunchConfig, activeWorkspaceRootUri, cols, rows);
 	}
 
 	public dispose(): void {
