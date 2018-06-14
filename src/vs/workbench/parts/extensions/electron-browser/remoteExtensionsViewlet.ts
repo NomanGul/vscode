@@ -40,6 +40,7 @@ import { SyncDescriptor } from 'vs/platform/instantiation/common/descriptors';
 import { ExtensionsWorkbenchService } from 'vs/workbench/parts/extensions/node/extensionsWorkbenchService';
 import { ExtensionsListView, InstalledExtensionsView, RecommendedExtensionsView, WorkspaceRecommendedExtensionsView, BuiltInExtensionsView, BuiltInThemesExtensionsView, BuiltInBasicsExtensionsView } from 'vs/workbench/parts/extensions/electron-browser/extensionsViews';
 import { ViewletPanel } from 'vs/workbench/browser/parts/views/panelViewlet';
+import { DefaultURITransformer } from 'vs/base/parts/ipc/common/ipc';
 
 const RemoteExtensionsContext = new RawContextKey<boolean>('remoteExtensions', false);
 const DonotShowInstalledExtensionsContext = new RawContextKey<boolean>('donotshowExtensions', false);
@@ -205,7 +206,7 @@ export class ExtensionsViewlet extends BaseExtensionsViewlet {
 
 	private createExtensionsView(viewDescriptor: IViewDescriptor, options: IViewletViewOptions, remoteWorkspaceFolderConnection: IRemoteWorkspaceFolderConnection): ViewletPanel {
 		const servicesCollection: ServiceCollection = new ServiceCollection();
-		servicesCollection.set(IExtensionManagementService, new ExtensionManagementChannelClient(remoteWorkspaceFolderConnection.getChannel<IExtensionManagementChannel>('extensions')));
+		servicesCollection.set(IExtensionManagementService, new ExtensionManagementChannelClient(remoteWorkspaceFolderConnection.getChannel<IExtensionManagementChannel>('extensions'), DefaultURITransformer));
 		servicesCollection.set(IExtensionsWorkbenchService, new SyncDescriptor(ExtensionsWorkbenchService));
 		const instantiationService = this.instantiationService.createChild(servicesCollection);
 		return instantiationService.createInstance(viewDescriptor.ctor, options) as ViewletPanel;
