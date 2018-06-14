@@ -8,7 +8,7 @@ import * as vscode from 'vscode';
 import * as cp from 'child_process';
 import * as platform from 'vs/base/common/platform';
 import * as terminalEnvironment from 'vs/workbench/parts/terminal/node/terminalEnvironment';
-import Uri from 'vs/base/common/uri';
+import Uri, { UriComponents } from 'vs/base/common/uri';
 import { Event, Emitter } from 'vs/base/common/event';
 import { ExtHostTerminalServiceShape, MainContext, MainThreadTerminalServiceShape, IMainContext, ShellLaunchConfigDto } from 'vs/workbench/api/node/extHost.protocol';
 import { IMessageFromTerminalProcess } from 'vs/workbench/parts/terminal/node/terminal';
@@ -192,7 +192,7 @@ export class ExtHostTerminalService implements ExtHostTerminalServiceShape {
 		}
 	}
 
-	public $createProcess(id: number, shellLaunchConfig: ShellLaunchConfigDto, activeWorkspaceRootUri: Uri, cols: number, rows: number): void {
+	public $createProcess(id: number, shellLaunchConfig: ShellLaunchConfigDto, activeWorkspaceRootUriComponents: UriComponents, cols: number, rows: number): void {
 		// TODO: This function duplicates a lot of TerminalProcessManager.createProcess, ideally
 		// they would be merged into a single implementation.
 		const terminalConfig = this._extHostConfiguration.getConfiguration('terminal.integrated');
@@ -210,6 +210,7 @@ export class ExtHostTerminalService implements ExtHostTerminalServiceShape {
 			shellLaunchConfig.args = shellArgsConfigValue;
 		}
 
+		const activeWorkspaceRootUri = Uri.revive(activeWorkspaceRootUriComponents);
 		const initialCwd = terminalEnvironment.getCwd(shellLaunchConfig, activeWorkspaceRootUri, terminalConfig.cwd);
 
 		// TODO: Pull in and resolve config settings

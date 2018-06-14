@@ -133,13 +133,13 @@ export function getCwd(shell: IShellLaunchConfig, root: Uri, customCwd: string):
 		if (paths.isAbsolute(customCwd)) {
 			cwd = customCwd;
 		} else if (root) {
-			cwd = paths.normalize(paths.join(root.path, customCwd));
+			cwd = paths.normalize(paths.join(root.fsPath, customCwd));
 		}
 	}
 
 	// If there was no custom cwd or it was relative with no workspace
 	if (!cwd) {
-		cwd = root ? root.path : os.homedir();
+		cwd = root ? root.fsPath : os.homedir();
 	}
 
 	return _sanitizeCwd(cwd);
