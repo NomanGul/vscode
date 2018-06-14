@@ -6,8 +6,8 @@
 'use strict';
 
 import * as platform from 'vs/base/common/platform';
-import { IURITransformer } from 'vs/workbench/services/extensions/node/rpcProtocol';
 import URI, { UriComponents } from 'vs/base/common/uri';
+import { IURITransformer } from 'vs/base/parts/ipc/common/ipc';
 
 export function createRemoteURITransformer(remoteAuthority: string): IURITransformer {
 	return new class implements IURITransformer {

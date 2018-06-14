@@ -60,7 +60,7 @@ import { WorkbenchModeServiceImpl } from 'vs/workbench/services/mode/common/work
 import { IModeService } from 'vs/editor/common/services/modeService';
 import { IUntitledEditorService, UntitledEditorService } from 'vs/workbench/services/untitled/common/untitledEditorService';
 import { ICrashReporterService, NullCrashReporterService, CrashReporterService } from 'vs/workbench/services/crashReporter/electron-browser/crashReporterService';
-import { getDelayedChannel, IPCClient } from 'vs/base/parts/ipc/common/ipc';
+import { getDelayedChannel, IPCClient, DefaultURITransformer } from 'vs/base/parts/ipc/common/ipc';
 import { connect as connectNet } from 'vs/base/parts/ipc/node/ipc.net';
 import { IExtensionManagementChannel, ExtensionManagementChannelClient } from 'vs/platform/extensionManagement/common/extensionManagementIpc';
 import { IExtensionManagementService, IExtensionEnablementService } from 'vs/platform/extensionManagement/common/extensionManagement';
@@ -410,7 +410,7 @@ export class WorkbenchShell {
 
 		const remoteExtensionsService = new RemoteExtensionsService(this.configuration.windowId);
 		const extensionManagementChannel = getDelayedChannel<IExtensionManagementChannel>(sharedProcess.then(c => c.getChannel('extensions')));
-		serviceCollection.set(IExtensionManagementService, new SyncDescriptor(ExtensionManagementChannelClient, extensionManagementChannel, remoteExtensionsService));
+		serviceCollection.set(IExtensionManagementService, new SyncDescriptor(ExtensionManagementChannelClient, extensionManagementChannel, DefaultURITransformer));
 		serviceCollection.set(IRemoteExtensionsService, remoteExtensionsService);
 
 		const extensionEnablementService = instantiationService.createInstance(ExtensionEnablementService);
