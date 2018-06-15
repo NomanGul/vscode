@@ -247,6 +247,12 @@ export class ExtensionEditor extends BaseEditor {
 				if (action.id === DisableAction.ID) {
 					return (<DisableAction>action).actionItem;
 				}
+				if (action.id === MultiServerInstallAction.ID) {
+					return (<MultiServerInstallAction>action).actionItem;
+				}
+				if (action.id === MultiServerUpdateAction.ID) {
+					return (<MultiServerUpdateAction>action).actionItem;
+				}
 				return null;
 			}
 		});

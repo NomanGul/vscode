@@ -116,42 +116,42 @@ export class ExtensionsViewletViewsContribution implements IWorkbenchContributio
 
 	private createInstalledExtensionsListViewDescriptor(): IViewDescriptor {
 		return {
-			id: 'extensions.installedList',
+			id: 'extensions.installedExtensionsList',
 			name: localize('installedExtensions', "Installed"),
 			container: VIEW_CONTAINER,
 			ctor: InstalledExtensionsView,
 			when: ContextKeyExpr.not('searchExtensions'),
 			order: 1,
 			weight: 30,
-			canToggleVisibility: true
+			canToggleVisibility: true,
+			hideByDefault: true
 		};
 	}
 
 	private createEnabledExtensionsListViewDescriptor(): IViewDescriptor {
 		return {
-			id: 'extensions.enabledList',
+			id: 'extensions.enabledExtensionsList',
 			name: localize('enabledExtensions', "Enabled"),
 			container: VIEW_CONTAINER,
 			ctor: EnabledExtensionsView,
 			when: ContextKeyExpr.not('searchExtensions'),
 			weight: 30,
 			canToggleVisibility: true,
-			order: 30,
-			collapsed: true
+			order: 1
 		};
 	}
 
 	private createDisabledExtensionsListViewDescriptor(): IViewDescriptor {
 		return {
-			id: 'extensions.disabledList',
+			id: 'extensions.disabledExtensionsList',
 			name: localize('disabledExtensions', "Disabled"),
 			container: VIEW_CONTAINER,
 			ctor: DisabledExtensionsView,
 			when: ContextKeyExpr.not('searchExtensions'),
 			weight: 30,
 			canToggleVisibility: true,
-			order: 40,
-			collapsed: true
+			order: 1,
+			hideByDefault: true
 		};
 	}
 
@@ -169,7 +169,7 @@ export class ExtensionsViewletViewsContribution implements IWorkbenchContributio
 	private createExtensionsViewDescriptorsForServer(server: IExtensionManagementServer): IViewDescriptor[] {
 		return [{
 			id: `server.extensionsList.${server.location.toString()}`,
-			name: localize('installed extensions in remote management server', "{0}", server.location.authority),
+			name: server.location.authority,
 			container: VIEW_CONTAINER,
 			ctor: GroupByServerExtensionsView,
 			when: ContextKeyExpr.has('groupByServersContext'),

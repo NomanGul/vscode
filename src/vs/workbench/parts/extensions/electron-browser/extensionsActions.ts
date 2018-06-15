@@ -1070,7 +1070,7 @@ export class ReloadAction extends Action {
 		const isDisabled = this.extension.local ? !this.extensionEnablementService.isEnabled(this.extension.local) : false;
 		const runningExtension = runningExtensions.filter(e => areSameExtensions(e, this.extension))[0];
 
-		if (installed) {
+		if (installed && installed.local) {
 			if (runningExtension) {
 				const isSameLocation = runningExtension.extensionLocation.toString() === installed.local.location.toString();
 				if (isSameLocation) {
