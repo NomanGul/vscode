@@ -46,7 +46,7 @@ export class ExtensionManagementServerService extends Disposable implements IExt
 		@IRemoteExtensionsService private remoteExtensionsService: IRemoteExtensionsService
 	) {
 		super();
-		this._localExtensionManagemetServer = { extensionManagementService: localExtensionManagementService, location: URI.file('') };
+		this._localExtensionManagemetServer = { extensionManagementService: localExtensionManagementService, location: URI.from({ scheme: 'vscode-local', authority: 'local' }) };
 		this._register(this.workspaceService.onDidChangeWorkspaceFolders(() => this.updateServers()));
 		this.updateServers();
 	}
@@ -56,6 +56,9 @@ export class ExtensionManagementServerService extends Disposable implements IExt
 	}
 
 	getExtensionManagementServer(location: URI): IExtensionManagementServer {
+		if (location.scheme === Schemas.file) {
+			return this._localExtensionManagemetServer;
+		}
 		return this._extensionManagementServers.filter(server => location.authority === server.location.authority)[0];
 	}
 
@@ -66,5 +69,23 @@ export class ExtensionManagementServerService extends Disposable implements IExt
 			const extensionManagementService = new ExtensionManagementChannelClient(remoteWorkspaceFolderConnection.getChannel<IExtensionManagementChannel>('extensions'), createRemoteUriTransformer(location.authority));
 			this._extensionManagementServers.push({ location, extensionManagementService });
 		}
+	}
+}
+
+export class SingleServerExtensionManagementServerService implements IExtensionManagementServerService {
+
+	_serviceBrand: any;
+
+	readonly extensionManagementServers: IExtensionManagementServer[];
+
+	constructor(
+		extensionManagementServer: IExtensionManagementServer
+	) {
+		this.extensionManagementServers = [extensionManagementServer];
+	}
+
+	getExtensionManagementServer(location: URI): IExtensionManagementServer {
+		location = location.scheme === Schemas.file ? URI.from({ scheme: 'vscode-local', authority: 'local' }) : location;
+		return this.extensionManagementServers.filter(server => location.authority === server.location.authority)[0];
 	}
 }
