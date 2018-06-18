@@ -12,7 +12,6 @@ import { IWindowsService, OpenContext, ActiveWindowManager } from 'vs/platform/w
 import { WindowsChannel } from 'vs/platform/windows/common/windowsIpc';
 import { WindowsService } from 'vs/platform/windows/electron-main/windowsService';
 import { ILifecycleService } from 'vs/platform/lifecycle/electron-main/lifecycleMain';
-import { CodeMenu } from 'vs/code/electron-main/menus';
 import { getShellEnvironment } from 'vs/code/node/shellEnv';
 import { IUpdateService } from 'vs/platform/update/common/update';
 import { UpdateChannel } from 'vs/platform/update/common/updateIpc';
@@ -63,6 +62,11 @@ import { ElectronURLListener } from 'vs/platform/url/electron-main/electronUrlLi
 import { serve as serveDriver } from 'vs/platform/driver/electron-main/driver';
 import { REMOTE_EXTENSIONS_FILE_SYSTEM_CHANNEL_NAME, RemoteExtensionsFileSystemChannelClient } from 'vs/platform/remote/node/remoteFileSystemIpc';
 import { RunOnceScheduler } from 'vs/base/common/async';
+import { IMenubarService } from 'vs/platform/menubar/common/menubar';
+import { MenubarService } from 'vs/platform/menubar/electron-main/menubarService';
+import { MenubarChannel } from 'vs/platform/menubar/common/menubarIpc';
+// TODO@sbatten: Remove after conversion to new dynamic menubar
+import { CodeMenu } from 'vs/code/electron-main/menus';
 
 export class CodeApplication {
 
@@ -397,6 +401,7 @@ export class CodeApplication {
 		services.set(IWindowsService, new SyncDescriptor(WindowsService, this.sharedProcess));
 		services.set(ILaunchService, new SyncDescriptor(LaunchService));
 		services.set(IIssueService, new SyncDescriptor(IssueService, machineId, this.userEnv));
+		services.set(IMenubarService, new SyncDescriptor(MenubarService));
 
 		// Telemtry
 		if (this.environmentService.isBuilt && !this.environmentService.isExtensionDevelopment && !this.environmentService.args['disable-telemetry'] && !!product.enableTelemetry) {
@@ -439,6 +444,10 @@ export class CodeApplication {
 		const windowsChannel = new WindowsChannel(windowsService);
 		this.electronIpcServer.registerChannel('windows', windowsChannel);
 		this.sharedProcessClient.done(client => client.registerChannel('windows', windowsChannel));
+
+		const menubarService = accessor.get(IMenubarService);
+		const menubarChannel = new MenubarChannel(menubarService);
+		this.electronIpcServer.registerChannel('menubar', menubarChannel);
 
 		const urlService = accessor.get(IURLService);
 		const urlChannel = new URLServiceChannel(urlService);
@@ -504,7 +513,6 @@ export class CodeApplication {
 	}
 
 	private afterWindowOpen(accessor: ServicesAccessor): void {
-		const appInstantiationService = accessor.get(IInstantiationService);
 		const windowsMainService = accessor.get(IWindowsMainService);
 
 		let windowsMutex: Mutex = null;
@@ -544,8 +552,13 @@ export class CodeApplication {
 			}
 		}
 
+		// TODO@sbatten: Remove when menu is converted
 		// Install Menu
-		appInstantiationService.createInstance(CodeMenu);
+		const instantiationService = accessor.get(IInstantiationService);
+		const configurationService = accessor.get(IConfigurationService);
+		if (platform.isMacintosh || configurationService.getValue<string>('window.titleBarStyle') !== 'custom') {
+			instantiationService.createInstance(CodeMenu);
+		}
 
 		// Jump List
 		this.historyMainService.updateWindowsJumpList();
