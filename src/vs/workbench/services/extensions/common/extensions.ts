@@ -12,7 +12,6 @@ import { Event } from 'vs/base/common/event';
 import URI from 'vs/base/common/uri';
 
 export interface IExtensionDescription {
-	isRemote?: boolean;
 	readonly id: string;
 	readonly name: string;
 	readonly uuid?: string;

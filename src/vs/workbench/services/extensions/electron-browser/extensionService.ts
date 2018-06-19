@@ -545,7 +545,6 @@ export class ExtensionService extends Disposable implements IExtensionService {
 					const extension = remoteExtensionInfo.extensions[j];
 					// ensure URIs are revived
 					(<any>extension).extensionLocation = URI.revive(extension.extensionLocation);
-					extension.isRemote = true; // TODO@vs-remote
 					if (seenExtension[extension.id]) {
 						continue;
 					}
