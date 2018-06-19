@@ -46,6 +46,7 @@ import { isFalsyOrEmpty } from 'vs/base/common/arrays';
 import { IRemoteExtensionsService, IRemoteExtensionsEnvironmentData, IRemoteWorkspaceFolderConnection, IRemoteConnectionInformation } from 'vs/workbench/services/extensions/common/remoteExtensionsService';
 import { RemoteExtensionsEnvironmentChannelClient } from 'vs/workbench/services/extensions/node/remoteExtensionsIpc';
 import { IInitDataProvider, RemoteExtensionHostClient } from 'vs/workbench/services/extensions/electron-browser/remoteExtensionHostClient';
+import { Schemas } from 'vs/base/common/network';
 
 let _SystemExtensionsRoot: string = null;
 function getSystemExtensionsRoot(): string {
@@ -533,7 +534,7 @@ export class ExtensionService extends Disposable implements IExtensionService {
 		}
 		let remoteExtensionsPromise = TPromise.join(remoteExtensionsPromiseArr);
 
-		TPromise.join([remoteExtensionsPromise, this._scanLocalExtensions()]).then(([remoteExtensionsInfos, localExtensions]) => {
+		TPromise.join([remoteExtensionsPromise, this._scanExtensions()]).then(([remoteExtensionsInfos, localExtensions]) => {
 			let seenExtension: { [extensionId: string]: boolean; } = Object.create(null);
 			let allExtensions: IExtensionDescription[] = [];
 
@@ -593,7 +594,7 @@ export class ExtensionService extends Disposable implements IExtensionService {
 			});
 	}
 
-	private _scanLocalExtensions(): TPromise<IExtensionDescription[]> {
+	private _scanExtensions(): TPromise<IExtensionDescription[]> {
 		const log = new Logger((severity, source, message) => {
 			this._logOrShowMessage(severity, this._isDev ? messageWithSource(source, message) : message);
 		});
@@ -625,29 +626,31 @@ export class ExtensionService extends Disposable implements IExtensionService {
 		return this._extensionEnablementService.getDisabledExtensions()
 			.then(disabledExtensions => {
 
-				let result: { [extensionId: string]: IExtensionDescription; } = {};
-				let extensionsToDisable: IExtensionIdentifier[] = [];
-				let userMigratedSystemExtensions: IExtensionIdentifier[] = [{ id: BetterMergeId }];
+				const result: { [extensionId: string]: IExtensionDescription; } = {};
+				const extensionsToDisable: IExtensionIdentifier[] = [];
+				const userMigratedSystemExtensions: IExtensionIdentifier[] = [{ id: BetterMergeId }];
 
 				const enableProposedApiForAll = !this._environmentService.isBuilt || (!!this._environmentService.extensionDevelopmentPath && product.nameLong.indexOf('Insiders') >= 0);
 				const enableProposedApiFor: string | string[] = this._environmentService.args['enable-proposed-api'] || [];
 
 				for (const extension of allExtensions) {
+					const isExtensionUnderDevelopment = this._environmentService.isExtensionDevelopment && extension.extensionLocation.scheme === Schemas.file && extension.extensionLocation.fsPath.indexOf(this._environmentService.extensionDevelopmentPath) === 0;
 					// Do not disable extensions under development
-					if (this._environmentService.isExtensionDevelopment && extension.extensionLocation.path.indexOf(this._environmentService.extensionDevelopmentPath) === 0) {
-						continue;
-					}
-					if (disabledExtensions.every(disabled => !areSameExtensions(disabled, extension))) {
-						if (!extension.isBuiltin) {
-							// Check if the extension is changed to system extension
-							let userMigratedSystemExtension = userMigratedSystemExtensions.filter(userMigratedSystemExtension => areSameExtensions(userMigratedSystemExtension, { id: extension.id }))[0];
-							if (userMigratedSystemExtension) {
-								extensionsToDisable.push(userMigratedSystemExtension);
-								continue;
-							}
+					if (!isExtensionUnderDevelopment) {
+						if (disabledExtensions.some(disabled => areSameExtensions(disabled, extension))) {
+							continue;
 						}
-						result[extension.id] = this._updateEnableProposedApi(extension, enableProposedApiForAll, enableProposedApiFor);
 					}
+
+					if (!extension.isBuiltin) {
+						// Check if the extension is changed to system extension
+						const userMigratedSystemExtension = userMigratedSystemExtensions.filter(userMigratedSystemExtension => areSameExtensions(userMigratedSystemExtension, { id: extension.id }))[0];
+						if (userMigratedSystemExtension) {
+							extensionsToDisable.push(userMigratedSystemExtension);
+							continue;
+						}
+					}
+					result[extension.id] = this._updateEnableProposedApi(extension, enableProposedApiForAll, enableProposedApiFor);
 				}
 				const runtimeExtensions = Object.keys(result).map(name => result[name]);
 
