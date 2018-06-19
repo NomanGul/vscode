@@ -355,6 +355,9 @@ export function createApiFactory(
 			get visibleTextEditors() {
 				return extHostEditors.getVisibleTextEditors();
 			},
+			get activeTerminal() {
+				return proposedApiFunction(extension, extHostTerminalService.activeTerminal);
+			},
 			get terminals() {
 				return proposedApiFunction(extension, extHostTerminalService.terminals);
 			},
@@ -395,6 +398,9 @@ export function createApiFactory(
 			},
 			onDidOpenTerminal: proposedApiFunction(extension, (listener, thisArg?, disposables?) => {
 				return extHostTerminalService.onDidOpenTerminal(listener, thisArg, disposables);
+			}),
+			onDidChangeActiveTerminal: proposedApiFunction(extension, (listener, thisArg?, disposables?) => {
+				return extHostTerminalService.onDidChangeActiveTerminal(listener, thisArg, disposables);
 			}),
 			get state() {
 				return extHostWindow.state;
@@ -451,6 +457,9 @@ export function createApiFactory(
 				}
 				return extHostTerminalService.createTerminal(<string>nameOrOptions, shellPath, shellArgs);
 			},
+			createTerminalRenderer(name: string): vscode.TerminalRenderer {
+				return extHostTerminalService.createTerminalRenderer(name);
+			},
 			registerTreeDataProvider(viewId: string, treeDataProvider: vscode.TreeDataProvider<any>): vscode.Disposable {
 				return extHostTreeViews.registerTreeDataProvider(viewId, treeDataProvider);
 			},
@@ -470,6 +479,11 @@ export function createApiFactory(
 			registerProtocolHandler: proposedApiFunction(extension, (handler: vscode.ProtocolHandler) => {
 				return extHostUrls.registerProtocolHandler(extension.id, handler);
 			}),
+			get quickInputBackButton() {
+				return proposedApiFunction(extension, (): vscode.QuickInputButton => {
+					return extHostQuickOpen.backButton;
+				})();
+			},
 			createQuickPick: proposedApiFunction(extension, (): vscode.QuickPick => {
 				return extHostQuickOpen.createQuickPick(extension.id);
 			}),
@@ -586,8 +600,11 @@ export function createApiFactory(
 			registerWorkspaceCommentProvider: proposedApiFunction(extension, (provider: vscode.WorkspaceCommentProvider) => {
 				return exthostCommentProviders.registerWorkspaceCommentProvider(provider);
 			}),
-			onDidRenameResource: proposedApiFunction(extension, (listener, thisArg?, disposables?) => {
-				return extHostDocuments.onDidRenameResource(listener, thisArg, disposables);
+			onDidRenameFile: proposedApiFunction(extension, (listener, thisArg?, disposables?) => {
+				return extHostFileSystemEvent.onDidRenameFile(listener, thisArg, disposables);
+			}),
+			onWillRenameFile: proposedApiFunction(extension, (listener, thisArg?, disposables?) => {
+				return extHostFileSystemEvent.onWillRenameFile(listener, thisArg, disposables);
 			})
 		};
 
