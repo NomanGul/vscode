@@ -60,7 +60,7 @@ import { LogLevelSetterChannel } from 'vs/platform/log/common/logIpc';
 import * as errors from 'vs/base/common/errors';
 import { ElectronURLListener } from 'vs/platform/url/electron-main/electronUrlListener';
 import { serve as serveDriver } from 'vs/platform/driver/electron-main/driver';
-import { REMOTE_EXTENSIONS_FILE_SYSTEM_CHANNEL_NAME, RemoteExtensionsFileSystemChannelClient } from 'vs/platform/remote/node/remoteFileSystemIpc';
+import { REMOTE_EXTENSIONS_FILE_SYSTEM_CHANNEL_NAME, RemoteExtensionsFileSystemChannelClient, connectToRemoteExtensionHostManagement } from 'vs/platform/remote/node/remoteFileSystemIpc';
 import { RunOnceScheduler } from 'vs/base/common/async';
 import { IMenubarService } from 'vs/platform/menubar/common/menubar';
 import { MenubarService } from 'vs/platform/menubar/electron-main/menubarService';
@@ -166,8 +166,8 @@ export class CodeApplication {
 				this._authority = authority;
 				const pieces = authority.split(':');
 				const host = pieces[0];
-				const port = parseInt(pieces[1], 10) + 1; // TODO@vs-remote
-				this._client = connect({ host, port }, `main`);
+				const port = parseInt(pieces[1], 10);
+				this._client = connectToRemoteExtensionHostManagement(host, port, `main`);
 				this._disposeRunner = new RunOnceScheduler(() => this._dispose(), 1000);
 			}
 

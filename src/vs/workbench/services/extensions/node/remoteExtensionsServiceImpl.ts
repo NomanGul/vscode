@@ -12,11 +12,12 @@ import { IRemoteExtensionsEnvironmentData, IRemoteExtensionsService, IRemoteExte
 import { ExtensionScanner, ILog, ExtensionScannerInput } from 'vs/workbench/services/extensions/node/extensionPoints';
 import { IEnvironmentService } from 'vs/platform/environment/common/environment';
 import { IWorkspaceFolder } from 'vs/platform/workspace/common/workspace';
-import { connect, Client } from 'vs/base/parts/ipc/node/ipc.net';
+import { Client } from 'vs/base/parts/ipc/node/ipc.net';
 import { getDelayedChannel, IChannel } from 'vs/base/parts/ipc/common/ipc';
 import { Disposable } from 'vs/base/common/lifecycle';
 import { createRemoteURITransformer } from 'vs/workbench/node/remoteUriTransformer';
 import { transformOutgoingURIs } from 'vs/workbench/services/extensions/node/rpcProtocol';
+import { connectToRemoteExtensionHostManagement } from 'vs/platform/remote/node/remoteFileSystemIpc';
 
 export class RemoteExtensionsService implements IRemoteExtensionsService {
 
@@ -55,7 +56,7 @@ export class RemoteExtensionsService implements IRemoteExtensionsService {
 		const hashCode = connectionInformation.getHashCode();
 		if (!this._channels.has(hashCode)) {
 			// TODO@vs-remote: dispose this connection when all remote folders pointing to the same address have been removed.
-			const result = connect({ host: connectionInformation.host, port: connectionInformation.extensionManagementPort }, `window:${this._windowId}`);
+			const result = connectToRemoteExtensionHostManagement(connectionInformation.host, connectionInformation.port, `window:${this._windowId}`);
 			this._channels.set(hashCode, result);
 		}
 		return <T>getDelayedChannel(this._channels.get(hashCode).then(c => c.getChannel(channelName)));
@@ -64,13 +65,12 @@ export class RemoteExtensionsService implements IRemoteExtensionsService {
 	private _parseRemoteConnectionInformation(folder: IWorkspaceFolder): IRemoteConnectionInformation {
 		if (folder.uri.scheme === 'vscode-remote') {
 			let [host, strPort] = folder.uri.authority.split(':');
-			let extensionHostPort = strPort ? parseInt(strPort, 10) : NaN;
-			if (host && !isNaN(extensionHostPort)) {
+			let port = strPort ? parseInt(strPort, 10) : NaN;
+			if (host && !isNaN(port)) {
 				return {
 					host: host,
-					extensionHostPort,
-					extensionManagementPort: extensionHostPort + 1,
-					getHashCode: () => host + extensionHostPort
+					port,
+					getHashCode: () => host + port
 				};
 			}
 		}

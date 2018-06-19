@@ -11,8 +11,8 @@ import { IWorkspaceContextService, WorkbenchState } from 'vs/platform/workspace/
 import { ITelemetryService } from 'vs/platform/telemetry/common/telemetry';
 import { IEnvironmentService } from 'vs/platform/environment/common/environment';
 import { IMessagePassingProtocol } from 'vs/base/parts/ipc/common/ipc';
-import { Protocol } from 'vs/base/parts/ipc/node/ipc.net';
-import { Socket, createConnection } from 'net';
+import { connectToRemoteExtensionHostServer } from 'vs/platform/remote/node/remoteFileSystemIpc';
+import * as net from 'net';
 import { Event, Emitter } from 'vs/base/common/event';
 import { IInitData, IWorkspaceData, IConfigurationInitData } from 'vs/workbench/api/node/extHost.protocol';
 import { IWorkspaceConfigurationService } from 'vs/workbench/services/configuration/common/configuration';
@@ -31,7 +31,7 @@ export class RemoteExtensionHostClient implements IExtensionHostStarter {
 	private _onCrashed: Emitter<[number, string]> = new Emitter<[number, string]>();
 	public readonly onCrashed: Event<[number, string]> = this._onCrashed.event;
 
-	private _connection: Socket;
+	private _connection: net.Socket;
 	private _protocol: IMessagePassingProtocol;
 
 	constructor(
@@ -49,31 +49,8 @@ export class RemoteExtensionHostClient implements IExtensionHostStarter {
 	}
 
 	public start(): TPromise<IMessagePassingProtocol> {
-		return new TPromise<IMessagePassingProtocol>((resolve, reject) => {
-
-			const socket = createConnection({
-				host: this._initDataProvider.connectionInformation.host,
-				port: this._initDataProvider.connectionInformation.extensionHostPort
-			}, () => {
-				socket.removeListener('error', reject);
-				this._connection = socket;
-				// The azure container connects to ports any n seconds without sending
-				// data. To be able to distinguish this from a real connect we send an
-				// initial hand shake in 'utf8' encoding with a lenght header in `ascii`.
-				// Length and data are separated using ':'
-				let initMessage = JSON.stringify({
-					command: 'startExtensionHost'
-				});
-				let length = Buffer.byteLength(initMessage, 'utf8');
-				this._connection.write(`${length}:`, 'ascii', () => {
-					this._connection.write(initMessage, 'utf8', () => {
-						resolve(new Protocol(socket));
-					});
-				});
-			});
-			socket.once('error', reject);
-
-		}).then((protocol) => {
+		const info = this._initDataProvider.connectionInformation;
+		return connectToRemoteExtensionHostServer(info.host, info.port).then((protocol) => {
 
 			// 1) wait for the incoming `ready` event and send the initialization data.
 			// 2) wait for the incoming `initialized` event.
@@ -134,7 +111,7 @@ export class RemoteExtensionHostClient implements IExtensionHostStarter {
 				logsPath: remoteExtensionHostData.agentLogsPath,
 				remoteOptions: {
 					host: this._initDataProvider.connectionInformation.host,
-					port: this._initDataProvider.connectionInformation.extensionHostPort
+					port: this._initDataProvider.connectionInformation.port
 				}
 			};
 			return r;

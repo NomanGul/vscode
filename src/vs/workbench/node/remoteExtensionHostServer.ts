@@ -13,140 +13,7 @@ import URI from 'vs/base/common/uri';
 import { fromNodeEventEmitter } from 'vs/base/common/event';
 import { IRemoteConsoleLog } from 'vs/base/node/console';
 
-const DefaultSize = 2048;
-const Colon = new Buffer(':', 'ascii')[0];
-
-class MessageBuffer {
-
-	private encoding: string;
-	private index: number;
-	private buffer: Buffer;
-
-	constructor(encoding: string = 'utf8') {
-		this.encoding = encoding;
-		this.index = 0;
-		this.buffer = new Buffer(DefaultSize);
-	}
-
-	public append(chunk: Buffer | string): void {
-		var toAppend: Buffer = <Buffer>chunk;
-		if (typeof chunk === 'string') {
-			var str = chunk;
-			var bufferLen = Buffer.byteLength(str, this.encoding);
-			toAppend = new Buffer(bufferLen);
-			toAppend.write(str, 0, bufferLen, this.encoding);
-		}
-		if (this.buffer.length - this.index >= toAppend.length) {
-			toAppend.copy(this.buffer, this.index, 0, toAppend.length);
-		} else {
-			var newSize = (Math.ceil((this.index + toAppend.length) / DefaultSize) + 1) * DefaultSize;
-			if (this.index === 0) {
-				this.buffer = new Buffer(newSize);
-				toAppend.copy(this.buffer, 0, 0, toAppend.length);
-			} else {
-				this.buffer = Buffer.concat([this.buffer.slice(0, this.index), toAppend], newSize);
-			}
-		}
-		this.index += toAppend.length;
-	}
-
-	public tryReadLength(): number | undefined {
-		let result: number | undefined = undefined;
-		let current = 0;
-		while (current < this.index && (this.buffer[current] !== Colon)) {
-			current++;
-		}
-		// No : found
-		if (current >= this.index) {
-			return result;
-		}
-		result = Number(this.buffer.toString('ascii', 0, current));
-
-		// Skip ':'
-		let nextStart = current + 1;
-		this.buffer = this.buffer.slice(nextStart);
-		this.index = this.index - nextStart;
-		return result;
-	}
-
-	public tryReadContent(length: number): string | undefined {
-		if (this.index < length) {
-			return undefined;
-		}
-		let result = this.buffer.toString(this.encoding, 0, length);
-		let nextStart = length;
-		this.buffer.copy(this.buffer, 0, nextStart);
-		this.index = this.index - nextStart;
-		return result;
-	}
-
-	public get numberOfBytes(): number {
-		return this.index;
-	}
-
-	public get rest(): Buffer {
-		return this.buffer;
-	}
-}
-
-export class RemoteExtensionHostServer {
-
-	start(port: number): TPromise<void> {
-		return new TPromise((c, e) => {
-			const extHostServer = net.createServer((connection) => {
-				let buffer = new MessageBuffer('utf8');
-				let length: number | undefined = undefined;
-				const listener = (data) => {
-					buffer.append(data);
-					if (length === void 0) {
-						length = buffer.tryReadLength();
-						if (length !== void 0) {
-							console.log(`Command length found: ${length}`);
-						} else {
-							console.log(`Still waiting for length header`);
-						}
-					}
-					if (length !== void 0) {
-						let message = buffer.tryReadContent(length);
-						if (message !== void 0) {
-							console.log(`Message found: ${message} with pending data: ${buffer.numberOfBytes}`);
-							try {
-								let json = JSON.parse(message);
-								if (json.command === 'startExtensionHost') {
-									console.log('Received extension host start command');
-									connection.removeListener('data', listener);
-									const con = new ExtensionHostConnection(connection, buffer.numberOfBytes > 0 ? buffer.rest : undefined);
-									con.start();
-									buffer = undefined;
-									length = undefined;
-								}
-							} catch (error) {
-								console.error('Error parsing message');
-								console.error(error);
-							}
-						} else {
-							console.log(`Still waiting for message`);
-						}
-					}
-				};
-				connection.on('data', listener);
-			});
-			extHostServer.on('error', (err) => {
-				console.error('Extension host server received error');
-				if (err) {
-					console.error(err);
-				}
-			});
-			extHostServer.listen(port, () => {
-				console.log(`Extension Host Server listening on ${port}`);
-				c(null);
-			});
-		});
-	}
-}
-
-
-class ExtensionHostConnection {
+export class ExtensionHostConnection {
 
 	static debugPort = 5870; // bumped for every extension host
 
@@ -257,7 +124,7 @@ class ExtensionHostConnection {
 		}).done(() => {
 			console.log(`extension host connected to me!!!`);
 
-			if (this._firstDataChunk) {
+			if (this._firstDataChunk && this._firstDataChunk.length > 0) {
 				this._extensionHostConnection.write(this._firstDataChunk);
 			}
 			this._extensionHostConnection.pipe(this._rendererConnection);

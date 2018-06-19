@@ -65,7 +65,7 @@ export class ExtensionManagementServerService extends Disposable implements IExt
 	private updateServers(): void {
 		this._extensionManagementServers = [this._localExtensionManagemetServer];
 		for (const remoteWorkspaceFolderConnection of this.remoteExtensionsService.getRemoteWorkspaceFolderConnections(this.workspaceService.getWorkspace().folders)) {
-			const location = URI.from({ scheme: 'vscode-remote', authority: `${remoteWorkspaceFolderConnection.connectionInformation.host}:${remoteWorkspaceFolderConnection.connectionInformation.extensionHostPort}` });
+			const location = URI.from({ scheme: 'vscode-remote', authority: `${remoteWorkspaceFolderConnection.connectionInformation.host}:${remoteWorkspaceFolderConnection.connectionInformation.port}` });
 			const extensionManagementService = new ExtensionManagementChannelClient(remoteWorkspaceFolderConnection.getChannel<IExtensionManagementChannel>('extensions'), createRemoteUriTransformer(location.authority));
 			this._extensionManagementServers.push({ location, extensionManagementService });
 		}

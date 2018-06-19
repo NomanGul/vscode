@@ -13,8 +13,7 @@ export const IRemoteExtensionsService = createDecorator<IRemoteExtensionsService
 
 export interface IRemoteConnectionInformation {
 	host: string;
-	extensionHostPort: number;
-	extensionManagementPort: number;
+	port: number;
 
 	getHashCode(): string;
 }

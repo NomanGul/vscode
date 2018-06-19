@@ -6,10 +6,14 @@
 'use strict';
 
 import { TPromise } from 'vs/base/common/winjs.base';
-import { IChannel } from 'vs/base/parts/ipc/common/ipc';
+import { IChannel, IMessagePassingProtocol } from 'vs/base/parts/ipc/common/ipc';
 import URI from 'vs/base/common/uri';
 import * as pfs from 'vs/base/node/pfs';
+import * as net from 'net';
+import { Client, Protocol } from 'vs/base/parts/ipc/node/ipc.net';
 
+export const REMOTE_SOCKET_HANDSHAKE_MANAGEMENT = 1;
+export const REMOTE_SOCKET_HANDSHAKE_EXT_HOST = 2;
 export const REMOTE_EXTENSIONS_FILE_SYSTEM_CHANNEL_NAME = 'remoteextensionsfilesystem';
 
 export interface IRemoteExtensionsFileSystem {
@@ -51,4 +55,32 @@ export class RemoteExtensionsFileSystemChannelClient implements IRemoteExtension
 		return this.channel.call('getFile', path);
 	}
 
+}
+
+export function connectToRemoteExtensionHostManagement(host: string, port: number, clientId: string): TPromise<Client> {
+	return new TPromise<Client>((c, e) => {
+		const socket = net.createConnection({ host: host, port: port }, () => {
+			socket.removeListener('error', e);
+			const chunk = new Buffer(1);
+			chunk[0] = REMOTE_SOCKET_HANDSHAKE_MANAGEMENT;
+			socket.write(chunk);
+			c(new Client(socket, clientId));
+		});
+		socket.once('error', e);
+	});
+}
+
+export function connectToRemoteExtensionHostServer(host: string, port: number): TPromise<IMessagePassingProtocol> {
+	return new TPromise<IMessagePassingProtocol>((resolve, reject) => {
+		const socket = net.createConnection({ host, port }, () => {
+			socket.removeListener('error', reject);
+
+			const chunk = new Buffer(1);
+			chunk[0] = REMOTE_SOCKET_HANDSHAKE_EXT_HOST;
+			socket.write(chunk);
+
+			resolve(new Protocol(socket));
+		});
+		socket.once('error', reject);
+	});
 }
