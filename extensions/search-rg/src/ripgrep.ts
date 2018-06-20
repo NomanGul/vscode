@@ -5,6 +5,6 @@
 
 'use strict';
 
-import { rgPath } from 'vscode-ripgrep';
+import { rgPath } from 'vscode-ripgrep-dynamic';
 
 export { rgPath };
