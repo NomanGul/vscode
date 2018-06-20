@@ -2,8 +2,9 @@
  *  Copyright (c) Microsoft Corporation. All rights reserved.
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
-
 'use strict';
+
+import * as cp from 'child_process';
 
 import { app, ipcMain as ipc, protocol } from 'electron';
 import * as platform from 'vs/base/common/platform';
@@ -79,6 +80,8 @@ export class CodeApplication {
 
 	private sharedProcess: SharedProcess;
 	private sharedProcessClient: TPromise<Client>;
+
+	private wslExtensionHost: TPromise<void>;
 
 	constructor(
 		private mainIpcServer: Server,
@@ -345,6 +348,12 @@ export class CodeApplication {
 
 			// Services
 			const appInstantiationService = this.initServices(machineId);
+			appInstantiationService.invokeFunction(accessor => {
+				const launchService = accessor.get(ILaunchService);
+				launchService.setRemoteSupport(() => {
+					return appInstantiationService.invokeFunction(accessor => this.startWslExtensionHost(accessor.get(IEnvironmentService)));
+				});
+			});
 
 			let promise: TPromise<any> = TPromise.as(null);
 
@@ -362,11 +371,27 @@ export class CodeApplication {
 				const authHandler = appInstantiationService.createInstance(ProxyAuthHandler);
 				this.toDispose.push(authHandler);
 
-				// Open Windows
-				appInstantiationService.invokeFunction(accessor => this.openFirstWindow(accessor));
+				// Check to start WSL support
+				appInstantiationService.invokeFunction((accessor) => {
+					let environmentService = accessor.get(IEnvironmentService);
+					let p: TPromise<void>;
+					if (environmentService.wsl) {
+						p = this.startWslExtensionHost(environmentService);
+					} else {
+						p = TPromise.as(undefined);
+					}
+					p.then(undefined, (err: Error) => {
+						this.logService.error(`Unable to start WSL remote extension host agent:\n${err.message}`);
+						return undefined;
+					}).done(() => {
+						// Open Windows
+						appInstantiationService.invokeFunction(accessor => this.openFirstWindow(accessor));
 
-				// Post Open Windows Tasks
-				appInstantiationService.invokeFunction(accessor => this.afterWindowOpen(accessor));
+						// Post Open Windows Tasks
+						appInstantiationService.invokeFunction(accessor => this.afterWindowOpen(accessor));
+					});
+				});
+
 			});
 		});
 	}
@@ -570,5 +595,44 @@ export class CodeApplication {
 
 	private dispose(): void {
 		this.toDispose = dispose(this.toDispose);
+	}
+
+	private startWslExtensionHost(environmentService: IEnvironmentService): TPromise<void> {
+		if (!platform.isWindows) {
+			return TPromise.as(undefined);
+		}
+		// We have on running.
+		if (this.wslExtensionHost !== void 0) {
+			this.logService.debug('Remote extension host inside WSL is already running');
+			return this.wslExtensionHost;
+		}
+		this.logService.debug('Starting remote extension agent inside WSL');
+		this.wslExtensionHost = new TPromise<void>((resolve, reject) => {
+			let script: string = environmentService.isBuilt
+				? URI.parse(require.toUrl('./wslAgent.sh')).fsPath
+				: URI.parse(require.toUrl('./wslAgent-dev.sh')).fsPath;
+			cp.execFile('wsl', ['wslpath', '-a', script.replace(/\\/g, '\\\\')], { encoding: 'utf8' }, (error, stdout, stderr) => {
+				if (error || (stderr && stderr.length > 0)) {
+					reject(error || new Error(stderr));
+				}
+				let wslScript = stdout;
+				let extHostProcess = cp.spawn('C:\\Windows\\System32\\bash.exe', ['-i', '-c', wslScript], { cwd: process.cwd() });
+				if (extHostProcess.pid === void 0) {
+					reject(new Error('WSL remote extension host agent couldn\'t be started'));
+				} else {
+					extHostProcess.stdout.on('data', (data) => process.stdout.write(data));
+					extHostProcess.stderr.on('data', (data) => process.stderr.write(data));
+					extHostProcess.on('error', (error) => {
+						this.logService.debug(`Starting WSL extension host agent failed with\n:${error.message}`);
+						console.log('Agent: Errored');
+					});
+					extHostProcess.on('close', (code) => {
+						console.log('Agent: Closed: ' + code);
+					});
+					resolve(undefined);
+				}
+			});
+		});
+		return this.wslExtensionHost;
 	}
 }

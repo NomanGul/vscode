@@ -64,7 +64,8 @@ const options: minimist.Opts = {
 		'status',
 		'file-write',
 		'file-chmod',
-		'driver-verbose'
+		'driver-verbose',
+		'wsl'
 	],
 	alias: {
 		add: 'a',
