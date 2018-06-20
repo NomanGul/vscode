@@ -5100,6 +5100,10 @@ declare namespace monaco.languages {
 	export interface ResourceFileEdit {
 		oldUri: Uri;
 		newUri: Uri;
+		options: {
+			overwrite?: boolean;
+			ignoreIfExists?: boolean;
+		};
 	}
 
 	export interface ResourceTextEdit {

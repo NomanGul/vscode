@@ -391,6 +391,10 @@ export interface TransferQuickPick extends BaseTransferQuickInput {
 
 	items?: TransferQuickPickItems[];
 
+	activeItems?: number[];
+
+	selectedItems?: number[];
+
 	canSelectMany?: boolean;
 
 	ignoreFocusOut?: boolean;
@@ -773,6 +777,7 @@ export interface WorkspaceSymbolsDto extends IdObject {
 export interface ResourceFileEditDto {
 	oldUri: UriComponents;
 	newUri: UriComponents;
+	options: { overwrite?: boolean, ignoreIfExists?: boolean };
 }
 
 export interface ResourceTextEditDto {

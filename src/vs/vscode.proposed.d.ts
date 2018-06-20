@@ -525,14 +525,8 @@ declare module 'vscode' {
 
 		export const quickInputBackButton: QuickInputButton;
 
-		/**
-		 * Implementation incomplete. See #49340.
-		 */
 		export function createQuickPick(): QuickPick;
 
-		/**
-		 * Implementation incomplete. See #49340.
-		 */
 		export function createInputBox(): InputBox;
 	}
 
@@ -581,11 +575,11 @@ declare module 'vscode' {
 
 		matchOnDetail: boolean;
 
-		readonly activeItems: ReadonlyArray<QuickPickItem>;
+		activeItems: ReadonlyArray<QuickPickItem>;
 
 		readonly onDidChangeActive: Event<QuickPickItem[]>;
 
-		readonly selectedItems: ReadonlyArray<QuickPickItem>;
+		selectedItems: ReadonlyArray<QuickPickItem>;
 
 		readonly onDidChangeSelection: Event<QuickPickItem[]>;
 	}
@@ -621,9 +615,34 @@ declare module 'vscode' {
 	//#region joh: https://github.com/Microsoft/vscode/issues/10659
 
 	export interface WorkspaceEdit {
-		createFile(uri: Uri): void;
+
+		/**
+		 * Create a regular file.
+		 *
+		 * @param uri Uri of the new file..
+		 * @param options Defines if an existing file should be overwritten or be ignored.
+		 */
+		createFile(uri: Uri, options?: { overwrite?: boolean, ignoreIfExists?: boolean }): void;
+
+		/**
+		 * Delete a file or folder.
+		 *
+		 * @param uri The uri of the file that is to be deleted.
+		 */
 		deleteFile(uri: Uri): void;
-		renameFile(oldUri: Uri, newUri: Uri): void;
+
+		/**
+		 * Rename a file or folder.
+		 *
+		 * @param oldUri The existing file.
+		 * @param newUri The new location.
+		 * @param options Defines if existing files should be overwritten.
+		 */
+		renameFile(oldUri: Uri, newUri: Uri, options?: { overwrite?: boolean }): void;
+
+		// replaceText(uri: Uri, range: Range, newText: string): void;
+		// insertText(uri: Uri, position: Position, newText: string): void;
+		// deleteText(uri: Uri, range: Range): void;
 	}
 
 	//#endregion
@@ -650,6 +669,33 @@ declare module 'vscode' {
 
 	/**
 	 * Restore webview panels that have been persisted when vscode shuts down.
+	 *
+	 * There are two types of webview persistence:
+	 *
+	 * - Persistence within a session.
+	 * - Persistence across sessions (across restarts of VS Code).
+	 *
+	 * A `WebviewPanelSerializer` is only required for the second case: persisting a webview across sessions.
+	 *
+	 * Persistence within a session allows a webview to save its state when it becomes hidden
+	 * and restore its content from this state when it becomes visible again. It is powered entirely
+	 * by the webview content itself. To save off a persisted state, call `acquireVsCodeApi().setState()` with
+	 * any json serializable object. To restore the state again, call `getState()`
+	 *
+	 * ```js
+	 * // Within the webview
+	 * const vscode = acquireVsCodeApi();
+	 *
+	 * // Get existing state
+	 * const oldState = vscode.getState() || { value: 0 };
+	 *
+	 * // Update state
+	 * setState({ value: oldState.value + 1 })
+	 * ```
+	 *
+	 * A `WebviewPanelSerializer` extends this persistence across restarts of VS Code. When the editor is shutdown, VS Code will save off the state from `setState` of all webviews that have a serializer. When the
+	 * webview first becomes visible after the restart, this state is passed to `deserializeWebviewPanel`.
+	 * The extension can then restore the old `WebviewPanel` from this state.
 	 */
 	interface WebviewPanelSerializer {
 		/**
