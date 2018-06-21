@@ -69,6 +69,7 @@ const vscodeResources = [
 	'out-build/bootstrap.js',
 	'out-build/bootstrap-amd.js',
 	'out-build/paths.js',
+	'out-build/remoteExtensionHostAgent.js',
 	'out-build/vs/**/*.{svg,png,cur,html}',
 	'out-build/vs/base/common/performance.js',
 	'out-build/vs/base/node/{stdForkStart.js,terminateProcess.sh, cpuUsage.sh}',
@@ -87,6 +88,8 @@ const vscodeResources = [
 	'out-build/vs/code/electron-browser/sharedProcess/sharedProcess.js',
 	'out-build/vs/code/electron-browser/issue/issueReporter.js',
 	'out-build/vs/code/electron-browser/processExplorer/processExplorer.js',
+	'out-build/vs/code/electron-main/wslAgent.sh',
+	'out-build/vs/code/electron-main/wslAgent-dev.sh',
 	'!**/test/**'
 ];
 
