@@ -72,7 +72,7 @@ export class ExtensionManagementServerService extends Disposable implements IExt
 	}
 
 	getDefaultExtensionManagementServer(): IExtensionManagementServer {
-		return this.extensionManagementServers[0];
+		return this._localExtensionManagemetServer;
 	}
 }
 
