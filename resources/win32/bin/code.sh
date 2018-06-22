@@ -10,13 +10,15 @@ VSCODE_REMOTE="$HOME/.vscode-remote"
 WSL=""
 if grep -q Microsoft /proc/version; then
 	if [ -x /bin/wslpath ]; then
-		echo "Checking WSL dependencies"
-		echo "-------------------------"
-		mkdir -p $VSCODE_REMOTE
-		cp $VSCODE_PATH/resources/app/remote/package.json $VSCODE_REMOTE
-		pushd $VSCODE_REMOTE > /dev/null
-		npm --silent install
-		popd > /dev/null
+		if [ ! -d $VSCODE_REMOTE/node_modules ]; then
+			echo "Checking WSL dependencies"
+			echo "-------------------------"
+			mkdir -p $VSCODE_REMOTE
+			cp $VSCODE_PATH/resources/app/remote/package.json $VSCODE_REMOTE
+			pushd $VSCODE_REMOTE > /dev/null
+			npm --silent install
+			popd > /dev/null
+		fi
 		# On recent WSL builds, we just need to set WSLENV so that
 		# ELECTRON_RUN_AS_NODE is visible to the win32 process
 		WSL="--wsl"
