@@ -72,7 +72,9 @@ class ExtensionHostAgentServer {
 		});
 		server.on('connection', (socket) => this.handleConnection(socket));
 		server.listen(port, () => {
-			console.log(`Server listening on ${port}`);
+			// Do not change this line. VS Code looks for this in
+			// the output.
+			console.log(`Extension host agent listening on ${port}`);
 		});
 	}
 

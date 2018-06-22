@@ -603,10 +603,10 @@ export class CodeApplication {
 		}
 		// We have on running.
 		if (this.wslExtensionHost !== void 0) {
-			this.logService.debug('Remote extension host inside WSL is already running');
+			this.logService.info('Remote extension host inside WSL is already running');
 			return this.wslExtensionHost;
 		}
-		this.logService.debug('Starting remote extension agent inside WSL');
+		this.logService.info('Starting remote extension agent inside WSL');
 		this.wslExtensionHost = new TPromise<void>((resolve, reject) => {
 			let script: string = environmentService.isBuilt
 				? URI.parse(require.toUrl('./wslAgent.sh')).fsPath
@@ -620,16 +620,34 @@ export class CodeApplication {
 				if (extHostProcess.pid === void 0) {
 					reject(new Error('WSL remote extension host agent couldn\'t be started'));
 				} else {
-					extHostProcess.stdout.on('data', (data) => process.stdout.write(data));
-					extHostProcess.stderr.on('data', (data) => process.stderr.write(data));
-					extHostProcess.on('error', (error) => {
-						this.logService.debug(`Starting WSL extension host agent failed with\n:${error.message}`);
-						console.log('Agent: Errored');
+					let connectPromise = new TPromise<void>((resolve, reject) => {
+						let stdout: string = '';
+						extHostProcess.stdout.on('data', (data) => {
+							process.stdout.write(data);
+							if (stdout !== void 0) {
+								stdout = stdout + data.toString();
+								if (stdout.indexOf('Extension host agent listening on') !== -1) {
+									this.logService.info('Extension host agent is ready');
+									stdout = undefined;
+									resolve(undefined);
+								}
+							}
+						});
+						extHostProcess.stderr.on('data', (data) => {
+							process.stderr.write(data);
+						});
+						extHostProcess.on('error', (error) => {
+							this.logService.info(`Starting WSL extension host agent failed with\n:${error.message}`);
+							console.log('Agent: Errored');
+						});
+						extHostProcess.on('close', (code) => {
+							console.log('Agent: Closed: ' + code);
+						});
 					});
-					extHostProcess.on('close', (code) => {
-						console.log('Agent: Closed: ' + code);
+					// Wait max 3 seconds for the agent to start
+					TPromise.any([connectPromise, TPromise.timeout(3000)]).done(() => {
+						resolve(undefined);
 					});
-					resolve(undefined);
 				}
 			});
 		});

@@ -90,6 +90,7 @@ const vscodeResources = [
 	'out-build/vs/code/electron-browser/processExplorer/processExplorer.js',
 	'out-build/vs/code/electron-main/wslAgent.sh',
 	'out-build/vs/code/electron-main/wslAgent-dev.sh',
+	'remote/package.json',
 	'!**/test/**'
 ];
 
@@ -265,7 +266,7 @@ function packageTask(platform, arch, opts) {
 		}
 
 		const name = product.nameShort;
-		const packageJsonStream = gulp.src(['package.json'], { base: '.' })
+		const packageJsonStream = gulp.src(['package.json', 'remote/package.json'], { base: '.' })
 			.pipe(json({ name, version }));
 
 		const settingsSearchBuildId = getSettingsSearchBuildId(packageJson);
