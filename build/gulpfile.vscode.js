@@ -266,8 +266,10 @@ function packageTask(platform, arch, opts) {
 		}
 
 		const name = product.nameShort;
-		const packageJsonStream = gulp.src(['package.json', 'remote/package.json'], { base: '.' })
+		const packageJsonStream = gulp.src(['package.json'], { base: '.' })
 			.pipe(json({ name, version }));
+
+		const remotePackageJsonStream = gulp.src(['remote/package.json'], { base: '.' });
 
 		const settingsSearchBuildId = getSettingsSearchBuildId(packageJson);
 		const date = new Date().toISOString();
@@ -307,6 +309,7 @@ function packageTask(platform, arch, opts) {
 
 		let all = es.merge(
 			packageJsonStream,
+			remotePackageJsonStream,
 			productJsonStream,
 			license,
 			watermark,
