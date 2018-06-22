@@ -6,10 +6,12 @@
 NAME="@@NAME@@"
 VSCODE_PATH="$(dirname "$(dirname "$(realpath "$0")")")"
 ELECTRON="$VSCODE_PATH/$NAME.exe"
+WSL=""
 if grep -q Microsoft /proc/version; then
 	if [ -x /bin/wslpath ]; then
 		# On recent WSL builds, we just need to set WSLENV so that
 		# ELECTRON_RUN_AS_NODE is visible to the win32 process
+		WSL="--wsl"
 		export WSLENV=ELECTRON_RUN_AS_NODE/w:$WSLENV
 		CLI=$(wslpath -m "$VSCODE_PATH/resources/app/out/cli.js")
 	else
@@ -25,5 +27,5 @@ elif [ "$(expr substr $(uname -s) 1 9)" == "CYGWIN_NT" ]; then
 else
 	CLI="$VSCODE_PATH/resources/app/out/cli.js"
 fi
-ELECTRON_RUN_AS_NODE=1 "$ELECTRON" "$CLI" "$@"
+ELECTRON_RUN_AS_NODE=1 "$ELECTRON" "$CLI" "$WSL" "$@"
 exit $?
