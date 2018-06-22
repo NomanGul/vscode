@@ -17,6 +17,10 @@ export class ExtensionHostConnection {
 
 	static debugPort = 5870; // bumped for every extension host
 
+	private _rendererConnection: net.Socket;
+	private _initialDataChunks: Buffer[];
+	private _initialRendererConnectionListener: (data: Buffer) => void;
+
 	private _namedPipeServer: net.Server;
 	private _extensionHostProcess: cp.ChildProcess;
 	private _extensionHostConnection: net.Socket;
@@ -24,13 +28,21 @@ export class ExtensionHostConnection {
 	private _rendererClosed: boolean;
 	private _resourcesCleaned: boolean;
 
-	constructor(private _rendererConnection: net.Socket, private _firstDataChunk: Buffer) {
+	constructor(rendererConnection: net.Socket, firstDataChunk: Buffer) {
+		this._rendererConnection = rendererConnection;
+		this._initialDataChunks = [];
+		if (firstDataChunk && firstDataChunk.length > 0) {
+			this._initialDataChunks.push(firstDataChunk);
+		}
+		this._initialRendererConnectionListener = (data: Buffer) => this._initialDataChunks.push(data);
+
 		this._namedPipeServer = null;
 		this._extensionHostProcess = null;
 		this._extensionHostConnection = null;
 		this._rendererClosed = false;
 		this._resourcesCleaned = false;
 
+		this._rendererConnection.on('data', this._initialRendererConnectionListener);
 		this._rendererConnection.on('error', (error) => {
 			console.error('Renderer connection recevied error');
 			if (error) {
@@ -124,8 +136,9 @@ export class ExtensionHostConnection {
 		}).done(() => {
 			console.log(`extension host connected to me!!!`);
 
-			if (this._firstDataChunk && this._firstDataChunk.length > 0) {
-				this._extensionHostConnection.write(this._firstDataChunk);
+			this._rendererConnection.removeListener('data', this._initialRendererConnectionListener);
+			for (let i = 0, len = this._initialDataChunks.length; i < len; i++) {
+				this._extensionHostConnection.write(this._initialDataChunks[i]);
 			}
 			this._extensionHostConnection.pipe(this._rendererConnection);
 			this._rendererConnection.pipe(this._extensionHostConnection);
