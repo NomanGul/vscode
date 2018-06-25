@@ -35,7 +35,7 @@ import { ILogService, NullLogService } from 'vs/platform/log/common/log';
 import { IWindowService } from 'vs/platform/windows/common/windows';
 import { URLService } from 'vs/platform/url/common/urlService';
 import URI from 'vs/base/common/uri';
-import { ExtensionManagementServerService } from 'vs/workbench/services/extensions/node/extensionManagementServerService';
+import { ExtensionManagementServerService, SingleServerExtensionManagementServerService } from 'vs/workbench/services/extensions/node/extensionManagementServerService';
 
 suite('ExtensionsActions Test', () => {
 
@@ -70,7 +70,7 @@ suite('ExtensionsActions Test', () => {
 		instantiationService.stub(IExtensionManagementService, 'onUninstallExtension', uninstallEvent.event);
 		instantiationService.stub(IExtensionManagementService, 'onDidUninstallExtension', didUninstallEvent.event);
 
-		instantiationService.stub(IExtensionManagementServerService, instantiationService.createInstance(ExtensionManagementServerService, instantiationService.get(IExtensionManagementService)));
+		instantiationService.stub(IExtensionManagementServerService, instantiationService.createInstance(SingleServerExtensionManagementServerService, instantiationService.get(IExtensionManagementService)));
 
 		instantiationService.stub(IExtensionEnablementService, new TestExtensionEnablementService(instantiationService));
 
