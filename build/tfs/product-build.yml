@@ -41,6 +41,7 @@ phases:
 
   - powershell: |
       $ErrorActionPreference = "Stop"
+      $env:VSCODE_MIXIN_PASSWORD="$(VSCODE_MIXIN_PASSWORD)"
       npm run gulp -- "electron-$(VSCODE_ARCH)"
       .\scripts\test.bat --build --tfs "Unit Tests"
       # yarn smoketest -- --build "$(agent.builddirectory)\VSCode-win32-$(VSCODE_ARCH)"
