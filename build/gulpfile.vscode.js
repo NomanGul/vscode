@@ -271,7 +271,7 @@ function packageTask(platform, arch, opts) {
 
 		const remotePackageJsonStream = gulp.src(['remote/package.json'], { base: '.' });
 
-		const settingsSearchBuildId = getSettingsSearchBuildId(packageJson);
+		const settingsSearchBuildId = (quality === 'stable' || quality === 'insider') ? getSettingsSearchBuildId(packageJson) : '';
 		const date = new Date().toISOString();
 		const productJsonStream = gulp.src(['product.json'], { base: '.' })
 			.pipe(json({ commit, date, checksums, settingsSearchBuildId }));
