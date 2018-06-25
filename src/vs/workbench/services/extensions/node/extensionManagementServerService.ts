@@ -74,10 +74,6 @@ export class ExtensionManagementServerService extends Disposable implements IExt
 	getDefaultExtensionManagementServer(): IExtensionManagementServer {
 		return this._localExtensionManagemetServer;
 	}
-
-	getDefaultExtensionManagementServer(): IExtensionManagementServer {
-		return this.extensionManagementServers[0];
-	}
 }
 
 export class SingleServerExtensionManagementServerService implements IExtensionManagementServerService {
