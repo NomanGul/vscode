@@ -227,7 +227,7 @@ export interface MainThreadTextEditorsShape extends IDisposable {
 export interface MainThreadTreeViewsShape extends IDisposable {
 	$registerTreeViewDataProvider(treeViewId: string): void;
 	$refresh(treeViewId: string, itemsToRefresh?: { [treeItemHandle: string]: ITreeItem }): TPromise<void>;
-	$reveal(treeViewId: string, treeItem: ITreeItem, parentChain: ITreeItem[], options?: { select?: boolean }): TPromise<void>;
+	$reveal(treeViewId: string, treeItem: ITreeItem, parentChain: ITreeItem[], options: { select: boolean, focus: boolean }): TPromise<void>;
 }
 
 export interface MainThreadErrorsShape extends IDisposable {
@@ -677,6 +677,7 @@ export interface ExtHostTreeViewsShape {
 	$getChildren(treeViewId: string, treeItemHandle?: string): TPromise<ITreeItem[]>;
 	$setExpanded(treeViewId: string, treeItemHandle: string, expanded: boolean): void;
 	$setSelection(treeViewId: string, treeItemHandles: string[]): void;
+	$setVisible(treeViewId: string, visible: boolean): void;
 }
 
 export interface ExtHostWorkspaceShape {
@@ -763,6 +764,13 @@ export interface LocationDto {
 	range: IRange;
 }
 
+export interface DefinitionLinkDto {
+	origin?: IRange;
+	uri: UriComponents;
+	range: IRange;
+	selectionRange?: IRange;
+}
+
 export interface WorkspaceSymbolDto extends IdObject {
 	name: string;
 	containerName?: string;
@@ -819,7 +827,7 @@ export interface ExtHostLanguageFeaturesShape {
 	$provideDocumentSymbols(handle: number, resource: UriComponents): TPromise<modes.DocumentSymbol[]>;
 	$provideCodeLenses(handle: number, resource: UriComponents): TPromise<modes.ICodeLensSymbol[]>;
 	$resolveCodeLens(handle: number, resource: UriComponents, symbol: modes.ICodeLensSymbol): TPromise<modes.ICodeLensSymbol>;
-	$provideDefinition(handle: number, resource: UriComponents, position: IPosition): TPromise<LocationDto | LocationDto[]>;
+	$provideDefinition(handle: number, resource: UriComponents, position: IPosition): TPromise<DefinitionLinkDto[]>;
 	$provideImplementation(handle: number, resource: UriComponents, position: IPosition): TPromise<LocationDto | LocationDto[]>;
 	$provideTypeDefinition(handle: number, resource: UriComponents, position: IPosition): TPromise<LocationDto | LocationDto[]>;
 	$provideHover(handle: number, resource: UriComponents, position: IPosition): TPromise<modes.Hover>;

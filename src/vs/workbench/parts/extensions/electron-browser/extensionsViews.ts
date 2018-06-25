@@ -700,6 +700,7 @@ export class DefaultRecommendedExtensionsView extends ExtensionsListView {
 	async show(query: string): TPromise<IPagedModel<IExtension>> {
 		return super.show('@recommended:all');
 	}
+
 }
 
 export class RecommendedExtensionsView extends ExtensionsListView {
