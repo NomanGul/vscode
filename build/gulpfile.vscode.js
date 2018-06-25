@@ -477,6 +477,10 @@ gulp.task('upload-vscode-configuration', ['generate-vscode-configuration'], () =
 		return;
 	}
 
+	if (process.env.VSCODE_QUALITY !== 'insider' && process.env.VSCODE_QUALITY !== 'stable') {
+		return;
+	}
+
 	if (!fs.existsSync(allConfigDetailsPath)) {
 		throw new Error(`configuration file at ${allConfigDetailsPath} does not exist`);
 	}
@@ -513,6 +517,10 @@ gulp.task('generate-vscode-configuration', () => {
 		const buildDir = process.env['AGENT_BUILDDIRECTORY'];
 		if (!buildDir) {
 			return reject(new Error('$AGENT_BUILDDIRECTORY not set'));
+		}
+
+		if (process.env.VSCODE_QUALITY !== 'insider' && process.env.VSCODE_QUALITY !== 'stable') {
+			return resolve();
 		}
 
 		const userDataDir = path.join(os.tmpdir(), 'tmpuserdata');
