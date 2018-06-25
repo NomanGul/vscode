@@ -375,7 +375,7 @@ export class CodeApplication {
 				appInstantiationService.invokeFunction((accessor) => {
 					let environmentService = accessor.get(IEnvironmentService);
 					let p: TPromise<void>;
-					if (environmentService.wsl) {
+					if (environmentService.args.wsl) {
 						p = this.startWslExtensionHost(environmentService);
 					} else {
 						p = TPromise.as(undefined);

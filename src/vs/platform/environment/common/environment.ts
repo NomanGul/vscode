@@ -59,7 +59,6 @@ export interface ParsedArgs {
 	'upload-logs'?: string;
 	'driver'?: string;
 	'driver-verbose'?: boolean;
-	'wsl'?: boolean;
 }
 
 export const IEnvironmentService = createDecorator<IEnvironmentService>('environmentService');
@@ -136,6 +135,4 @@ export interface IEnvironmentService {
 
 	driverHandle: string;
 	driverVerbose: boolean;
-
-	wsl: boolean;
 }
