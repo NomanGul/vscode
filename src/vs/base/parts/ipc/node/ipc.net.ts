@@ -103,6 +103,11 @@ export class Protocol implements IMessagePassingProtocol {
 			}
 		};
 
+		// Make sure to always handle the firstDataChunk if no more `data` event comes in
+		setTimeout(() => {
+			acceptFirstDataChunk();
+		}, 0);
+
 		_socket.on('data', (data: Buffer) => {
 			acceptFirstDataChunk();
 			acceptChunk(data);
