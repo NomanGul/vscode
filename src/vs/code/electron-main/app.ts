@@ -6,7 +6,7 @@
 
 import * as cp from 'child_process';
 
-import { app, ipcMain as ipc, systemPreferences } from 'electron';
+import { app, ipcMain as ipc, systemPreferences, protocol } from 'electron';
 import * as platform from 'vs/base/common/platform';
 import { WindowsManager } from 'vs/code/electron-main/windows';
 import { IWindowsService, OpenContext, ActiveWindowManager } from 'vs/platform/windows/common/windows';
