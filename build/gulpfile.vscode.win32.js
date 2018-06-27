@@ -74,7 +74,7 @@ function buildWin32Setup(arch, target) {
 			DirName: product.win32DirName,
 			Version: pkg.version,
 			RawVersion: pkg.version.replace(/-\w+$/, ''),
-			NameVersion: product.win32NameVersion,
+			NameVersion: product.win32NameVersion + (target === 'user' ? ' (User)' : ''),
 			ExeBasename: product.nameShort,
 			RegValueName: product.win32RegValueName,
 			ShellNameShort: product.win32ShellNameShort,
@@ -108,7 +108,7 @@ defineWin32SetupTasks('x64', 'user');
 
 function archiveWin32Setup(arch) {
 	return cb => {
-		const args = ['a', '-tzip', zipPath(arch), '.', '-r'];
+		const args = ['a', '-tzip', zipPath(arch), '-x!CodeSignSummary*.md', '.', '-r'];
 
 		cp.spawn(_7z, args, { stdio: 'inherit', cwd: buildPath(arch) })
 			.on('error', cb)

@@ -11,18 +11,18 @@ import * as nls from 'vs/nls';
 import * as browser from 'vs/base/browser/browser';
 import { Part } from 'vs/workbench/browser/part';
 import { IMenubarService, IMenubarMenu, IMenubarMenuItemAction, IMenubarData } from 'vs/platform/menubar/common/menubar';
-import { IMenuService, MenuId, IMenu } from 'vs/platform/actions/common/actions';
+import { IMenuService, MenuId, IMenu, SubmenuItemAction } from 'vs/platform/actions/common/actions';
 import { IThemeService } from 'vs/platform/theme/common/themeService';
 import { IWindowService, MenuBarVisibility } from 'vs/platform/windows/common/windows';
 import { IContextKeyService } from 'vs/platform/contextkey/common/contextkey';
 import { ActionRunner, IActionRunner, IAction } from 'vs/base/common/actions';
 import { Builder, $ } from 'vs/base/browser/builder';
-import { Separator, ActionItem } from 'vs/base/browser/ui/actionbar/actionbar';
+import { Separator } from 'vs/base/browser/ui/actionbar/actionbar';
 import { EventType, Dimension, toggleClass } from 'vs/base/browser/dom';
 import { TITLE_BAR_ACTIVE_BACKGROUND, TITLE_BAR_ACTIVE_FOREGROUND } from 'vs/workbench/common/theme';
 import { IKeybindingService } from 'vs/platform/keybinding/common/keybinding';
 import { isWindows, isMacintosh } from 'vs/base/common/platform';
-import { Menu, IMenuOptions } from 'vs/base/browser/ui/menu/menu';
+import { Menu, IMenuOptions, SubmenuAction } from 'vs/base/browser/ui/menu/menu';
 import { KeyCode } from 'vs/base/common/keyCodes';
 import { StandardKeyboardEvent } from 'vs/base/browser/keyboardEvent';
 import { IConfigurationService, IConfigurationChangeEvent } from 'vs/platform/configuration/common/configuration';
@@ -53,15 +53,13 @@ export class MenubarPart extends Part {
 	private topLevelMenus: {
 		'File': IMenu;
 		'Edit': IMenu;
-		'Recent': IMenu;
 		'Selection': IMenu;
 		'View': IMenu;
-		'Layout': IMenu;
 		'Go': IMenu;
+		'Terminal': IMenu;
 		'Debug': IMenu;
 		'Tasks': IMenu;
 		'Window'?: IMenu;
-		'Preferences': IMenu;
 		'Help': IMenu;
 		[index: string]: IMenu;
 	};
@@ -69,20 +67,14 @@ export class MenubarPart extends Part {
 	private topLevelTitles = {
 		'File': nls.localize({ key: 'mFile', comment: ['&& denotes a mnemonic'] }, "&&File"),
 		'Edit': nls.localize({ key: 'mEdit', comment: ['&& denotes a mnemonic'] }, "&&Edit"),
-		'Recent': nls.localize({ key: 'mRecent', comment: ['&& denotes a mnemonic'] }, "&&Recent"),
 		'Selection': nls.localize({ key: 'mSelection', comment: ['&& denotes a mnemonic'] }, "&&Selection"),
 		'View': nls.localize({ key: 'mView', comment: ['&& denotes a mnemonic'] }, "&&View"),
-		'Layout': nls.localize({ key: 'mLayout', comment: ['&& denotes a mnemonic'] }, "&&Layout"),
 		'Go': nls.localize({ key: 'mGoto', comment: ['&& denotes a mnemonic'] }, "&&Go"),
+		'Terminal': nls.localize({ key: 'mTerminal', comment: ['&& denotes a mnemonic'] }, "&&Terminal"),
 		'Debug': nls.localize({ key: 'mDebug', comment: ['&& denotes a mnemonic'] }, "&&Debug"),
 		'Tasks': nls.localize({ key: 'mTasks', comment: ['&& denotes a mnemonic'] }, "&&Tasks"),
-		'Preferences': nls.localize({ key: 'mPreferences', comment: ['&& denotes a mnemonic'] }, "&&Preferences"),
 		'Help': nls.localize({ key: 'mHelp', comment: ['&& denotes a mnemonic'] }, "&&Help")
 	};
-
-	private mnemonics: {
-		[index: number]: number;
-	} = {};
 
 	private focusedMenu: {
 		index: number;
@@ -94,6 +86,7 @@ export class MenubarPart extends Part {
 
 	private actionRunner: IActionRunner;
 	private container: Builder;
+	private _modifierKeyStatus: IModifierKeyStatus;
 	private _isFocused: boolean;
 	private _onVisibilityChange: Emitter<Dimension>;
 
@@ -120,14 +113,12 @@ export class MenubarPart extends Part {
 		this.topLevelMenus = {
 			'File': this.menuService.createMenu(MenuId.MenubarFileMenu, this.contextKeyService),
 			'Edit': this.menuService.createMenu(MenuId.MenubarEditMenu, this.contextKeyService),
-			'Recent': this.menuService.createMenu(MenuId.MenubarRecentMenu, this.contextKeyService),
 			'Selection': this.menuService.createMenu(MenuId.MenubarSelectionMenu, this.contextKeyService),
 			'View': this.menuService.createMenu(MenuId.MenubarViewMenu, this.contextKeyService),
-			'Layout': this.menuService.createMenu(MenuId.MenubarLayoutMenu, this.contextKeyService),
 			'Go': this.menuService.createMenu(MenuId.MenubarGoMenu, this.contextKeyService),
+			'Terminal': this.menuService.createMenu(MenuId.MenubarTerminalMenu, this.contextKeyService),
 			'Debug': this.menuService.createMenu(MenuId.MenubarDebugMenu, this.contextKeyService),
 			'Tasks': this.menuService.createMenu(MenuId.MenubarTasksMenu, this.contextKeyService),
-			'Preferences': this.menuService.createMenu(MenuId.MenubarPreferencesMenu, this.contextKeyService),
 			'Help': this.menuService.createMenu(MenuId.MenubarHelpMenu, this.contextKeyService)
 		};
 
@@ -237,14 +228,17 @@ export class MenubarPart extends Part {
 		this.container.style('visibility', null);
 	}
 
-	private onAltKeyToggled(altKeyDown: boolean): void {
+	private onModifierKeyToggled(modiferKeyStatus: IModifierKeyStatus): void {
 		if (this.currentMenubarVisibility === 'toggle') {
-			if (altKeyDown) {
+			const altKeyPressed = (!this._modifierKeyStatus || !this._modifierKeyStatus.altKey) && modiferKeyStatus.altKey;
+			if (altKeyPressed && !modiferKeyStatus.ctrlKey && !modiferKeyStatus.shiftKey) {
 				this.showMenubar();
 			} else if (!this.isFocused) {
 				this.hideMenubar();
 			}
 		}
+
+		this._modifierKeyStatus = modiferKeyStatus;
 
 		if (this.currentEnableMenuBarMnemonics && this.customMenus) {
 			this.customMenus.forEach(customMenu => {
@@ -252,7 +246,7 @@ export class MenubarPart extends Part {
 				if (child) {
 					let grandChild = child.child();
 					if (grandChild) {
-						grandChild.style('text-decoration', altKeyDown ? 'underline' : null);
+						grandChild.style('text-decoration', modiferKeyStatus.altKey ? 'underline' : null);
 					}
 				}
 			});
@@ -271,7 +265,7 @@ export class MenubarPart extends Part {
 		// Listen to keybindings change
 		this.keybindingService.onDidUpdateKeybindings(() => this.setupMenubar());
 
-		AlternativeKeyEmitter.getInstance().event(this.onAltKeyToggled, this);
+		ModifierKeyEmitter.getInstance().event(this.onModifierKeyToggled, this);
 	}
 
 	private setupMenubar(): void {
@@ -368,9 +362,11 @@ export class MenubarPart extends Part {
 			titleElement.attr('aria-label', legibleTitle);
 			titleElement.attr('role', 'menu');
 
-			let mnemonic = (/&&(.)/g).exec(this.topLevelTitles[menuTitle])[1];
-			if (mnemonic && this.currentEnableMenuBarMnemonics) {
-				this.registerMnemonic(titleElement.getHTMLElement(), mnemonic);
+			if (this.currentEnableMenuBarMnemonics) {
+				let mnemonic = (/&&(.)/g).exec(this.topLevelTitles[menuTitle]);
+				if (mnemonic && mnemonic[1]) {
+					this.registerMnemonic(titleElement.getHTMLElement(), mnemonic[1]);
+				}
 			}
 
 			this.customMenus.push({
@@ -378,29 +374,40 @@ export class MenubarPart extends Part {
 				titleElement: titleElement
 			});
 
-			// Update cached actions array for CustomMenus
-			const updateActions = () => {
-				this.customMenus[menuIndex].actions = [];
+			const updateActions = (menu: IMenu, target: IAction[]) => {
+				target.splice(0);
 				let groups = menu.getActions();
 				for (let group of groups) {
 					const [, actions] = group;
 
-					actions.map((action: IAction) => {
-						action.label = this.calculateActionLabel(action);
-						this.setCheckedStatus(action);
-					});
+					for (let action of actions) {
+						if (action instanceof SubmenuItemAction) {
+							const submenu = this.menuService.createMenu(action.item.submenu, this.contextKeyService);
+							const submenuActions = [];
+							updateActions(submenu, submenuActions);
+							target.push(new SubmenuAction(action.label, submenuActions));
+						} else {
+							action.label = this.calculateActionLabel(action);
+							this.setCheckedStatus(action);
+							target.push(action);
+						}
+					}
 
-					this.customMenus[menuIndex].actions.push(...actions);
-					this.customMenus[menuIndex].actions.push(new Separator());
+					target.push(new Separator());
 				}
 
-				this.customMenus[menuIndex].actions.pop();
+				target.pop();
 			};
 
-			menu.onDidChange(updateActions);
-			updateActions();
+			this.customMenus[menuIndex].actions = [];
+			menu.onDidChange(() => updateActions(menu, this.customMenus[menuIndex].actions));
+			updateActions(menu, this.customMenus[menuIndex].actions);
 
 			this.customMenus[menuIndex].titleElement.on(EventType.CLICK, (event) => {
+				if (this._modifierKeyStatus && (this._modifierKeyStatus.shiftKey || this._modifierKeyStatus.ctrlKey)) {
+					return; // supress keyboard shortcuts that shouldn't conflict
+				}
+
 				this.toggleCustomMenu(menuIndex);
 				this.isFocused = !this.isFocused;
 			});
@@ -427,12 +434,10 @@ export class MenubarPart extends Part {
 			let event = new StandardKeyboardEvent(e as KeyboardEvent);
 			let eventHandled = true;
 
-			if (event.equals(KeyCode.LeftArrow)) {
+			if (event.equals(KeyCode.LeftArrow) || (event.shiftKey && event.keyCode === KeyCode.Tab)) {
 				this.focusPrevious();
-			} else if (event.equals(KeyCode.RightArrow)) {
+			} else if (event.equals(KeyCode.RightArrow) || event.equals(KeyCode.Tab)) {
 				this.focusNext();
-			} else if (event.altKey && event.keyCode && this.mnemonics[event.keyCode] !== undefined && !this.focusedMenu) {
-				this.toggleCustomMenu(this.mnemonics[event.keyCode]);
 			} else {
 				eventHandled = false;
 			}
@@ -537,14 +542,6 @@ export class MenubarPart extends Part {
 		this.toggleCustomMenu(0);
 	}
 
-	private _getActionItem(action: IAction): ActionItem {
-		const keybinding = this.keybindingService.lookupKeybinding(action.id);
-		if (keybinding) {
-			return new ActionItem(action, action, { label: true, keybinding: keybinding.getLabel(), isMenu: true });
-		}
-		return null;
-	}
-
 	private toggleCustomMenu(menuIndex: number): void {
 		const customMenu = this.customMenus[menuIndex];
 
@@ -573,9 +570,10 @@ export class MenubarPart extends Part {
 		});
 
 		let menuOptions: IMenuOptions = {
+			getKeyBinding: (action) => this.keybindingService.lookupKeybinding(action.id),
 			actionRunner: this.actionRunner,
-			ariaLabel: 'File',
-			actionItemProvider: (action) => { return this._getActionItem(action); }
+			// ariaLabel: 'File'
+			// actionItemProvider: (action) => { return this._getActionItem(action); }
 		};
 
 		let menuWidget = new Menu(menuHolder.getHTMLElement(), customMenu.actions, menuOptions);
@@ -696,65 +694,82 @@ export class MenubarPart extends Part {
 	}
 }
 
-class AlternativeKeyEmitter extends Emitter<boolean> {
+interface IModifierKeyStatus {
+	altKey: boolean;
+	shiftKey: boolean;
+	ctrlKey: boolean;
+}
+
+class ModifierKeyEmitter extends Emitter<IModifierKeyStatus> {
 
 	private _subscriptions: IDisposable[] = [];
-	private _isPressed: boolean;
-	private static instance: AlternativeKeyEmitter;
-	private _suppressAltKeyUp: boolean = false;
+	private _isPressed: IModifierKeyStatus;
+	private static instance: ModifierKeyEmitter;
 
 	private constructor() {
 		super();
 
+		this._isPressed = {
+			altKey: false,
+			shiftKey: false,
+			ctrlKey: false
+		};
+
 		this._subscriptions.push(domEvent(document.body, 'keydown')(e => {
-			if (e.altKey) {
-				this.isPressed = true;
+			if (e.altKey || e.shiftKey || e.ctrlKey) {
+				this.isPressed = {
+					altKey: e.altKey,
+					ctrlKey: e.ctrlKey,
+					shiftKey: e.shiftKey
+				};
 			}
 		}));
 		this._subscriptions.push(domEvent(document.body, 'keyup')(e => {
-			if (this.isPressed && !e.altKey) {
-				if (this._suppressAltKeyUp) {
-					e.preventDefault();
-				}
+			if ((!e.altKey && this.isPressed.altKey) ||
+				(!e.shiftKey && this.isPressed.shiftKey) ||
+				(!e.ctrlKey && this.isPressed.ctrlKey)
+			) {
 
-				this._suppressAltKeyUp = false;
-				this.isPressed = false;
-			}
-		}));
-		this._subscriptions.push(domEvent(document.body, 'mouseleave')(e => {
-			if (this.isPressed) {
-				this.isPressed = false;
+				this.isPressed = {
+					altKey: e.altKey,
+					shiftKey: e.shiftKey,
+					ctrlKey: e.ctrlKey
+				};
 			}
 		}));
 
 		this._subscriptions.push(domEvent(document.body, 'blur')(e => {
-			if (this.isPressed) {
-				this.isPressed = false;
+			if (this.isPressed.altKey || this.isPressed.shiftKey || this.isPressed.ctrlKey) {
+				this.isPressed = {
+					altKey: false,
+					shiftKey: false,
+					ctrlKey: false
+				};
 			}
 		}));
 	}
 
-	get isPressed(): boolean {
+	get isPressed(): IModifierKeyStatus {
 		return this._isPressed;
 	}
 
-	set isPressed(value: boolean) {
+	set isPressed(value: IModifierKeyStatus) {
+		if (this._isPressed.altKey === value.altKey &&
+			this._isPressed.shiftKey === value.shiftKey &&
+			this._isPressed.ctrlKey === value.ctrlKey) {
+			return;
+		}
+
 		this._isPressed = value;
 		this.fire(this._isPressed);
 	}
 
-	suppressAltKeyUp() {
-		// Sometimes the native alt behavior needs to be suppresed since the alt was already used as an alternative key
-		// Example: windows behavior to toggle tha top level menu #44396
-		this._suppressAltKeyUp = true;
-	}
-
 	static getInstance() {
-		if (!AlternativeKeyEmitter.instance) {
-			AlternativeKeyEmitter.instance = new AlternativeKeyEmitter();
+		if (!ModifierKeyEmitter.instance) {
+			ModifierKeyEmitter.instance = new ModifierKeyEmitter();
 		}
 
-		return AlternativeKeyEmitter.instance;
+		return ModifierKeyEmitter.instance;
 	}
 
 	dispose() {

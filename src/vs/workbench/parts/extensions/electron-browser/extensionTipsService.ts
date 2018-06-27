@@ -10,7 +10,10 @@ import { forEach } from 'vs/base/common/collections';
 import { IDisposable, dispose, Disposable } from 'vs/base/common/lifecycle';
 import { match } from 'vs/base/common/glob';
 import * as json from 'vs/base/common/json';
-import { IExtensionManagementService, IExtensionGalleryService, IExtensionTipsService, ExtensionRecommendationReason, LocalExtensionType, EXTENSION_IDENTIFIER_PATTERN, IIgnoredRecommendations, IExtensionsConfigContent, RecommendationChangeNotification, IExtensionRecommendation, ExtensionRecommendationSource, IExtensionManagementServerService, InstallOperation } from 'vs/platform/extensionManagement/common/extensionManagement';
+import {
+	IExtensionManagementService, IExtensionGalleryService, IExtensionTipsService, ExtensionRecommendationReason, LocalExtensionType, EXTENSION_IDENTIFIER_PATTERN,
+	IExtensionsConfigContent, RecommendationChangeNotification, IExtensionRecommendation, ExtensionRecommendationSource, IExtensionManagementServerService, InstallOperation
+} from 'vs/platform/extensionManagement/common/extensionManagement';
 import { IModelService } from 'vs/editor/common/services/modelService';
 import { ITextModel } from 'vs/editor/common/model';
 import { IStorageService, StorageScope } from 'vs/platform/storage/common/storage';
@@ -39,6 +42,7 @@ import { Emitter, Event } from 'vs/base/common/event';
 import { assign } from 'vs/base/common/objects';
 import URI from 'vs/base/common/uri';
 import { areSameExtensions, getGalleryExtensionIdFromLocal } from 'vs/platform/extensionManagement/common/extensionManagementUtil';
+import { IExperimentService, ExperimentActionType } from 'vs/workbench/parts/experiments/node/experimentService';
 
 const empty: { [key: string]: any; } = Object.create(null);
 const milliSecondsInADay = 1000 * 60 * 60 * 24;
@@ -52,8 +56,11 @@ interface IDynamicWorkspaceRecommendations {
 }
 
 function caseInsensitiveGet<T>(obj: { [key: string]: T }, key: string): T | undefined {
+	if (!obj) {
+		return undefined;
+	}
 	for (const _key in obj) {
-		if (obj.hasOwnProperty(_key) && _key.toLowerCase() === key.toLowerCase()) {
+		if (Object.hasOwnProperty.call(obj, _key) && _key.toLowerCase() === key.toLowerCase()) {
 			return obj[_key];
 		}
 	}
@@ -69,6 +76,7 @@ export class ExtensionTipsService extends Disposable implements IExtensionTipsSe
 	private _availableRecommendations: { [pattern: string]: string[] } = Object.create(null);
 	private _allWorkspaceRecommendedExtensions: IExtensionRecommendation[] = [];
 	private _dynamicWorkspaceRecommendations: string[] = [];
+	private _experimentalRecommendations: { [id: string]: string } = Object.create(null);
 	private _allIgnoredRecommendations: string[] = [];
 	private _globallyIgnoredRecommendations: string[] = [];
 	private _workspaceIgnoredRecommendations: string[] = [];
@@ -79,6 +87,8 @@ export class ExtensionTipsService extends Disposable implements IExtensionTipsSe
 
 	private readonly _onRecommendationChange: Emitter<RecommendationChangeNotification> = new Emitter<RecommendationChangeNotification>();
 	onRecommendationChange: Event<RecommendationChangeNotification> = this._onRecommendationChange.event;
+	private _sessionIgnoredRecommendations: { [id: string]: { reasonId: ExtensionRecommendationReason, reasonText: string, sources: ExtensionRecommendationSource[] } } = {};
+	private _sessionRestoredRecommendations: { [id: string]: { reasonId: ExtensionRecommendationReason, reasonText: string, sources: ExtensionRecommendationSource[] } } = {};
 
 	constructor(
 		@IExtensionGalleryService private readonly _galleryService: IExtensionGalleryService,
@@ -96,7 +106,8 @@ export class ExtensionTipsService extends Disposable implements IExtensionTipsSe
 		@IViewletService private viewletService: IViewletService,
 		@INotificationService private notificationService: INotificationService,
 		@IExtensionManagementService private extensionManagementService: IExtensionManagementService,
-		@IExtensionManagementServerService private extensionManagementServiceService: IExtensionManagementServerService
+		@IExtensionManagementServerService private extensionManagementServiceService: IExtensionManagementServerService,
+		@IExperimentService private experimentService: IExperimentService,
 	) {
 		super();
 
@@ -116,6 +127,7 @@ export class ExtensionTipsService extends Disposable implements IExtensionTipsSe
 				// these must be called after workspace configs have been refreshed.
 				this.getCachedDynamicWorkspaceRecommendations();
 				this._suggestFileBasedRecommendations();
+				this.getExperimentalRecommendations();
 				return this._suggestWorkspaceRecommendations();
 			}).then(() => {
 				this._modelService.onModelAdded(this._suggest, this, this._disposables);
@@ -180,6 +192,11 @@ export class ExtensionTipsService extends Disposable implements IExtensionTipsSe
 			return output;
 		}
 
+		forEach(this._experimentalRecommendations, entry => output[entry.key.toLowerCase()] = {
+			reasonId: ExtensionRecommendationReason.Experimental,
+			reasonText: entry.value
+		});
+
 		if (this.contextService.getWorkspace().folders && this.contextService.getWorkspace().folders.length === 1) {
 			const currentRepo = this.contextService.getWorkspace().folders[0].name;
 			this._dynamicWorkspaceRecommendations.forEach(x => output[x.toLowerCase()] = {
@@ -203,6 +220,11 @@ export class ExtensionTipsService extends Disposable implements IExtensionTipsSe
 			reasonText: localize('workspaceRecommendation', "This extension is recommended by users of the current workspace.")
 		});
 
+		Object.keys(this._sessionRestoredRecommendations).forEach(x => output[x.toLowerCase()] = {
+			reasonId: this._sessionRestoredRecommendations[x].reasonId,
+			reasonText: this._sessionRestoredRecommendations[x].reasonText
+		});
+
 		return output;
 	}
 
@@ -213,7 +235,7 @@ export class ExtensionTipsService extends Disposable implements IExtensionTipsSe
 
 	private fetchWorkspaceRecommendations(): TPromise<void> {
 		this._workspaceIgnoredRecommendations = [];
-		this._allWorkspaceRecommendedExtensions = [];
+		const tmpAllWorkspaceRecommendations = [];
 
 		if (!this.isEnabled) { return TPromise.as(null); }
 
@@ -242,10 +264,10 @@ export class ExtensionTipsService extends Disposable implements IExtensionTipsSe
 							for (const r of contentsBySource.contents.recommendations) {
 								const extensionId = r.toLowerCase();
 								if (invalidExtensions.indexOf(extensionId) === -1) {
-									let recommendation = this._allWorkspaceRecommendedExtensions.filter(r => r.extensionId === extensionId)[0];
+									let recommendation = tmpAllWorkspaceRecommendations.filter(r => r.extensionId === extensionId)[0];
 									if (!recommendation) {
 										recommendation = { extensionId, sources: [] };
-										this._allWorkspaceRecommendedExtensions.push(recommendation);
+										tmpAllWorkspaceRecommendations.push(recommendation);
 									}
 									if (recommendation.sources.indexOf(contentsBySource.source) === -1) {
 										recommendation.sources.push(contentsBySource.source);
@@ -254,10 +276,9 @@ export class ExtensionTipsService extends Disposable implements IExtensionTipsSe
 							}
 						}
 					}
-
+					this._allWorkspaceRecommendedExtensions = tmpAllWorkspaceRecommendations;
 					this._allIgnoredRecommendations = distinct([...this._globallyIgnoredRecommendations, ...this._workspaceIgnoredRecommendations]);
 					this.refilterAllRecommendations();
-
 				}));
 	}
 
@@ -355,13 +376,6 @@ export class ExtensionTipsService extends Disposable implements IExtensionTipsSe
 		}
 	}
 
-	getAllIgnoredRecommendations(): IIgnoredRecommendations {
-		return {
-			workspace: this._workspaceIgnoredRecommendations,
-			global: this._globallyIgnoredRecommendations
-		};
-	}
-
 	private isExtensionAllowedToBeRecommended(id: string): boolean {
 		return this._allIgnoredRecommendations.indexOf(id.toLowerCase()) === -1;
 	}
@@ -381,36 +395,57 @@ export class ExtensionTipsService extends Disposable implements IExtensionTipsSe
 	}
 
 	getFileBasedRecommendations(): IExtensionRecommendation[] {
-		return Object.keys(this._fileBasedRecommendations)
-			.sort((a, b) => {
-				if (this._fileBasedRecommendations[a].recommendedTime === this._fileBasedRecommendations[b].recommendedTime) {
-					if (!product.extensionImportantTips || caseInsensitiveGet(product.extensionImportantTips, a)) {
-						return -1;
-					}
-					if (caseInsensitiveGet(product.extensionImportantTips, b)) {
-						return 1;
-					}
+		return [...this.getRestoredRecommendationsByReason(ExtensionRecommendationReason.File),
+		...Object.keys(this._fileBasedRecommendations).sort((a, b) => {
+			if (this._fileBasedRecommendations[a].recommendedTime === this._fileBasedRecommendations[b].recommendedTime) {
+				if (!product.extensionImportantTips || caseInsensitiveGet(product.extensionImportantTips, a)) {
+					return -1;
 				}
-				return this._fileBasedRecommendations[a].recommendedTime > this._fileBasedRecommendations[b].recommendedTime ? -1 : 1;
-			})
-			.map(extensionId => (<IExtensionRecommendation>{ extensionId, sources: this._fileBasedRecommendations[extensionId].sources }));
+				if (caseInsensitiveGet(product.extensionImportantTips, b)) {
+					return 1;
+				}
+			}
+			return this._fileBasedRecommendations[a].recommendedTime > this._fileBasedRecommendations[b].recommendedTime ? -1 : 1;
+		})]
+			.map(extensionId => (<IExtensionRecommendation>{
+				extensionId, sources:
+					this._fileBasedRecommendations[extensionId] ? this._fileBasedRecommendations[extensionId].sources :
+						this._sessionRestoredRecommendations[extensionId.toLowerCase()] ? this._sessionRestoredRecommendations[extensionId.toLowerCase()].sources :
+							[]
+			}));
 	}
 
 	getOtherRecommendations(): TPromise<IExtensionRecommendation[]> {
 		return this.fetchProactiveRecommendations().then(() => {
-			const others = distinct([...Object.keys(this._exeBasedRecommendations), ...this._dynamicWorkspaceRecommendations]);
+			const others = distinct([
+				...Object.keys(this._exeBasedRecommendations),
+				...this._dynamicWorkspaceRecommendations,
+				...Object.keys(this._experimentalRecommendations),
+			]);
 			shuffle(others);
-			return others.map(extensionId => {
-				const sources: ExtensionRecommendationSource[] = [];
-				if (this._exeBasedRecommendations[extensionId]) {
-					sources.push('executable');
-				}
-				if (this._dynamicWorkspaceRecommendations[extensionId]) {
-					sources.push('dynamic');
-				}
-				return (<IExtensionRecommendation>{ extensionId, sources });
-			});
+			return [
+				...this.getRestoredRecommendationsByReason(ExtensionRecommendationReason.Executable),
+				...this.getRestoredRecommendationsByReason(ExtensionRecommendationReason.DynamicWorkspace),
+				...this.getRestoredRecommendationsByReason(ExtensionRecommendationReason.Experimental),
+				...others]
+				.map(extensionId => {
+					const sources: ExtensionRecommendationSource[] = [];
+					if (this._exeBasedRecommendations[extensionId]) {
+						sources.push('executable');
+					}
+					if (this._dynamicWorkspaceRecommendations[extensionId]) {
+						sources.push('dynamic');
+					}
+					if (this._sessionRestoredRecommendations[extensionId.toLowerCase()]) {
+						sources.push(...this._sessionRestoredRecommendations[extensionId.toLowerCase()].sources);
+					}
+					return (<IExtensionRecommendation>{ extensionId, sources });
+				});
 		});
+	}
+
+	private getRestoredRecommendationsByReason(reason: ExtensionRecommendationReason): string[] {
+		return Object.keys(this._sessionRestoredRecommendations).filter(key => this._sessionRestoredRecommendations[key].reasonId === reason);
 	}
 
 	getKeymapRecommendations(): IExtensionRecommendation[] {
@@ -515,7 +550,7 @@ export class ExtensionTipsService extends Disposable implements IExtensionTipsSe
 				let { key: pattern, value: ids } = entry;
 				if (match(pattern, uri.path)) {
 					for (let id of ids) {
-						if (Object.keys(product.extensionImportantTips || []).map(x => x.toLowerCase()).indexOf(id.toLowerCase()) > -1) {
+						if (caseInsensitiveGet(product.extensionImportantTips, id)) {
 							recommendationsToSuggest.push(id);
 						}
 						const filedBasedRecommendation = this._fileBasedRecommendations[id.toLowerCase()] || { recommendedTime: now, sources: [] };
@@ -543,7 +578,8 @@ export class ExtensionTipsService extends Disposable implements IExtensionTipsSe
 
 			const server = this.extensionManagementServiceService.getExtensionManagementServer(model.uri);
 			const importantTipsPromise = recommendationsToSuggest.length === 0 ? TPromise.as(null) : server.extensionManagementService.getInstalled(LocalExtensionType.User).then(local => {
-				recommendationsToSuggest = recommendationsToSuggest.filter(id => local.every(local => `${local.manifest.publisher}.${local.manifest.name}` !== id));
+				const localExtensions = local.map(e => `${e.manifest.publisher.toLowerCase()}.${e.manifest.name.toLowerCase()}`);
+				recommendationsToSuggest = recommendationsToSuggest.filter(id => localExtensions.every(local => local !== id.toLowerCase()));
 				if (!recommendationsToSuggest.length) {
 					return;
 				}
@@ -928,6 +964,20 @@ export class ExtensionTipsService extends Disposable implements IExtensionTipsSe
 		});
 	}
 
+	private getExperimentalRecommendations() {
+		this.experimentService.getExperimentsToRunByType(ExperimentActionType.AddToRecommendations).then(experiments => {
+			(experiments || []).forEach(experiment => {
+				if (experiment.action.properties && Array.isArray(experiment.action.properties.recommendations) && experiment.action.properties.recommendationReason) {
+					experiment.action.properties.recommendations.forEach(id => {
+						if (this.isExtensionAllowedToBeRecommended(id)) {
+							this._experimentalRecommendations[id] = experiment.action.properties.recommendationReason;
+						}
+					});
+				}
+			});
+		});
+	}
+
 	getKeywordsForExtension(extension: string): string[] {
 		const keywords = product.extensionKeywords || {};
 		return keywords[extension] || [];
@@ -956,29 +1006,42 @@ export class ExtensionTipsService extends Disposable implements IExtensionTipsSe
 		return Object.keys(result);
 	}
 
-	ignoreExtensionRecommendation(extensionId: string): void {
-		/* __GDPR__
-			"extensionsRecommendations:ignoreRecommendation" : {
-				"recommendationReason": { "classification": "SystemMetaData", "purpose": "FeatureInsight", "isMeasurement": true },
-				"extensionId": { "classification": "PublicNonPersonalData", "purpose": "FeatureInsight" }
+	toggleIgnoredRecommendation(extensionId: string, shouldIgnore: boolean): void {
+		const lowerId = extensionId.toLowerCase();
+		if (shouldIgnore) {
+			const reason = this.getAllRecommendationsWithReason()[lowerId];
+			if (reason && reason.reasonId) {
+				/* __GDPR__
+					"extensionsRecommendations:ignoreRecommendation" : {
+						"recommendationReason": { "classification": "SystemMetaData", "purpose": "FeatureInsight", "isMeasurement": true },
+						"extensionId": { "classification": "PublicNonPersonalData", "purpose": "FeatureInsight" }
+					}
+				*/
+				this.telemetryService.publicLog('extensionsRecommendations:ignoreRecommendation', { id: extensionId, recommendationReason: reason.reasonId });
 			}
-		*/
-		const reason = this.getAllRecommendationsWithReason()[extensionId.toLowerCase()];
-		if (reason && reason.reasonId) {
-			this.telemetryService.publicLog('extensionsRecommendations:ignoreRecommendation', { id: extensionId, recommendationReason: reason.reasonId });
+			this._sessionIgnoredRecommendations[lowerId] = {
+				...reason, sources:
+					coalesce([
+						<'executable' | null>(caseInsensitiveGet(this._exeBasedRecommendations, lowerId) ? 'executable' : null),
+						...(() => { let a = caseInsensitiveGet(this._fileBasedRecommendations, lowerId); return a ? a.sources : null; })(),
+						<'dynamic' | null>(this._dynamicWorkspaceRecommendations.filter(x => x.toLowerCase() === lowerId).length > 0 ? 'dynamic' : null),
+					])
+			};
+			delete this._sessionRestoredRecommendations[lowerId];
+			this._globallyIgnoredRecommendations = distinct([...this._globallyIgnoredRecommendations, lowerId].map(id => id.toLowerCase()));
+		} else {
+			this._globallyIgnoredRecommendations = this._globallyIgnoredRecommendations.filter(id => id !== lowerId);
+			if (this._sessionIgnoredRecommendations[lowerId]) {
+				this._sessionRestoredRecommendations[lowerId] = this._sessionIgnoredRecommendations[lowerId];
+				delete this._sessionIgnoredRecommendations[lowerId];
+			}
 		}
-
-
-		this._globallyIgnoredRecommendations = distinct(
-			[...<string[]>JSON.parse(this.storageService.get('extensionsAssistant/ignored_recommendations', StorageScope.GLOBAL, '[]')), extensionId.toLowerCase()]
-				.map(id => id.toLowerCase()));
-
 		this.storageService.store('extensionsAssistant/ignored_recommendations', JSON.stringify(this._globallyIgnoredRecommendations), StorageScope.GLOBAL);
 
 		this._allIgnoredRecommendations = distinct([...this._globallyIgnoredRecommendations, ...this._workspaceIgnoredRecommendations]);
 
 		this.refilterAllRecommendations();
-		this._onRecommendationChange.fire({ extensionId: extensionId, isRecommended: false });
+		this._onRecommendationChange.fire({ extensionId: extensionId, isRecommended: !shouldIgnore });
 	}
 
 	dispose() {
