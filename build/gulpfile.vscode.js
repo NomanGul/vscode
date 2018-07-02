@@ -271,10 +271,17 @@ function packageTask(platform, arch, opts) {
 
 		const remotePackageJsonStream = gulp.src(['remote/package.json'], { base: '.' });
 
-		const settingsSearchBuildId = (quality === 'stable' || quality === 'insider') ? getSettingsSearchBuildId(packageJson) : '';
 		const date = new Date().toISOString();
+		const productJsonUpdate = { commit, date, checksums };
+
+		try {
+			productJsonUpdate.settingsSearchBuildId = getSettingsSearchBuildId(packageJson);
+		} catch (err) {
+			console.warn(err);
+		}
+
 		const productJsonStream = gulp.src(['product.json'], { base: '.' })
-			.pipe(json({ commit, date, checksums, settingsSearchBuildId }));
+			.pipe(json(productJsonUpdate));
 
 		const license = gulp.src(['LICENSES.chromium.html', 'LICENSE.txt', 'ThirdPartyNotices.txt', 'licenses/**'], { base: '.' });
 

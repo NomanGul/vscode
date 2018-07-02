@@ -10,7 +10,7 @@ import 'vs/css!./media/shell';
 import * as platform from 'vs/base/common/platform';
 import * as perf from 'vs/base/common/performance';
 import * as aria from 'vs/base/browser/ui/aria/aria';
-import { dispose, IDisposable } from 'vs/base/common/lifecycle';
+import { Disposable, toDisposable } from 'vs/base/common/lifecycle';
 import * as errors from 'vs/base/common/errors';
 import { toErrorMessage } from 'vs/base/common/errorMessage';
 import product from 'vs/platform/node/product';
@@ -118,7 +118,7 @@ export interface ICoreServices {
  * The workbench shell contains the workbench with a rich header containing navigation and the activity bar.
  * With the Shell being the top level element in the page, it is also responsible for driving the layouting.
  */
-export class WorkbenchShell {
+export class WorkbenchShell extends Disposable {
 	private storageService: IStorageService;
 	private environmentService: IEnvironmentService;
 	private logService: ILogService;
@@ -135,7 +135,6 @@ export class WorkbenchShell {
 	private notificationService: INotificationService;
 
 	private container: HTMLElement;
-	private toUnbind: IDisposable[];
 	private previousErrorValue: string;
 	private previousErrorTime: number;
 	private content: HTMLElement;
@@ -145,6 +144,8 @@ export class WorkbenchShell {
 	private workbench: Workbench;
 
 	constructor(container: HTMLElement, coreServices: ICoreServices, mainProcessServices: ServiceCollection, private mainProcessClient: IPCClient, configuration: IWindowConfiguration) {
+		super();
+
 		this.container = container;
 
 		this.configuration = configuration;
@@ -158,7 +159,6 @@ export class WorkbenchShell {
 
 		this.mainProcessServices = mainProcessServices;
 
-		this.toUnbind = [];
 		this.previousErrorTime = 0;
 	}
 
@@ -178,7 +178,7 @@ export class WorkbenchShell {
 		this.workbench = this.createWorkbench(instantiationService, serviceCollection, parent, workbenchContainer);
 
 		// Window
-		this.workbench.getInstantiationService().createInstance(ElectronWindow, this.container);
+		this.workbench.getInstantiationService().createInstance(ElectronWindow);
 
 		// Handle case where workbench is not starting up properly
 		const timeoutHandle = setTimeout(() => {
@@ -213,13 +213,12 @@ export class WorkbenchShell {
 					eventuallPhaseTimeoutHandle = void 0;
 					this.lifecycleService.phase = LifecyclePhase.Eventually;
 				}, 3000);
-				this.toUnbind.push({
-					dispose: () => {
-						if (eventuallPhaseTimeoutHandle) {
-							clearTimeout(eventuallPhaseTimeoutHandle);
-						}
+
+				this._register(toDisposable(() => {
+					if (eventuallPhaseTimeoutHandle) {
+						clearTimeout(eventuallPhaseTimeoutHandle);
 					}
-				});
+				}));
 
 				// localStorage metrics (TODO@Ben remove me later)
 				if (!this.environmentService.extensionTestsPath && this.contextService.getWorkbenchState() === WorkbenchState.FOLDER) {
@@ -333,8 +332,7 @@ export class WorkbenchShell {
 		serviceCollection.set(IWorkspaceContextService, this.contextService);
 		serviceCollection.set(IConfigurationService, this.configurationService);
 		serviceCollection.set(IEnvironmentService, this.environmentService);
-		serviceCollection.set(ILogService, this.logService);
-		this.toUnbind.push(this.logService);
+		serviceCollection.set(ILogService, this._register(this.logService));
 
 		serviceCollection.set(ITimerService, this.timerService);
 		serviceCollection.set(IStorageService, this.storageService);
@@ -377,18 +375,14 @@ export class WorkbenchShell {
 				piiPaths: [this.environmentService.appRoot, this.environmentService.extensionsPath]
 			};
 
-			const telemetryService = instantiationService.createInstance(TelemetryService, config);
-			this.telemetryService = telemetryService;
-
-			const errorTelemetry = new ErrorTelemetry(telemetryService);
-
-			this.toUnbind.push(telemetryService, errorTelemetry);
+			this.telemetryService = this._register(instantiationService.createInstance(TelemetryService, config));
+			this._register(new ErrorTelemetry(this.telemetryService));
 		} else {
 			this.telemetryService = NullTelemetryService;
 		}
 
 		serviceCollection.set(ITelemetryService, this.telemetryService);
-		this.toUnbind.push(configurationTelemetry(this.telemetryService, this.configurationService));
+		this._register(configurationTelemetry(this.telemetryService, this.configurationService));
 
 		let crashReporterService = NullCrashReporterService;
 		if (!this.environmentService.disableCrashReporter && product.crashReporter && product.hockeyApp) {
@@ -399,7 +393,7 @@ export class WorkbenchShell {
 		serviceCollection.set(IDialogService, instantiationService.createInstance(DialogService));
 
 		const lifecycleService = instantiationService.createInstance(LifecycleService);
-		this.toUnbind.push(lifecycleService.onShutdown(reason => this.dispose(reason)));
+		this._register(lifecycleService.onShutdown(reason => this.dispose(reason)));
 		serviceCollection.set(ILifecycleService, lifecycleService);
 		this.lifecycleService = lifecycleService;
 
@@ -411,9 +405,8 @@ export class WorkbenchShell {
 		serviceCollection.set(IExtensionManagementServerService, new SyncDescriptor(ExtensionManagementServerService, extensionManagementChannelClient));
 		serviceCollection.set(IExtensionManagementService, new SyncDescriptor(MulitExtensionManagementService));
 
-		const extensionEnablementService = instantiationService.createInstance(ExtensionEnablementService);
+		const extensionEnablementService = this._register(instantiationService.createInstance(ExtensionEnablementService));
 		serviceCollection.set(IExtensionEnablementService, extensionEnablementService);
-		this.toUnbind.push(extensionEnablementService);
 
 		serviceCollection.set(IRequestService, new SyncDescriptor(RequestService));
 
@@ -465,7 +458,7 @@ export class WorkbenchShell {
 		return [instantiationService, serviceCollection];
 	}
 
-	public open(): void {
+	open(): void {
 
 		// Listen on unexpected errors
 		errors.setUnexpectedErrorHandler((error: any) => {
@@ -493,14 +486,14 @@ export class WorkbenchShell {
 	private registerListeners(): void {
 
 		// Resize
-		this.toUnbind.push(addDisposableListener(window, EventType.RESIZE, e => {
+		this._register(addDisposableListener(window, EventType.RESIZE, e => {
 			if (e.target === window) {
 				this.layout();
 			}
 		}));
 	}
 
-	public onUnexpectedError(error: any): void {
+	onUnexpectedError(error: any): void {
 		const errorMsg = toErrorMessage(error, true);
 		if (!errorMsg) {
 			return;
@@ -533,10 +526,8 @@ export class WorkbenchShell {
 		this.workbench.layout();
 	}
 
-	public dispose(reason = ShutdownReason.QUIT): void {
-
-		// Dispose bindings
-		this.toUnbind = dispose(this.toUnbind);
+	dispose(reason = ShutdownReason.QUIT): void {
+		super.dispose();
 
 		// Keep font info for next startup around
 		saveFontInfo(this.storageService);
