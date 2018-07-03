@@ -46,7 +46,7 @@ export class ExtensionManagementServerService extends Disposable implements IExt
 		@IRemoteExtensionsService private remoteExtensionsService: IRemoteExtensionsService
 	) {
 		super();
-		this._localExtensionManagemetServer = { extensionManagementService: localExtensionManagementService, location: URI.from({ scheme: 'vscode-local', authority: 'local' }) };
+		this._localExtensionManagemetServer = { extensionManagementService: localExtensionManagementService, location: URI.from({ scheme: Schemas.file }) };
 		this._register(this.workspaceService.onDidChangeWorkspaceFolders(() => this.updateServers()));
 		this.updateServers();
 	}
