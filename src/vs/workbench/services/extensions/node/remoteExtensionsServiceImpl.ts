@@ -166,7 +166,7 @@ export class RemoteExtensionsEnvironment implements IRemoteExtensionsEnvironment
 		);
 	}
 
-	private scanInstalledExtensions(): TPromise<IExtensionDescription[]> {
+	private scanInstalledExtensions(): Promise<IExtensionDescription[]> {
 		const input = new ExtensionScannerInput(
 			pkg.version,
 			null,
