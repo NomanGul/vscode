@@ -71,6 +71,7 @@ export interface ITerminalConfiguration {
 		windows: string[];
 	};
 	macOptionIsMeta: boolean;
+	macOptionClickForcesSelection: boolean;
 	rendererType: 'auto' | 'canvas' | 'dom';
 	rightClickBehavior: 'default' | 'copyPaste' | 'selectWord';
 	cursorBlinking: boolean;
