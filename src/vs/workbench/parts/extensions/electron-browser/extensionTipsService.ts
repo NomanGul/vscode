@@ -43,6 +43,7 @@ import { assign } from 'vs/base/common/objects';
 import URI from 'vs/base/common/uri';
 import { areSameExtensions, getGalleryExtensionIdFromLocal } from 'vs/platform/extensionManagement/common/extensionManagementUtil';
 import { IExperimentService, ExperimentActionType } from 'vs/workbench/parts/experiments/node/experimentService';
+import { Schemas } from 'vs/base/common/network';
 
 const milliSecondsInADay = 1000 * 60 * 60 * 24;
 const choiceNever = localize('neverShowAgain', "Don't Show Again");
@@ -500,7 +501,8 @@ export class ExtensionTipsService extends Disposable implements IExtensionTipsSe
 		let hasSuggestion = false;
 
 		const uri = model.uri;
-		if (!uri) {
+		// TODO@vs-remote
+		if (!uri || (uri.scheme !== Schemas.file && uri.scheme !== 'vscode-remote')) {
 			return;
 		}
 
