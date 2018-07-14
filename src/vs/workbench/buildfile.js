@@ -28,8 +28,6 @@ exports.collectModules = function () {
 
 		createModuleDescription('vs/workbench/node/extensionHostProcess', []),
 
-		createModuleDescription('vs/workbench/parts/terminal/node/terminalProcess', []),
-
 		createModuleDescription('vs/workbench/node/remoteExtensionHostAgent', [])
 	];
 

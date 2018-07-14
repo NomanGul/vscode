@@ -144,6 +144,10 @@ export class WorkspaceEditingService implements IWorkspaceEditingService {
 		return false;
 	}
 
+	enterWorkspace(path: string): TPromise<void> {
+		return this.doEnterWorkspace(() => this.windowService.enterWorkspace(path));
+	}
+
 	createAndEnterWorkspace(folders?: IWorkspaceFolderCreationData[], path?: string): TPromise<void> {
 		return this.doEnterWorkspace(() => this.windowService.createAndEnterWorkspace(folders, path));
 	}
@@ -188,9 +192,11 @@ export class WorkspaceEditingService implements IWorkspaceEditingService {
 
 		// Stop the extension host first to give extensions most time to shutdown
 		this.extensionService.stopExtensionHost();
+		let extensionHostStarted: boolean = false;
 
 		const startExtensionHost = () => {
 			this.extensionService.startExtensionHost();
+			extensionHostStarted = true;
 		};
 
 		return mainSidePromise().then(result => {
@@ -206,14 +212,15 @@ export class WorkspaceEditingService implements IWorkspaceEditingService {
 
 					// Reinitialize configuration service
 					const workspaceImpl = this.contextService as WorkspaceService;
-					return workspaceImpl.initialize(result.workspace);
+					return workspaceImpl.initialize(result.workspace, startExtensionHost);
 				});
 			}
 
 			return TPromise.as(void 0);
-		}).then(startExtensionHost, error => {
-			startExtensionHost(); // in any case start the extension host again!
-
+		}).then(null, error => {
+			if (!extensionHostStarted) {
+				startExtensionHost(); // start the extension host if not started
+			}
 			return TPromise.wrapError(error);
 		});
 	}

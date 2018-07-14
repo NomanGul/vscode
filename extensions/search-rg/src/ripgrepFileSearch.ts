@@ -9,7 +9,7 @@ import { NodeStringDecoder, StringDecoder } from 'string_decoder';
 import * as vscode from 'vscode';
 import { normalizeNFC, normalizeNFD } from './common/normalization';
 import { rgPath } from './ripgrep';
-import { anchorGlob } from './ripgrepHelpers';
+import { anchorGlob } from './utils';
 import { rgErrorMsgForDisplay } from './ripgrepTextSearch';
 import { IInternalFileSearchProvider } from './cachedSearchProvider';
 
@@ -18,17 +18,17 @@ const isMac = process.platform === 'darwin';
 // If vscode-ripgrep is in an .asar file, then the binary is unpacked.
 const rgDiskPath = rgPath.replace(/\bnode_modules\.asar\b/, 'node_modules.asar.unpacked');
 
-export class RipgrepFileSearch implements IInternalFileSearchProvider {
+export class RipgrepFileSearchEngine implements IInternalFileSearchProvider {
 	private rgProc: cp.ChildProcess;
-	private killRgProcFn: (code?: number) => void;
+	private isDone: boolean;
 
-	constructor(private outputChannel: vscode.OutputChannel) {
-		this.killRgProcFn = () => this.rgProc && this.rgProc.kill();
-		process.once('exit', this.killRgProcFn);
-	}
+	constructor(private outputChannel: vscode.OutputChannel) { }
 
-	private dispose() {
-		process.removeListener('exit', this.killRgProcFn);
+	cancel() {
+		this.isDone = true;
+		if (this.rgProc) {
+			this.rgProc.kill();
+		}
 	}
 
 	provideFileSearchResults(options: vscode.FileSearchOptions, progress: vscode.Progress<string>, token: vscode.CancellationToken): Thenable<void> {
@@ -40,12 +40,7 @@ export class RipgrepFileSearch implements IInternalFileSearchProvider {
 		})}`);
 
 		return new Promise((resolve, reject) => {
-			let isDone = false;
-			const cancel = () => {
-				isDone = true;
-				this.rgProc.kill();
-			};
-			token.onCancellationRequested(cancel);
+			token.onCancellationRequested(() => this.cancel());
 
 			const rgArgs = getRgArgs(options);
 
@@ -94,7 +89,7 @@ export class RipgrepFileSearch implements IInternalFileSearchProvider {
 				});
 
 				if (last) {
-					if (isDone) {
+					if (this.isDone) {
 						resolve();
 					} else {
 						// Trigger last result
@@ -107,12 +102,7 @@ export class RipgrepFileSearch implements IInternalFileSearchProvider {
 					}
 				}
 			});
-		}).then(
-			() => this.dispose(),
-			err => {
-				this.dispose();
-				return Promise.reject(err);
-			});
+		});
 	}
 
 	private collectStdout(cmd: cp.ChildProcess, cb: (err: Error, stdout?: string, last?: boolean) => void): void {
@@ -124,16 +114,22 @@ export class RipgrepFileSearch implements IInternalFileSearchProvider {
 			cb(err, stdout, last);
 		};
 
+		let gotData = false;
 		if (cmd.stdout) {
+			// Should be non-null, but #38195
 			this.forwardData(cmd.stdout, onData);
+			cmd.stdout.once('data', () => gotData = true);
 		} else {
 			this.outputChannel.appendLine('stdout is null');
 		}
 
-		const stderr = this.collectData(cmd.stderr);
-
-		let gotData = false;
-		cmd.stdout.once('data', () => gotData = true);
+		let stderr: Buffer[];
+		if (cmd.stderr) {
+			// Should be non-null, but #38195
+			stderr = this.collectData(cmd.stderr);
+		} else {
+			this.outputChannel.appendLine('stderr is null');
+		}
 
 		cmd.on('error', (err: Error) => {
 			onData(err);

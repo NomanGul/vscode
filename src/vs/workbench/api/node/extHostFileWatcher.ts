@@ -11,8 +11,6 @@ import * as extHostTypes from 'vs/workbench/api/node/extHostTypes';
 import { FileChangeType } from 'vs/platform/files/common/files';
 import { ChokidarWatcherService } from 'vs/workbench/services/files/node/watcher/unix/chokidarWatcherService';
 
-import { isPromiseCanceledError } from 'vs/base/common/errors';
-import { TPromise } from 'vs/base/common/winjs.base';
 import { IRawFileChange } from 'vs/workbench/services/files/node/watcher/common';
 import { IWatcherRequest } from '../../services/files/node/watcher/unix/watcher';
 
@@ -25,14 +23,10 @@ export function createWatcher(verboseLogging: boolean, eventEmmiter: vscode.Even
 	let watcherService = new ChokidarWatcherService();
 	let requests: IWatcherRequest[] = [];
 
+	// TODO(joao): Verify I changed initialize to watch correctly
 	// set up file watcher
-	watcherService.initialize({ verboseLogging }).then(null, err => {
-		if (watcherService && !isPromiseCanceledError(err)) {
-			return TPromise.wrapError(err); // the service lib uses the promise cancel error to indicate the process died, we do not want to bubble this up
-		}
-
-		return void 0;
-	}, (events: IRawFileChange[]) => {
+	const onWatchEvent = watcherService.watch({ verboseLogging });
+	onWatchEvent((events: IRawFileChange[]) => {
 		if (!watcherService) {
 			return;
 		}
@@ -50,14 +44,6 @@ export function createWatcher(verboseLogging: boolean, eventEmmiter: vscode.Even
 				console.info(`[FileWatcher] emitting file event(s): ${events.map(eventToString).join(', ')}`);
 			}
 			eventEmmiter.fire(fileEvents);
-		}
-
-	}).done(() => {
-		// TODO: our watcher app should never be completed because it keeps on watching. being in here indicates
-		// that the watcher process died and we want to restart it here.
-	}, error => {
-		if (watcherService) {
-			console.error(error);
 		}
 	});
 	return {

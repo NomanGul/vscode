@@ -75,7 +75,11 @@ export class RemoteExtensionManagementServer {
 		services.set(ITelemetryService, NullTelemetryService);
 		services.set(IExtensionGalleryService, new SyncDescriptor(ExtensionGalleryService));
 
-		const dialogChannel = server.getChannel('dialog', { route: () => { throw new Error('not supported'); } });
+		// TODO(joao): Is this fine?
+		const dialogChannel = server.getChannel('dialog', {
+			routeCall: () => { throw new Error('not supported'); },
+			routeEvent: () => { throw new Error('not supported'); }
+		});
 		services.set(IDialogService, new DialogChannelClient(dialogChannel));
 
 		services.set(IExtensionManagementService, new SyncDescriptor(ExtensionManagementService));
@@ -90,7 +94,8 @@ export class RemoteExtensionManagementServer {
 			server.registerChannel(REMOTE_EXTENSIONS_FILE_SYSTEM_CHANNEL_NAME, remoteExtensionsFileSystemChannel);
 
 			const extensionManagementService = accessor.get(IExtensionManagementService);
-			const channel = new ExtensionManagementChannel(extensionManagementService);
+			// TODO(sandeep): Fix second argument
+			const channel = new ExtensionManagementChannel(extensionManagementService, null);
 			server.registerChannel('extensions', channel);
 
 			// clean up deprecated extensions

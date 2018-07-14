@@ -6,7 +6,7 @@
 
 import * as assert from 'assert';
 import { TPromise } from 'vs/base/common/winjs.base';
-import * as Async from 'vs/base/common/async';
+import * as async from 'vs/base/common/async';
 import URI from 'vs/base/common/uri';
 import { isPromiseCanceledError } from 'vs/base/common/errors';
 
@@ -14,7 +14,7 @@ suite('Async', () => {
 
 	test('cancelablePromise - set token, don\'t wait for inner promise', function () {
 		let canceled = 0;
-		let promise = Async.createCancelablePromise(token => {
+		let promise = async.createCancelablePromise(token => {
 			token.onCancellationRequested(_ => { canceled += 1; });
 			return new Promise(resolve => { /*never*/ });
 		});
@@ -29,7 +29,7 @@ suite('Async', () => {
 
 	test('cancelablePromise - cancel despite inner promise being resolved', function () {
 		let canceled = 0;
-		let promise = Async.createCancelablePromise(token => {
+		let promise = async.createCancelablePromise(token => {
 			token.onCancellationRequested(_ => { canceled += 1; });
 			return Promise.resolve(1234);
 		});
@@ -41,9 +41,98 @@ suite('Async', () => {
 		return result;
 	});
 
+	// Cancelling a sync cancelable promise will fire the cancelled token.
+	// Also, every `then` callback runs in another execution frame.
+	test('CancelablePromise execution order (sync)', function () {
+		const order = [];
+
+		const cancellablePromise = async.createCancelablePromise(token => {
+			order.push('in callback');
+			token.onCancellationRequested(_ => order.push('cancelled'));
+			return Promise.resolve(1234);
+		});
+
+		order.push('afterCreate');
+
+		const promise = cancellablePromise
+			.then(null, err => null)
+			.then(() => order.push('finally'));
+
+		cancellablePromise.cancel();
+		order.push('afterCancel');
+
+		return promise.then(() => assert.deepEqual(order, ['in callback', 'afterCreate', 'cancelled', 'afterCancel', 'finally']));
+	});
+
+	// Cancelling an async cancelable promise is just the same as a sync cancellable promise.
+	test('CancelablePromise execution order (async)', function () {
+		const order = [];
+
+		const cancellablePromise = async.createCancelablePromise(token => {
+			order.push('in callback');
+			token.onCancellationRequested(_ => order.push('cancelled'));
+			return new Promise(c => setTimeout(c(1234), 0));
+		});
+
+		order.push('afterCreate');
+
+		const promise = cancellablePromise
+			.then(null, err => null)
+			.then(() => order.push('finally'));
+
+		cancellablePromise.cancel();
+		order.push('afterCancel');
+
+		return promise.then(() => assert.deepEqual(order, ['in callback', 'afterCreate', 'cancelled', 'afterCancel', 'finally']));
+	});
+
+	// Cancelling a sync tpromise will NOT cancel the promise, since it has resolved already.
+	// Every `then` callback runs sync in the same execution frame, thus `finally` executes
+	// before `afterCancel`.
+	test('TPromise execution order (sync)', function () {
+		const order = [];
+		let promise = new TPromise(resolve => {
+			order.push('in executor');
+			resolve(1234);
+		}, () => order.push('cancelled'));
+
+		order.push('afterCreate');
+
+		promise = promise
+			.then(null, err => null)
+			.then(() => order.push('finally'));
+
+		promise.cancel();
+		order.push('afterCancel');
+
+		return promise.then(() => assert.deepEqual(order, ['in executor', 'afterCreate', 'finally', 'afterCancel']));
+	});
+
+	// Cancelling an async tpromise will cancel the promise.
+	// Every `then` callback runs sync on the same execution frame as the `cancel` call,
+	// so finally still executes before `afterCancel`.
+	test('TPromise execution order (async)', function () {
+		const order = [];
+		let promise = new TPromise(resolve => {
+			order.push('in executor');
+			setTimeout(() => resolve(1234));
+		}, () => order.push('cancelled'));
+
+		order.push('afterCreate');
+
+		promise = promise
+			.then(null, err => null)
+			.then(() => order.push('finally'));
+
+		promise.cancel();
+		order.push('afterCancel');
+
+		return promise.then(() => assert.deepEqual(order, ['in executor', 'afterCreate', 'cancelled', 'finally', 'afterCancel']));
+	});
+
 	test('cancelablePromise - get inner result', async function () {
-		let promise = Async.createCancelablePromise(token => {
-			return Async.timeout(12).then(_ => 1234);
+		let promise = async.createCancelablePromise(token => {
+			return async.timeout(12).then(_ => 1234);
 		});
 
 		let result = await promise;
@@ -51,10 +140,10 @@ suite('Async', () => {
 	});
 
 	test('asDisposablePromise', async function () {
-		let value = await Async.asDisposablePromise(TPromise.as(1)).promise;
+		let value = await async.asDisposablePromise(TPromise.as(1)).promise;
 		assert.equal(value, 1);
 
-		let disposablePromise = Async.asDisposablePromise(TPromise.timeout(1000).then(_ => 1), 2);
+		let disposablePromise = async.asDisposablePromise(TPromise.timeout(1000).then(_ => 1), 2);
 		disposablePromise.dispose();
 		value = await disposablePromise.promise;
 		assert.equal(value, 2);
@@ -66,7 +155,7 @@ suite('Async', () => {
 			return TPromise.as(++count);
 		};
 
-		let throttler = new Async.Throttler();
+		let throttler = new async.Throttler();
 
 		return TPromise.join([
 			throttler.queue(factory).then((result) => { assert.equal(result, 1); }),
@@ -85,7 +174,7 @@ suite('Async', () => {
 			});
 		};
 
-		let throttler = new Async.Throttler();
+		let throttler = new async.Throttler();
 
 		return TPromise.join([
 			throttler.queue(factory).then((result) => { assert.equal(result, 1); }),
@@ -112,7 +201,7 @@ suite('Async', () => {
 			});
 		};
 
-		let throttler = new Async.Throttler();
+		let throttler = new async.Throttler();
 		let p1: TPromise;
 
 		const p = TPromise.join([
@@ -135,7 +224,7 @@ suite('Async', () => {
 			});
 		};
 
-		let throttler = new Async.Throttler();
+		let throttler = new async.Throttler();
 		let p2: TPromise;
 
 		const p = TPromise.join([
@@ -158,7 +247,7 @@ suite('Async', () => {
 			});
 		};
 
-		let throttler = new Async.Throttler();
+		let throttler = new async.Throttler();
 		let p3: TPromise;
 
 		const p = TPromise.join([
@@ -178,7 +267,7 @@ suite('Async', () => {
 			return TPromise.timeout(0).then(() => n);
 		};
 
-		let throttler = new Async.Throttler();
+		let throttler = new async.Throttler();
 
 		let promises: TPromise[] = [];
 
@@ -198,7 +287,7 @@ suite('Async', () => {
 			});
 		});
 
-		let throttler = new Async.Throttler();
+		let throttler = new async.Throttler();
 		let promises: TPromise[] = [];
 		let progresses: any[][] = [[], [], []];
 
@@ -219,7 +308,7 @@ suite('Async', () => {
 			return TPromise.as(++count);
 		};
 
-		let delayer = new Async.Delayer(0);
+		let delayer = new async.Delayer(0);
 		let promises: TPromise[] = [];
 
 		assert(!delayer.isTriggered());
@@ -244,7 +333,7 @@ suite('Async', () => {
 			return TPromise.as(++count);
 		};
 
-		let delayer = new Async.Delayer(0);
+		let delayer = new async.Delayer(0);
 
 		assert(!delayer.isTriggered());
 
@@ -267,7 +356,7 @@ suite('Async', () => {
 			return TPromise.as(++count);
 		};
 
-		let delayer = new Async.Delayer(0);
+		let delayer = new async.Delayer(0);
 		let promises: TPromise[] = [];
 
 		assert(!delayer.isTriggered());
@@ -294,7 +383,7 @@ suite('Async', () => {
 			return TPromise.as(++count);
 		};
 
-		let delayer = new Async.Delayer(0);
+		let delayer = new async.Delayer(0);
 		let promises: TPromise[] = [];
 
 		assert(!delayer.isTriggered());
@@ -346,7 +435,7 @@ suite('Async', () => {
 			return TPromise.as(n);
 		};
 
-		let delayer = new Async.Delayer(0);
+		let delayer = new async.Delayer(0);
 		let promises: TPromise[] = [];
 
 		assert(!delayer.isTriggered());
@@ -373,7 +462,7 @@ suite('Async', () => {
 			});
 		});
 
-		let delayer = new Async.Delayer(0);
+		let delayer = new async.Delayer(0);
 		let promises: TPromise[] = [];
 		let progresses: any[][] = [[], [], []];
 
@@ -397,7 +486,7 @@ suite('Async', () => {
 			});
 		});
 
-		let delayer = new Async.ThrottledDelayer(0);
+		let delayer = new async.ThrottledDelayer(0);
 		let promises: TPromise[] = [];
 		let progresses: any[][] = [[], [], []];
 
@@ -417,7 +506,7 @@ suite('Async', () => {
 			return TPromise.as(n);
 		};
 
-		return Async.sequence([
+		return async.sequence([
 			factoryFactory(1),
 			factoryFactory(2),
 			factoryFactory(3),
@@ -438,7 +527,7 @@ suite('Async', () => {
 			return TPromise.as(n);
 		};
 
-		let limiter = new Async.Limiter(1);
+		let limiter = new async.Limiter(1);
 
 		let promises: TPromise[] = [];
 		[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].forEach(n => promises.push(limiter.queue(factoryFactory(n))));
@@ -446,7 +535,7 @@ suite('Async', () => {
 		return TPromise.join(promises).then((res) => {
 			assert.equal(10, res.length);
 
-			limiter = new Async.Limiter(100);
+			limiter = new async.Limiter(100);
 
 			promises = [];
 			[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].forEach(n => promises.push(limiter.queue(factoryFactory(n))));
@@ -462,14 +551,14 @@ suite('Async', () => {
 			return TPromise.timeout(0).then(() => n);
 		};
 
-		let limiter = new Async.Limiter(1);
+		let limiter = new async.Limiter(1);
 		let promises: TPromise[] = [];
 		[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].forEach(n => promises.push(limiter.queue(factoryFactory(n))));
 
 		return TPromise.join(promises).then((res) => {
 			assert.equal(10, res.length);
 
-			limiter = new Async.Limiter(100);
+			limiter = new async.Limiter(100);
 
 			promises = [];
 			[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].forEach(n => promises.push(limiter.queue(factoryFactory(n))));
@@ -488,7 +577,7 @@ suite('Async', () => {
 			return TPromise.timeout(0).then(() => { activePromises--; return n; });
 		};
 
-		let limiter = new Async.Limiter(5);
+		let limiter = new async.Limiter(5);
 
 		let promises: TPromise[] = [];
 		[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].forEach(n => promises.push(limiter.queue(factoryFactory(n))));
@@ -500,7 +589,7 @@ suite('Async', () => {
 	});
 
 	test('Queue - simple', function () {
-		let queue = new Async.Queue();
+		let queue = new async.Queue();
 
 		let syncPromise = false;
 		let f1 = () => TPromise.as(true).then(() => syncPromise = true);
@@ -523,7 +612,7 @@ suite('Async', () => {
 	});
 
 	test('Queue - order is kept', function () {
-		let queue = new Async.Queue();
+		let queue = new async.Queue();
 
 		let res: number[] = [];
 
@@ -547,7 +636,7 @@ suite('Async', () => {
 	});
 
 	test('Queue - errors bubble individually but not cause stop', function () {
-		let queue = new Async.Queue();
+		let queue = new async.Queue();
 
 		let res: number[] = [];
 		let error = false;
@@ -572,7 +661,7 @@ suite('Async', () => {
 	});
 
 	test('Queue - order is kept (chained)', function () {
-		let queue = new Async.Queue();
+		let queue = new async.Queue();
 
 		let res: number[] = [];
 
@@ -600,7 +689,7 @@ suite('Async', () => {
 	});
 
 	test('Queue - events', function (done) {
-		let queue = new Async.Queue();
+		let queue = new async.Queue();
 
 		let finished = false;
 		queue.onFinished(() => {
@@ -626,7 +715,7 @@ suite('Async', () => {
 	});
 
 	test('ResourceQueue - simple', function () {
-		let queue = new Async.ResourceQueue();
+		let queue = new async.ResourceQueue();
 
 		const r1Queue = queue.queueFor(URI.file('/some/path'));
 		const r2Queue = queue.queueFor(URI.file('/some/other/path'));

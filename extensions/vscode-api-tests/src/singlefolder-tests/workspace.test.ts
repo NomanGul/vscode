@@ -499,17 +499,26 @@ suite('workspace-namespace', () => {
 		});
 	});
 
-	// TODO@Joh this test fails randomly
-	// test('findFiles, cancellation', () => {
+	test('findFiles, cancellation', () => {
 
-	// 	const source = new CancellationTokenSource();
-	// 	const token = source.token; // just to get an instance first
-	// 	source.cancel();
+		const source = new vscode.CancellationTokenSource();
+		const token = source.token; // just to get an instance first
+		source.cancel();
 
-	// 	return vscode.workspace.findFiles('*.js', null, 100, token).then((res) => {
-	// 		assert.equal(res, void 0);
-	// 	});
-	// });
+		return vscode.workspace.findFiles('*.js', null, 100, token).then((res) => {
+			assert.deepEqual(res, []);
+		});
+	});
+
+	test('findTextInFiles', async () => {
+		const results: vscode.TextSearchResult[] = [];
+		await vscode.workspace.findTextInFiles({ pattern: 'foo' }, { include: '*.ts' }, result => {
+			results.push(result);
+		});
+
+		assert.equal(results.length, 1);
+		assert.equal(vscode.workspace.asRelativePath(results[0].uri), '10linefile.ts');
+	});
 
 	test('applyEdit', () => {
 
@@ -603,8 +612,8 @@ suite('workspace-namespace', () => {
 
 		let newDoc = await vscode.workspace.openTextDocument(newUri);
 		assert.equal(newDoc.getText(), 'HelloFoo');
-		// let doc = await vscode.workspace.openTextDocument(docUri);
-		// assert.equal(doc.getText(), 'Bar');
+		let doc = await vscode.workspace.openTextDocument(docUri);
+		assert.equal(doc.getText(), 'Bar');
 	});
 
 	test('WorkspaceEdit api - after saving a deleted file, it still shows up as deleted. #42667', async function () {
@@ -679,8 +688,7 @@ suite('workspace-namespace', () => {
 		we = new vscode.WorkspaceEdit();
 		we.createFile(docUri, { overwrite: true });
 		assert.ok(await vscode.workspace.applyEdit(we));
-		// todo@ben
-		// assert.equal((await vscode.workspace.openTextDocument(docUri)).getText(), '');
+		assert.equal((await vscode.workspace.openTextDocument(docUri)).getText(), '');
 	});
 
 	test('WorkspaceEdit: create & ignoreIfExists', async function () {

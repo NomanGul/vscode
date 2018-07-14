@@ -57,10 +57,10 @@ export function createCancelablePromise<T>(callback: (token: CancellationToken) 
 		cancel() {
 			source.cancel();
 		}
-		then(resolve, reject) {
+		then<TResult1 = T, TResult2 = never>(resolve?: ((value: T) => TResult1 | Thenable<TResult1>) | undefined | null, reject?: ((reason: any) => TResult2 | Thenable<TResult2>) | undefined | null): Promise<TResult1 | TResult2> {
 			return promise.then(resolve, reject);
 		}
-		catch(reject) {
+		catch<TResult = never>(reject?: ((reason: any) => TResult | Thenable<TResult>) | undefined | null): Promise<T | TResult> {
 			return this.then(undefined, reject);
 		}
 	};
@@ -352,7 +352,7 @@ export class Barrier {
 
 	constructor() {
 		this._isOpen = false;
-		this._promise = new TPromise<boolean>((c, e, p) => {
+		this._promise = new TPromise<boolean>((c, e) => {
 			this._completePromise = c;
 		}, () => {
 			console.warn('You should really not try to cancel this ready promise!');
@@ -482,6 +482,28 @@ export function sequence<T>(promiseFactories: ITask<Thenable<T>>[]): TPromise<T[
 	}
 
 	return TPromise.as(null).then(thenHandler);
+}
+
+export function first2<T>(promiseFactories: ITask<Promise<T>>[], shouldStop: (t: T) => boolean = t => !!t, defaultValue: T = null): Promise<T> {
+
+	let index = 0;
+	const len = promiseFactories.length;
+
+	const loop = () => {
+		if (index >= len) {
+			return Promise.resolve(defaultValue);
+		}
+		const factory = promiseFactories[index++];
+		const promise = factory();
+		return promise.then(result => {
+			if (shouldStop(result)) {
+				return Promise.resolve(result);
+			}
+			return loop();
+		});
+	};
+
+	return loop();
 }
 
 export function first<T>(promiseFactories: ITask<TPromise<T>>[], shouldStop: (t: T) => boolean = t => !!t, defaultValue: T = null): TPromise<T> {

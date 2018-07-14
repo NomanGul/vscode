@@ -1295,6 +1295,7 @@ export class ReloadAction extends Action {
 		@IWindowService private windowService: IWindowService,
 		@IExtensionService private extensionService: IExtensionService,
 		@IExtensionEnablementService private extensionEnablementService: IExtensionEnablementService,
+		@IExtensionManagementServerService private extensionManagementServerService: IExtensionManagementServerService
 	) {
 		super('extensions.reload', localize('reloadAction', "Reload"), ReloadAction.DisabledClass, false);
 		this.throttler = new Throttler();
@@ -1330,7 +1331,9 @@ export class ReloadAction extends Action {
 
 		if (installed && installed.local) {
 			if (runningExtension) {
-				const isSameLocation = runningExtension.extensionLocation.toString() === installed.local.location.toString();
+				const runningExtensionServer = this.extensionManagementServerService.getExtensionManagementServer(runningExtension.extensionLocation);
+				const installedExtensionServer = this.extensionManagementServerService.getExtensionManagementServer(installed.local.location);
+				const isSameLocation = runningExtensionServer.location.toString() === installedExtensionServer.location.toString();
 				if (isSameLocation) {
 					const isDifferentVersionRunning = this.extension.version !== runningExtension.version;
 					if (isDifferentVersionRunning && !isDisabled) {
@@ -2046,7 +2049,6 @@ export abstract class AbstractConfigureRecommendedExtensionsAction extends Actio
 					.then(selection => this.editorService.openEditor({
 						resource: extensionsFileResource,
 						options: {
-							forceOpen: true,
 							pinned: created,
 							selection
 						}
@@ -2060,8 +2062,8 @@ export abstract class AbstractConfigureRecommendedExtensionsAction extends Actio
 			.then(selection => this.editorService.openEditor({
 				resource: workspaceConfigurationFile,
 				options: {
-					forceOpen: true,
-					selection
+					selection,
+					forceReload: true // because content has changed
 				}
 			}));
 	}
@@ -2324,7 +2326,12 @@ export class AddToWorkspaceFolderRecommendationsAction extends AbstractConfigure
 						}
 
 						return this.addExtensionToWorkspaceFolderConfig(configurationFile, extensionId, shouldRecommend).then(() => {
-							this.notificationService.info(localize('AddToWorkspaceFolderRecommendations.success', 'The extension was successfully added to this workspace folder\'s recommendations.'));
+							this.notificationService.prompt(Severity.Info,
+								localize('AddToWorkspaceFolderRecommendations.success', 'The extension was successfully added to this workspace folder\'s recommendations.'),
+								[{
+									label: localize('viewChanges', "View Changes"),
+									run: () => this.openExtensionsFile(configurationFile)
+								}]);
 						}, err => {
 							this.notificationService.error(localize('AddToWorkspaceFolderRecommendations.failure', 'Failed to write to extensions.json. {0}', err));
 						});
@@ -2336,7 +2343,12 @@ export class AddToWorkspaceFolderRecommendationsAction extends AbstractConfigure
 						}
 
 						return this.addExtensionToWorkspaceFolderConfig(configurationFile, extensionId, shouldRecommend).then(() => {
-							this.notificationService.info(localize('AddToWorkspaceFolderIgnoredRecommendations.success', 'The extension was successfully added to this workspace folder\'s unwanted recommendations.'));
+							this.notificationService.prompt(Severity.Info,
+								localize('AddToWorkspaceFolderIgnoredRecommendations.success', 'The extension was successfully added to this workspace folder\'s unwanted recommendations.'),
+								[{
+									label: localize('viewChanges', "View Changes"),
+									run: () => this.openExtensionsFile(configurationFile)
+								}]);
 						}, err => {
 							this.notificationService.error(localize('AddToWorkspaceFolderRecommendations.failure', 'Failed to write to extensions.json. {0}', err));
 						});
@@ -2384,7 +2396,13 @@ export class AddToWorkspaceRecommendationsAction extends AbstractConfigureRecomm
 				}
 
 				return this.addExtensionToWorkspaceConfig(workspaceConfig, extensionId, shouldRecommend).then(() => {
-					this.notificationService.info(localize('AddToWorkspaceRecommendations.success', 'The extension was successfully added to this workspace\'s recommendations.'));
+					this.notificationService.prompt(Severity.Info,
+						localize('AddToWorkspaceRecommendations.success', 'The extension was successfully added to this workspace\'s recommendations.'),
+						[{
+							label: localize('viewChanges', "View Changes"),
+							run: () => this.openWorkspaceConfigurationFile(workspaceConfig)
+						}]);
+
 				}, err => {
 					this.notificationService.error(localize('AddToWorkspaceRecommendations.failure', 'Failed to write. {0}', err));
 				});
@@ -2395,7 +2413,12 @@ export class AddToWorkspaceRecommendationsAction extends AbstractConfigureRecomm
 				}
 
 				return this.addExtensionToWorkspaceConfig(workspaceConfig, extensionId, shouldRecommend).then(() => {
-					this.notificationService.info(localize('AddToWorkspaceUnwantedRecommendations.success', 'The extension was successfully added to this workspace\'s unwanted recommendations.'));
+					this.notificationService.prompt(Severity.Info,
+						localize('AddToWorkspaceUnwantedRecommendations.success', 'The extension was successfully added to this workspace\'s unwanted recommendations.'),
+						[{
+							label: localize('viewChanges', "View Changes"),
+							run: () => this.openWorkspaceConfigurationFile(workspaceConfig)
+						}]);
 				}, err => {
 					this.notificationService.error(localize('AddToWorkspaceRecommendations.failure', 'Failed to write. {0}', err));
 				});

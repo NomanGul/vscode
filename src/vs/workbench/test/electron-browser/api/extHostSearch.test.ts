@@ -606,37 +606,6 @@ suite('ExtHostSearch', () => {
 			assert.equal(cancels, 2, 'Expected all invocations to be canceled when hitting limit');
 		});
 
-		test('respects filePattern', async () => {
-			const reportedResults = [
-				joinPath(rootFolderA, 'file1.ts'),
-				joinPath(rootFolderA, 'file2.ts'),
-				joinPath(rootFolderA, 'file3.ts'),
-			];
-
-			await registerTestSearchProvider({
-				provideFileSearchResults(query: vscode.FileSearchQuery, options: vscode.FileSearchOptions, progress: vscode.Progress<URI>, token: vscode.CancellationToken): Thenable<void> {
-					reportedResults.forEach(r => progress.report(r));
-					return TPromise.wrap(null);
-				}
-			});
-
-			const query: ISearchQuery = {
-				type: QueryType.File,
-
-				filePattern: 'file3',
-
-				folderQueries: [
-					{
-						folder: rootFolderA
-					}
-				]
-			};
-
-			const { results } = await runFileSearch(query);
-			assert.equal(results.length, 1);
-			compareURIs(results, reportedResults.slice(2));
-		});
-
 		test('works with non-file schemes', async () => {
 			const reportedResults = [
 				joinPath(fancySchemeFolderA, 'file1.ts'),
@@ -666,27 +635,33 @@ suite('ExtHostSearch', () => {
 			compareURIs(results, reportedResults);
 		});
 
-		// Mock fs?
-		// test('Returns result for absolute path', async () => {
-		// 	const queriedFile = makeFileResult(rootFolderA, 'file2.ts');
-		// 	const reportedResults = [
-		// 		makeFileResult(rootFolderA, 'file1.ts'),
-		// 		queriedFile,
-		// 		makeFileResult(rootFolderA, 'file3.ts'),
-		// 	];
+		test('uses different cache keys for different folders', async () => {
+			const cacheKeys: string[] = [];
+			await registerTestSearchProvider({
+				provideFileSearchResults(query: vscode.FileSearchQuery, options: vscode.FileSearchOptions, progress: vscode.Progress<URI>, token: vscode.CancellationToken): Thenable<void> {
+					cacheKeys.push(query.cacheKey);
+					return TPromise.wrap(null);
+				}
+			});
 
-		// 	await registerTestSearchProvider({
-		// 		provideFileSearchResults(options: vscode.FileSearchOptions, progress: vscode.Progress<URI>, token: vscode.CancellationToken): Thenable<void> {
-		// 			reportedResults.forEach(r => progress.report(r));
-		// 			return TPromise.wrap(null);
-		// 		}
-		// 	});
+			const query: ISearchQuery = {
+				type: QueryType.File,
+				filePattern: '',
+				cacheKey: 'cacheKey',
+				folderQueries: [
+					{
+						folder: rootFolderA
+					},
+					{
+						folder: rootFolderB
+					}
+				]
+			};
 
-		// 	const queriedFilePath = queriedFile.fsPath;
-		// 	const { results } = await runFileSearch(getSimpleQuery(queriedFilePath));
-		// 	assert.equal(results.length, 1);
-		// 	compareURIs(results, [queriedFile]);
-		// });
+			await runFileSearch(query);
+			assert.equal(cacheKeys.length, 2);
+			assert.notEqual(cacheKeys[0], cacheKeys[1]);
+		});
 	});
 
 	suite('Text:', () => {

@@ -11,6 +11,7 @@ import URI from 'vs/base/common/uri';
 import * as pfs from 'vs/base/node/pfs';
 import * as net from 'net';
 import { Client, Protocol } from 'vs/base/parts/ipc/node/ipc.net';
+import { Event } from 'vs/base/common/event';
 
 export const REMOTE_SOCKET_HANDSHAKE_MANAGEMENT = 1;
 export const REMOTE_SOCKET_HANDSHAKE_EXT_HOST = 2;
@@ -29,8 +30,10 @@ export class RemoteExtensionsFileSystemImpl implements IRemoteExtensionsFileSyst
 	}
 }
 
+// TODO(joao): Verify listen and T type
 export interface IRemoteExtensionsFileSystemChannel extends IChannel {
-	call(command: 'getFile', arg: any): TPromise<string>;
+	call<String>(command: 'getFile', arg: any): TPromise<String>;
+	listen<String>(event: 'getFile', arg: any): Event<String>;
 }
 
 export class RemoteExtensionsFileSystemChannel implements IRemoteExtensionsFileSystemChannel {
@@ -42,6 +45,11 @@ export class RemoteExtensionsFileSystemChannel implements IRemoteExtensionsFileS
 			case 'getFile': return this.service.getFile(arg);
 		}
 		return undefined;
+	}
+
+	// TODO(joao): Do impl
+	listen(event: 'getFile', arg: any): Event<any> {
+		throw new Error('NYI');
 	}
 }
 
