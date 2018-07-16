@@ -33,7 +33,7 @@ steps:
     archiveFile: '$(Build.ArtifactStagingDirectory)/linux64-remote.tar.gz'
 
 - task: PublishBuildArtifacts@1
-  displayName: Publish Artifact: linux64-remote
+  displayName: Publish Artifact
   inputs:
     PathtoPublish: '$(Build.ArtifactStagingDirectory)\linux64-remote.tar.gz'
     ArtifactName: 'linux64-remote'
