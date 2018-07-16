@@ -1,0 +1,41 @@
+resources:
+- repo: self
+queue:
+  name: Hosted Linux Preview
+  condition: succeeded()
+  demands: npm
+
+steps:
+- task: NodeTool@0
+  displayName: Use Node 8.11.3
+  inputs:
+    versionSpec: 8.11.3
+
+- task: Npm@1
+  displayName: npm install
+  inputs:
+    workingDir: remote
+    verbose: false
+
+- task: CopyFiles@2
+  displayName: Copy Files to: $(Build.ArtifactStagingDirectory)/linux64-remote
+  inputs:
+    SourceFolder: remote
+    Contents: 'node_modules\**'
+    TargetFolder: '$(Build.ArtifactStagingDirectory)/linux64-remote'
+
+- task: ArchiveFiles@2
+  displayName: Archive Remote
+  inputs:
+    rootFolderOrFile: '$(Build.ArtifactStagingDirectory)/linux64-remote'
+    includeRootFolder: false
+    archiveType: tar
+    archiveFile: '$(Build.ArtifactStagingDirectory)/linux64-remote.tar.gz'
+
+- task: PublishBuildArtifacts@1
+  displayName: Publish Artifact: linux64-remote
+  inputs:
+    PathtoPublish: '$(Build.ArtifactStagingDirectory)\linux64-remote.tar.gz'
+    ArtifactName: 'linux64-remote'
+
+
