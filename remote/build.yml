@@ -13,8 +13,8 @@ steps:
 - task: CopyFiles@2
   displayName: Copy Files
   inputs:
-    SourceFolder: '$(Build.SourcesDirectory)\remote'
-    Contents: 'node_modules\**'
+    SourceFolder: '$(Build.SourcesDirectory)/remote'
+    Contents: 'node_modules/**'
     TargetFolder: '$(Build.ArtifactStagingDirectory)/linux64-remote'
 
 - task: ArchiveFiles@2
@@ -28,7 +28,7 @@ steps:
 - task: PublishBuildArtifacts@1
   displayName: Publish Artifact
   inputs:
-    PathtoPublish: '$(Build.ArtifactStagingDirectory)\linux64-remote.tar.gz'
+    PathtoPublish: '$(Build.ArtifactStagingDirectory)/linux64-remote.tar.gz'
     ArtifactName: 'linux64-remote'
 
 
