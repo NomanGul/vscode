@@ -75,7 +75,6 @@ export class RemoteExtensionManagementServer {
 		services.set(ITelemetryService, NullTelemetryService);
 		services.set(IExtensionGalleryService, new SyncDescriptor(ExtensionGalleryService));
 
-		// TODO(joao): Is this fine?
 		const dialogChannel = server.getChannel('dialog', {
 			routeCall: () => { throw new Error('not supported'); },
 			routeEvent: () => { throw new Error('not supported'); }

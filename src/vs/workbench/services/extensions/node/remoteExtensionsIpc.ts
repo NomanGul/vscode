@@ -11,9 +11,8 @@ import { IRemoteExtensionsEnvironmentData, IRemoteExtensionsEnvironment } from '
 import { Event } from 'vs/base/common/event';
 
 export interface IRemoteExtensionsEnvironmentChannel extends IChannel {
-	call<IRemoteExtensionsEnvironmentData>(command: 'getRemoteExtensionInformation', arg: any): TPromise<IRemoteExtensionsEnvironmentData>;
-	// TODO(joao): You added this to ipc.ts in 0f851d0, verify it's right
-	listen<IRemoteExtensionsEnvironmentData>(event: 'getRemoteExtensionInformation', arg: any): Event<IRemoteExtensionsEnvironmentData>;
+	call(command: 'getRemoteExtensionInformation', arg: any): TPromise<IRemoteExtensionsEnvironmentData>;
+	call(command: string, arg?: any): TPromise<any>;
 }
 
 export class RemoteExtensionsEnvironmentChannel implements IRemoteExtensionsEnvironmentChannel {
@@ -24,14 +23,13 @@ export class RemoteExtensionsEnvironmentChannel implements IRemoteExtensionsEnvi
 		switch (command) {
 			case 'getRemoteExtensionInformation': return this.service.getRemoteExtensionInformation(arg);
 		}
-		return undefined;
+		
+		throw new Error(`IPC Command ${command} not found`);
 	}
 
-	// TODO(joao): Do impl
-	listen(event: 'getRemoteExtensionInformation', arg: any): Event<any> {
-		throw new Error('NYI');
+	listen(event: string, arg: any): Event<any> {
+		throw new Error('Not implemented');
 	}
-
 }
 
 export class RemoteExtensionsEnvironmentChannelClient implements IRemoteExtensionsEnvironment {
@@ -43,5 +41,4 @@ export class RemoteExtensionsEnvironmentChannelClient implements IRemoteExtensio
 	getRemoteExtensionInformation(remoteAuthority: string): TPromise<IRemoteExtensionsEnvironmentData> {
 		return this.channel.call('getRemoteExtensionInformation', remoteAuthority);
 	}
-
 }

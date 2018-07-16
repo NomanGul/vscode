@@ -12,7 +12,9 @@ import { FileChangeType } from 'vs/platform/files/common/files';
 import { ChokidarWatcherService } from 'vs/workbench/services/files/node/watcher/unix/chokidarWatcherService';
 
 import { IRawFileChange } from 'vs/workbench/services/files/node/watcher/common';
-import { IWatcherRequest } from '../../services/files/node/watcher/unix/watcher';
+import { IWatcherRequest, IWatchError } from '../../services/files/node/watcher/unix/watcher';
+import { filterEvent } from 'vs/base/common/event';
+import { IDisposable, dispose } from 'vs/base/common/lifecycle';
 
 export interface FileWatcher {
 	watch(path: URI, options: { recursive: boolean; excludes: string[]; }): vscode.Disposable;
@@ -23,10 +25,14 @@ export function createWatcher(verboseLogging: boolean, eventEmmiter: vscode.Even
 	let watcherService = new ChokidarWatcherService();
 	let requests: IWatcherRequest[] = [];
 
-	// TODO(joao): Verify I changed initialize to watch correctly
-	// set up file watcher
+	const disposables: IDisposable[] = [];
 	const onWatchEvent = watcherService.watch({ verboseLogging });
-	onWatchEvent((events: IRawFileChange[]) => {
+
+	const onError = filterEvent<any, IWatchError>(onWatchEvent, (e): e is IWatchError => typeof e.message === 'string');
+	onError(err => console.error(err), null, disposables);
+
+	const onFileChanges = filterEvent<any, IRawFileChange[]>(onWatchEvent, (e): e is IRawFileChange[] => Array.isArray(e) && e.length > 0);
+	onFileChanges(events => {
 		if (!watcherService) {
 			return;
 		}
@@ -45,7 +51,8 @@ export function createWatcher(verboseLogging: boolean, eventEmmiter: vscode.Even
 			}
 			eventEmmiter.fire(fileEvents);
 		}
-	});
+	}, null, disposables);
+
 	return {
 		watch(path: URI, options: { recursive: boolean; excludes: string[]; }): vscode.Disposable {
 			if (!watcherService) {
@@ -66,6 +73,7 @@ export function createWatcher(verboseLogging: boolean, eventEmmiter: vscode.Even
 			};
 		},
 		terminate: () => {
+			dispose(disposables);
 			watcherService.stop();
 			watcherService = null;
 		}

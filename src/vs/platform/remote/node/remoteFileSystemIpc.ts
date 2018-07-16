@@ -30,10 +30,9 @@ export class RemoteExtensionsFileSystemImpl implements IRemoteExtensionsFileSyst
 	}
 }
 
-// TODO(joao): Verify listen and T type
 export interface IRemoteExtensionsFileSystemChannel extends IChannel {
-	call<String>(command: 'getFile', arg: any): TPromise<String>;
-	listen<String>(event: 'getFile', arg: any): Event<String>;
+	call(command: 'getFile', arg: any): TPromise<string>;
+	call(command: string, arg?: any): TPromise<any>;
 }
 
 export class RemoteExtensionsFileSystemChannel implements IRemoteExtensionsFileSystemChannel {
@@ -44,12 +43,12 @@ export class RemoteExtensionsFileSystemChannel implements IRemoteExtensionsFileS
 		switch (command) {
 			case 'getFile': return this.service.getFile(arg);
 		}
-		return undefined;
+
+		throw new Error(`IPC Command ${command} not found`);
 	}
 
-	// TODO(joao): Do impl
-	listen(event: 'getFile', arg: any): Event<any> {
-		throw new Error('NYI');
+	listen(event: string, arg: any): Event<any> {
+		throw new Error('Not implemented');
 	}
 }
 
@@ -62,7 +61,6 @@ export class RemoteExtensionsFileSystemChannelClient implements IRemoteExtension
 	getFile(path: string): TPromise<string> {
 		return this.channel.call('getFile', path);
 	}
-
 }
 
 export function connectToRemoteExtensionHostManagement(host: string, port: number, clientId: string): TPromise<Client> {
