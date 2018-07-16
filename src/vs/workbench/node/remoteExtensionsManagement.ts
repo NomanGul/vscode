@@ -27,7 +27,6 @@ import { RemoteExtensionsEnvironmentChannel } from 'vs/workbench/services/extens
 import { REMOTE_EXTENSIONS_FILE_SYSTEM_CHANNEL_NAME, RemoteExtensionsFileSystemImpl, RemoteExtensionsFileSystemChannel } from 'vs/platform/remote/node/remoteFileSystemIpc';
 import { Emitter, fromNodeEventEmitter, once } from 'vs/base/common/event';
 import { IPCServer, ClientConnectionEvent } from 'vs/base/parts/ipc/common/ipc';
-import { DefaultURITransformer } from 'vs/base/common/uriIpc';
 
 export interface IExtensionsManagementProcessInitData {
 	args: ParsedArgs;
@@ -94,7 +93,7 @@ export class RemoteExtensionManagementServer {
 			server.registerChannel(REMOTE_EXTENSIONS_FILE_SYSTEM_CHANNEL_NAME, remoteExtensionsFileSystemChannel);
 
 			const extensionManagementService = accessor.get(IExtensionManagementService);
-			const channel = new ExtensionManagementChannel(extensionManagementService, DefaultURITransformer);
+			const channel = new ExtensionManagementChannel(extensionManagementService);
 			server.registerChannel('extensions', channel);
 
 			// clean up deprecated extensions
