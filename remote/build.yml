@@ -13,7 +13,7 @@ steps:
 - task: CopyFiles@2
   displayName: Copy Files
   inputs:
-    SourceFolder: remote
+    SourceFolder: '$(Build.SourcesDirectory)\remote'
     Contents: 'node_modules\**'
     TargetFolder: '$(Build.ArtifactStagingDirectory)/linux64-remote'
 
