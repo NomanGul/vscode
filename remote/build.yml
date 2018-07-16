@@ -18,7 +18,7 @@ steps:
     verbose: false
 
 - task: CopyFiles@2
-  displayName: Copy Files to: $(Build.ArtifactStagingDirectory)/linux64-remote
+  displayName: Copy Files
   inputs:
     SourceFolder: remote
     Contents: 'node_modules\**'
