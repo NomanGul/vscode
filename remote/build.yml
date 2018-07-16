@@ -11,24 +11,21 @@ steps:
     verbose: false
 
 - task: CopyFiles@2
-  displayName: Copy Files
+  displayName: Copy Node Executable
+  inputs:
+    SourceFolder: '/opt/hostedtoolcache/node/8.11.3/x64/bin'
+    Contents: 'node'
+    TargetFolder: '$(Build.ArtifactStagingDirectory)/linux64-remote'
+
+- task: CopyFiles@2
+  displayName: Copy Node Modules
   inputs:
     SourceFolder: '$(Build.SourcesDirectory)/remote'
     Contents: 'node_modules/**'
     TargetFolder: '$(Build.ArtifactStagingDirectory)/linux64-remote'
 
-- task: ArchiveFiles@2
-  displayName: Archive Remote
-  inputs:
-    rootFolderOrFile: '$(Build.ArtifactStagingDirectory)/linux64-remote'
-    includeRootFolder: false
-    archiveType: tar
-    archiveFile: '$(Build.ArtifactStagingDirectory)/linux64-remote.tar.gz'
-
 - task: PublishBuildArtifacts@1
   displayName: Publish Artifact
   inputs:
-    PathtoPublish: '$(Build.ArtifactStagingDirectory)/linux64-remote.tar.gz'
+    PathtoPublish: '$(Build.ArtifactStagingDirectory)/linux64-remote'
     ArtifactName: 'linux64-remote'
-
-
