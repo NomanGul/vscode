@@ -2,7 +2,6 @@ resources:
 - repo: self
 queue:
   name: Hosted Linux Preview
-  condition: succeeded()
   demands: npm
 
 steps:
