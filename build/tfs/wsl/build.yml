@@ -10,6 +10,8 @@ steps:
 
 - script: |
     set -e
+    apt-get update
+    apt-get install -y libxkbfile-dev pkg-config libsecret-1-dev libxss1 libgconf-2-4 dbus xvfb libgtk-3-0
     yarn
   displayName: Install Dependencies
 
