@@ -14,6 +14,13 @@ interface Options {
 	'download': string;
 }
 
+function getBlobService(): azure.BlobService {
+	const storageAccount = process.env['AZURE_STORAGE_ACCOUNT_2'];
+
+	return azure.createBlobService(storageAccount, process.env['AZURE_STORAGE_ACCESS_KEY_2'])
+		.withFilter(new azure.ExponentialRetryPolicyFilter(20));
+}
+
 async function assertContainer(blobService: azure.BlobService, container: string): Promise<void> {
 	await new Promise((c, e) => blobService.createContainerIfNotExists(container, { publicAccessLevel: 'blob' }, err => err ? e(err) : c()));
 }
@@ -30,11 +37,7 @@ async function uploadBlob(blobService: azure.BlobService, container: string, nam
 }
 
 async function upload(commit: string, file: string): Promise<void> {
-	const storageAccount = process.env['AZURE_STORAGE_ACCOUNT_2'];
-
-	const blobService = azure.createBlobService(storageAccount, process.env['AZURE_STORAGE_ACCESS_KEY_2'])
-		.withFilter(new azure.ExponentialRetryPolicyFilter(20));
-
+	const blobService = getBlobService();
 	await assertContainer(blobService, 'wsl');
 	await uploadBlob(blobService, 'wsl', `${commit}/VSCode-wsl-x64.tar.gz`, file);
 
@@ -46,11 +49,7 @@ async function downloadBlob(blobService: azure.BlobService, container: string, n
 }
 
 async function download(commit: string, file: string): Promise<void> {
-	const storageAccount = process.env['AZURE_STORAGE_ACCOUNT_2'];
-
-	const blobService = azure.createBlobService(storageAccount, process.env['AZURE_STORAGE_ACCESS_KEY_2'])
-		.withFilter(new azure.ExponentialRetryPolicyFilter(20));
-
+	const blobService = getBlobService();
 	await assertContainer(blobService, 'wsl');
 	await downloadBlob(blobService, 'wsl', `${commit}/VSCode-wsl-x64.tar.gz`, file);
 
