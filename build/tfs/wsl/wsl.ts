@@ -53,12 +53,19 @@ async function download(commit: string, file: string): Promise<void> {
 	await assertContainer(blobService, 'wsl');
 
 	let retries = 0;
-	while (retries < 180) { // wait for 30 minutes MAX
+
+	while (true) {
 		try {
 			await downloadBlob(blobService, 'wsl', `${commit}/VSCode-wsl-x64.tar.gz`, file);
+			console.log(`Downloaded '${commit}/VSCode-wsl-x64.tar.gz' to: ${file}`);
+			return;
 		} catch (err) {
 			if (err.code !== 'NotFound') {
 				throw err;
+			}
+
+			if (retries >= 180) { // wait for 30 minutes MAX
+				throw new Error(`Timeout waiting for: ${commit}/VSCode-wsl-x64.tar.gz`);
 			}
 
 			retries++;
@@ -66,8 +73,6 @@ async function download(commit: string, file: string): Promise<void> {
 			await new Promise(c => setTimeout(c, 10 * 1000)); // 10 seconds
 		}
 	}
-
-	console.log(`Downloaded '${commit}/VSCode-wsl-x64.tar.gz' to: ${file}`);
 }
 
 async function main(args: string[]): Promise<void> {
