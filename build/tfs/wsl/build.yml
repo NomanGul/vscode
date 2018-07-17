@@ -10,8 +10,8 @@ steps:
 
 - script: |
     set -e
-    cd build && yarn
-  displayName: Compile build scripts
+    yarn
+  displayName: Install Dependencies
 
 - task: Npm@1
   displayName: npm install
