@@ -51,7 +51,21 @@ async function downloadBlob(blobService: azure.BlobService, container: string, n
 async function download(commit: string, file: string): Promise<void> {
 	const blobService = getBlobService();
 	await assertContainer(blobService, 'wsl');
-	await downloadBlob(blobService, 'wsl', `${commit}/VSCode-wsl-x64.tar.gz`, file);
+
+	let retries = 0;
+	while (retries < 180) { // wait for 30 minutes MAX
+		try {
+			await downloadBlob(blobService, 'wsl', `${commit}/VSCode-wsl-x64.tar.gz`, file);
+		} catch (err) {
+			if (err.code !== 'NotFound') {
+				throw err;
+			}
+
+			retries++;
+			console.warn(`Not found: ${commit}/VSCode-wsl-x64.tar.gz. Retrying in 10 seconds...`);
+			await new Promise(c => setTimeout(c, 10 * 1000)); // 10 seconds
+		}
+	}
 
 	console.log(`Downloaded '${commit}/VSCode-wsl-x64.tar.gz' to: ${file}`);
 }
