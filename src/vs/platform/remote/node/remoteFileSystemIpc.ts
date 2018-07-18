@@ -63,30 +63,30 @@ export class RemoteExtensionsFileSystemChannelClient implements IRemoteExtension
 	}
 }
 
-export function connectToRemoteExtensionHostManagement(host: string, port: number, clientId: string): TPromise<Client> {
-	return new TPromise<Client>((c, e) => {
+function connectToRemoteExtensionHostAgent(host: string, port: number): TPromise<net.Socket> {
+	return new TPromise<net.Socket>((c, e) => {
 		const socket = net.createConnection({ host: host, port: port }, () => {
 			socket.removeListener('error', e);
-			const chunk = new Buffer(1);
-			chunk[0] = REMOTE_SOCKET_HANDSHAKE_MANAGEMENT;
-			socket.write(chunk);
-			c(Client.fromSocket(socket, clientId));
+			c(socket);
 		});
 		socket.once('error', e);
 	});
 }
 
+export function connectToRemoteExtensionHostManagement(host: string, port: number, clientId: string): TPromise<Client> {
+	return connectToRemoteExtensionHostAgent(host, port).then((socket) => {
+		const chunk = new Buffer(1);
+		chunk[0] = REMOTE_SOCKET_HANDSHAKE_MANAGEMENT;
+		socket.write(chunk);
+		return Client.fromSocket(socket, clientId);
+	});
+}
+
 export function connectToRemoteExtensionHostServer(host: string, port: number): TPromise<IMessagePassingProtocol> {
-	return new TPromise<IMessagePassingProtocol>((resolve, reject) => {
-		const socket = net.createConnection({ host, port }, () => {
-			socket.removeListener('error', reject);
-
-			const chunk = new Buffer(1);
-			chunk[0] = REMOTE_SOCKET_HANDSHAKE_EXT_HOST;
-			socket.write(chunk);
-
-			resolve(new Protocol(socket));
-		});
-		socket.once('error', reject);
+	return connectToRemoteExtensionHostAgent(host, port).then((socket) => {
+		const chunk = new Buffer(1);
+		chunk[0] = REMOTE_SOCKET_HANDSHAKE_EXT_HOST;
+		socket.write(chunk);
+		return new Protocol(socket);
 	});
 }
