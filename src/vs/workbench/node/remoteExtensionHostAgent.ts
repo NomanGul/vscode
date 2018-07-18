@@ -89,7 +89,7 @@ class ExtensionHostAgentServer {
 				console.log(`==> Received a management connection from ${socket.address().address}`);
 				remoteExtensionManagementServer.acceptConnection(socket, data);
 			} else if (firstByte === REMOTE_SOCKET_HANDSHAKE_EXT_HOST) {
-				// This should become an extension host connectio
+				// This should become an extension host connection
 				socket.removeListener('data', listener);
 
 				console.log(`==> Received an extension host connection from ${socket.address().address}`);

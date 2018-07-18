@@ -86,8 +86,8 @@ export class RemoteExtensionManagementServer {
 		const instantiationService = new InstantiationService(services);
 
 		instantiationService.invokeFunction(accessor => {
-			const remoteExtensionsEnvironemntChannel = new RemoteExtensionsEnvironmentChannel(new RemoteExtensionsEnvironment(this._environmentService));
-			server.registerChannel('remoteextensionsenvironment', remoteExtensionsEnvironemntChannel);
+			const remoteExtensionsEnvironmentChannel = new RemoteExtensionsEnvironmentChannel(new RemoteExtensionsEnvironment(this._environmentService));
+			server.registerChannel('remoteextensionsenvironment', remoteExtensionsEnvironmentChannel);
 
 			const remoteExtensionsFileSystemChannel = new RemoteExtensionsFileSystemChannel(new RemoteExtensionsFileSystemImpl());
 			server.registerChannel(REMOTE_EXTENSIONS_FILE_SYSTEM_CHANNEL_NAME, remoteExtensionsFileSystemChannel);
