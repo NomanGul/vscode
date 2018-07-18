@@ -70,7 +70,7 @@ export function connectToRemoteExtensionHostManagement(host: string, port: numbe
 			const chunk = new Buffer(1);
 			chunk[0] = REMOTE_SOCKET_HANDSHAKE_MANAGEMENT;
 			socket.write(chunk);
-			c(new Client(socket, clientId));
+			c(Client.fromSocket(socket, clientId));
 		});
 		socket.once('error', e);
 	});
