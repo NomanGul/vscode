@@ -7,7 +7,7 @@
 import * as net from 'net';
 import * as objects from 'vs/base/common/objects';
 import * as cp from 'child_process';
-import { generateRandomPipeName } from 'vs/base/parts/ipc/node/ipc.net';
+import { generateRandomPipeName, Protocol } from 'vs/base/parts/ipc/node/ipc.net';
 import { TPromise } from 'vs/base/common/winjs.base';
 import URI from 'vs/base/common/uri';
 import { fromNodeEventEmitter } from 'vs/base/common/event';
@@ -28,7 +28,10 @@ export class ExtensionHostConnection {
 	private _rendererClosed: boolean;
 	private _resourcesCleaned: boolean;
 
-	constructor(rendererConnection: net.Socket, firstDataChunk: Buffer) {
+	constructor(rendererConnection: net.Socket, protocol: Protocol) {
+		const firstDataChunk = protocol.getBuffer();
+		protocol.dispose();
+
 		this._rendererConnection = rendererConnection;
 		this._initialDataChunks = [];
 		if (firstDataChunk && firstDataChunk.length > 0) {

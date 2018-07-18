@@ -13,8 +13,16 @@ import * as net from 'net';
 import { Client, Protocol } from 'vs/base/parts/ipc/node/ipc.net';
 import { Event } from 'vs/base/common/event';
 
-export const REMOTE_SOCKET_HANDSHAKE_MANAGEMENT = 1;
-export const REMOTE_SOCKET_HANDSHAKE_EXT_HOST = 2;
+export const enum ConnectionType {
+	Management = 1,
+	ExtensionHost = 2,
+}
+
+export interface ConnectionTypeSelectionMessage {
+	auth: string;
+	desiredConnectionType: ConnectionType;
+}
+
 export const REMOTE_EXTENSIONS_FILE_SYSTEM_CHANNEL_NAME = 'remoteextensionsfilesystem';
 
 export interface IRemoteExtensionsFileSystem {
@@ -63,30 +71,30 @@ export class RemoteExtensionsFileSystemChannelClient implements IRemoteExtension
 	}
 }
 
-function connectToRemoteExtensionHostAgent(host: string, port: number): TPromise<net.Socket> {
-	return new TPromise<net.Socket>((c, e) => {
+function connectToRemoteExtensionHostAgent(host: string, port: number, connectionType: ConnectionType): TPromise<Protocol> {
+	return new TPromise<Protocol>((c, e) => {
 		const socket = net.createConnection({ host: host, port: port }, () => {
 			socket.removeListener('error', e);
-			c(socket);
+			c(new Protocol(socket));
 		});
 		socket.once('error', e);
+	}).then((protocol) => {
+		// TODO@vs-remote: use real nonce here
+		const msg: ConnectionTypeSelectionMessage = {
+			auth: '00000000000000000000',
+			desiredConnectionType: connectionType
+		};
+		protocol.send(msg);
+		return protocol;
 	});
 }
 
 export function connectToRemoteExtensionHostManagement(host: string, port: number, clientId: string): TPromise<Client> {
-	return connectToRemoteExtensionHostAgent(host, port).then((socket) => {
-		const chunk = new Buffer(1);
-		chunk[0] = REMOTE_SOCKET_HANDSHAKE_MANAGEMENT;
-		socket.write(chunk);
-		return Client.fromSocket(socket, clientId);
+	return connectToRemoteExtensionHostAgent(host, port, ConnectionType.Management).then((protocol) => {
+		return new Client(protocol, clientId);
 	});
 }
 
 export function connectToRemoteExtensionHostServer(host: string, port: number): TPromise<IMessagePassingProtocol> {
-	return connectToRemoteExtensionHostAgent(host, port).then((socket) => {
-		const chunk = new Buffer(1);
-		chunk[0] = REMOTE_SOCKET_HANDSHAKE_EXT_HOST;
-		socket.write(chunk);
-		return new Protocol(socket);
-	});
+	return connectToRemoteExtensionHostAgent(host, port, ConnectionType.ExtensionHost);
 }
