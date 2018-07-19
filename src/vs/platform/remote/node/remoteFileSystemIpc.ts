@@ -13,15 +13,30 @@ import * as net from 'net';
 import { Client, Protocol } from 'vs/base/parts/ipc/node/ipc.net';
 import { Event } from 'vs/base/common/event';
 
+export let USE_VSDA = false;
+
 export const enum ConnectionType {
 	Management = 1,
 	ExtensionHost = 2,
 }
 
-export interface ConnectionTypeSelectionMessage {
+export interface AuthRequest {
+	type: 'auth';
 	auth: string;
-	desiredConnectionType: ConnectionType;
 }
+
+export interface SignRequest {
+	type: 'sign';
+	data: string;
+}
+
+export interface ConnectionTypeRequest {
+	type: 'connectionType';
+	signedData?: string;
+	desiredConnectionType?: ConnectionType;
+}
+
+export type HandshakeMessage = AuthRequest | SignRequest | ConnectionTypeRequest;
 
 export const REMOTE_EXTENSIONS_FILE_SYSTEM_CHANNEL_NAME = 'remoteextensionsfilesystem';
 
@@ -79,13 +94,54 @@ function connectToRemoteExtensionHostAgent(host: string, port: number, connectio
 		});
 		socket.once('error', e);
 	}).then((protocol) => {
-		// TODO@vs-remote: use real nonce here
-		const msg: ConnectionTypeSelectionMessage = {
-			auth: '00000000000000000000',
-			desiredConnectionType: connectionType
-		};
-		protocol.send(msg);
-		return protocol;
+
+		return new TPromise<Protocol>((c, e) => {
+
+			const messageRegistration = protocol.onMessage((msg: HandshakeMessage) => {
+
+				// Stop listening for further events
+				messageRegistration.dispose();
+
+				if (msg.type === 'sign') {
+
+					let signed = msg.data;
+					if (USE_VSDA) {
+						try {
+							const vsda = <any>require.__$__nodeRequire('vsda');
+							const obj = new vsda.signer();
+							signed = obj.sign(msg.data);
+						} catch (e) {
+							// return unsigned data
+						}
+					} else {
+						// some fake signing
+						signed = msg.data.toUpperCase();
+					}
+
+					const connTypeRequest: ConnectionTypeRequest = {
+						type: 'connectionType',
+						signedData: signed,
+						desiredConnectionType: connectionType
+					};
+					protocol.send(connTypeRequest);
+
+					c(protocol);
+				} else {
+					e(new Error('handshake error'));
+				}
+			});
+
+			setTimeout(_ => {
+				e(new Error('handshake timeout'));
+			}, 2000);
+
+			// TODO@vs-remote: use real nonce here
+			const authRequest: AuthRequest = {
+				type: 'auth',
+				auth: '00000000000000000000'
+			};
+			protocol.send(authRequest);
+		});
 	});
 }
 
