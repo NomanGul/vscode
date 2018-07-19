@@ -20,18 +20,19 @@ import * as objects from 'vs/base/common/objects';
 import { escapeRegExpCharacters, startsWith } from 'vs/base/common/strings';
 import URI from 'vs/base/common/uri';
 import { TPromise } from 'vs/base/common/winjs.base';
-import { IAccessibilityProvider, IDataSource, IFilter, IRenderer, ITree } from 'vs/base/parts/tree/browser/tree';
+import { IAccessibilityProvider, IDataSource, IFilter, ITree, IRenderer } from 'vs/base/parts/tree/browser/tree';
 import { localize } from 'vs/nls';
 import { ConfigurationTarget, IConfigurationService } from 'vs/platform/configuration/common/configuration';
 import { IContextViewService } from 'vs/platform/contextview/browser/contextView';
 import { WorkbenchTree, WorkbenchTreeController } from 'vs/platform/list/browser/listService';
 import { IOpenerService } from 'vs/platform/opener/common/opener';
 import { inputBackground, inputBorder, inputForeground, registerColor, selectBackground, selectBorder, selectForeground, textLinkForeground } from 'vs/platform/theme/common/colorRegistry';
-import { attachInputBoxStyler, attachSelectBoxStyler } from 'vs/platform/theme/common/styler';
+import { attachInputBoxStyler, attachSelectBoxStyler, attachButtonStyler } from 'vs/platform/theme/common/styler';
 import { ICssStyleCollector, ITheme, IThemeService, registerThemingParticipant } from 'vs/platform/theme/common/themeService';
 import { SettingsTarget } from 'vs/workbench/parts/preferences/browser/preferencesWidgets';
 import { ITOCEntry } from 'vs/workbench/parts/preferences/browser/settingsLayout';
 import { ISearchResult, ISetting, ISettingsGroup } from 'vs/workbench/services/preferences/common/preferences';
+import { Color } from 'vs/base/common/color';
 
 const $ = DOM.$;
 
@@ -236,8 +237,12 @@ function inspectSetting(key: string, target: SettingsTarget, configurationServic
 	return { isConfigured, inspected, targetSelector };
 }
 
-export function resolveSettingsTree(tocData: ITOCEntry, coreSettingsGroups: ISettingsGroup[]): ITOCEntry {
-	return _resolveSettingsTree(tocData, getFlatSettings(coreSettingsGroups));
+export function resolveSettingsTree(tocData: ITOCEntry, coreSettingsGroups: ISettingsGroup[]): { tree: ITOCEntry, leftoverSettings: Set<ISetting> } {
+	const allSettings = getFlatSettings(coreSettingsGroups);
+	return {
+		tree: _resolveSettingsTree(tocData, allSettings),
+		leftoverSettings: allSettings
+	};
 }
 
 export function resolveExtensionsSettings(groups: ISettingsGroup[]): ITOCEntry {
@@ -311,7 +316,9 @@ function getFlatSettings(settingsGroups: ISettingsGroup[]) {
 	for (let group of settingsGroups) {
 		for (let section of group.sections) {
 			for (let s of section.settings) {
-				result.add(s);
+				if (!s.overrides || !s.overrides.length) {
+					result.add(s);
+				}
 			}
 		}
 	}
@@ -782,9 +789,16 @@ export class SettingsRenderer implements IRenderer {
 		const common = this.renderCommonTemplate(tree, container, 'complex');
 
 		const openSettingsButton = new Button(common.controlElement, { title: true, buttonBackground: null, buttonHoverBackground: null });
-		openSettingsButton.onDidClick(() => this._onDidOpenSettings.fire());
+		common.toDispose.push(openSettingsButton);
+		common.toDispose.push(openSettingsButton.onDidClick(() => this._onDidOpenSettings.fire()));
 		openSettingsButton.label = localize('editInSettingsJson', "Edit in settings.json");
 		openSettingsButton.element.classList.add('edit-in-settings-button');
+
+		common.toDispose.push(attachButtonStyler(openSettingsButton, this.themeService, {
+			buttonBackground: Color.transparent.toString(),
+			buttonHoverBackground: Color.transparent.toString(),
+			buttonForeground: 'foreground'
+		}));
 
 		const template: ISettingComplexItemTemplate = {
 			...common,

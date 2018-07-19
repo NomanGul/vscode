@@ -18,14 +18,19 @@ import { OutlineElement, OutlineModel, TreeElement } from 'vs/editor/contrib/doc
 import { OutlineDataSource, OutlineItemComparator, OutlineRenderer } from 'vs/editor/contrib/documentSymbols/outlineTree';
 import { localize } from 'vs/nls';
 import { FileKind, IFileService, IFileStat } from 'vs/platform/files/common/files';
-import { IInstantiationService } from 'vs/platform/instantiation/common/instantiation';
+import { IInstantiationService, IConstructorSignature1 } from 'vs/platform/instantiation/common/instantiation';
 import { HighlightingWorkbenchTree, IHighlightingTreeConfiguration, IHighlightingRenderer } from 'vs/platform/list/browser/listService';
-import { IThemeService } from 'vs/platform/theme/common/themeService';
+import { IThemeService, DARK } from 'vs/platform/theme/common/themeService';
 import { FileLabel } from 'vs/workbench/browser/labels';
 import { BreadcrumbElement, FileElement } from 'vs/workbench/browser/parts/editor/breadcrumbsModel';
 import { onUnexpectedError } from 'vs/base/common/errors';
 import { breadcrumbsActiveSelectionBackground } from 'vs/platform/theme/common/colorRegistry';
 import { FuzzyScore, createMatches, fuzzyScore } from 'vs/base/common/filters';
+
+export function createBreadcrumbsPicker(instantiationService: IInstantiationService, parent: HTMLElement, element: BreadcrumbElement): BreadcrumbsPicker {
+	let ctor: IConstructorSignature1<HTMLElement, BreadcrumbsPicker> = element instanceof FileElement ? BreadcrumbsFilePicker : BreadcrumbsOutlinePicker;
+	return instantiationService.createInstance(ctor, parent);
+}
 
 export abstract class BreadcrumbsPicker {
 
@@ -40,25 +45,20 @@ export abstract class BreadcrumbsPicker {
 
 	constructor(
 		container: HTMLElement,
-		input: BreadcrumbElement,
 		@IInstantiationService protected readonly _instantiationService: IInstantiationService,
 		@IThemeService protected readonly _themeService: IThemeService,
 	) {
 		this._domNode = document.createElement('div');
-		this._domNode.className = 'monaco-breadcrumbs-picker';
-		const color = this._themeService.getTheme().getColor(breadcrumbsActiveSelectionBackground);
+		this._domNode.className = 'monaco-breadcrumbs-picker show-file-icons';
+		const theme = this._themeService.getTheme();
+		const color = theme.getColor(breadcrumbsActiveSelectionBackground);
 		this._domNode.style.background = color.toString();
-		this._domNode.style.boxShadow = `2px 2px 3px ${color.darken(.1)}`;
-		this._domNode.style.position = 'absolute';
-		this._domNode.style.zIndex = '1000';
+		this._domNode.style.boxShadow = `0px 5px 8px ${(theme.type === DARK ? color.darken(.6) : color.darken(.2))}`;
 		container.appendChild(this._domNode);
 
 		this._focus = dom.trackFocus(this._domNode);
 		this._focus.onDidBlur(_ => this._onDidPickElement.fire(undefined), undefined, this._disposables);
 
-		const treeContainer = document.createElement('div');
-		treeContainer.className = 'breadcrumbs-picker-tree';
-		this._domNode.appendChild(treeContainer);
 		const treeConifg = this._completeTreeConfiguration({ dataSource: undefined, renderer: undefined });
 		this._tree = this._instantiationService.createInstance(HighlightingWorkbenchTree, this._domNode, treeConifg, {}, { placeholder: localize('placeholder', "Find") });
 		this._disposables.push(this._tree.onDidChangeSelection(e => {
@@ -67,17 +67,6 @@ export abstract class BreadcrumbsPicker {
 			}
 		}));
 
-		this._tree.setInput(this._getInput(input)).then(() => {
-			let selection = this._getInitialSelection(this._tree, input);
-			if (selection) {
-				this._tree.reveal(selection).then(() => {
-					this._tree.setSelection([selection], this._tree);
-					this._tree.setFocus(selection);
-				});
-			}
-		}, onUnexpectedError);
-
-		// this._input.focus();
 		this._tree.domFocus();
 	}
 
@@ -86,6 +75,19 @@ export abstract class BreadcrumbsPicker {
 		this._onDidPickElement.dispose();
 		this._tree.dispose();
 		this._focus.dispose();
+	}
+
+	setInput(input: any): void {
+		let actualInput = this._getInput(input);
+		this._tree.setInput(actualInput).then(() => {
+			let selection = this._getInitialSelection(this._tree, input);
+			if (selection) {
+				this._tree.reveal(selection).then(() => {
+					this._tree.setSelection([selection], this._tree);
+					this._tree.setFocus(selection);
+				});
+			}
+		}, onUnexpectedError);
 	}
 
 	layout(dim: dom.Dimension) {
@@ -227,7 +229,7 @@ export class BreadcrumbsFilePicker extends BreadcrumbsPicker {
 		let [first] = e.selection;
 		let stat = first as IFileStat;
 		if (stat && !stat.isDirectory) {
-			this._onDidPickElement.fire(stat.resource);
+			this._onDidPickElement.fire(new FileElement(stat.resource, true));
 		}
 	}
 }
