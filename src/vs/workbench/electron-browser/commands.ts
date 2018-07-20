@@ -32,6 +32,7 @@ function ensureDOMFocus(widget: ListWidget): void {
 	}
 }
 
+export const QUIT_ID = 'workbench.action.quit';
 export function registerCommands(): void {
 
 	function focusDown(accessor: ServicesAccessor, arg2?: number): void {
@@ -105,7 +106,7 @@ export function registerCommands(): void {
 	KeybindingsRegistry.registerCommandAndKeybindingRule({
 		id: 'list.expandSelectionDown',
 		weight: KeybindingsRegistry.WEIGHT.workbenchContrib(),
-		when: WorkbenchListFocusContextKey,
+		when: ContextKeyExpr.and(WorkbenchListFocusContextKey, WorkbenchListSupportsMultiSelectContextKey),
 		primary: KeyMod.Shift | KeyCode.DownArrow,
 		handler: (accessor, arg2) => {
 			const focused = accessor.get(IListService).lastFocusedList;
@@ -178,7 +179,7 @@ export function registerCommands(): void {
 	KeybindingsRegistry.registerCommandAndKeybindingRule({
 		id: 'list.expandSelectionUp',
 		weight: KeybindingsRegistry.WEIGHT.workbenchContrib(),
-		when: WorkbenchListFocusContextKey,
+		when: ContextKeyExpr.and(WorkbenchListFocusContextKey, WorkbenchListSupportsMultiSelectContextKey),
 		primary: KeyMod.Shift | KeyCode.UpArrow,
 		handler: (accessor, arg2) => {
 			const focused = accessor.get(IListService).lastFocusedList;
@@ -537,7 +538,7 @@ export function registerCommands(): void {
 	});
 
 	KeybindingsRegistry.registerCommandAndKeybindingRule({
-		id: 'workbench.action.quit',
+		id: QUIT_ID,
 		weight: KeybindingsRegistry.WEIGHT.workbenchContrib(),
 		handler(accessor: ServicesAccessor) {
 			const windowsService = accessor.get(IWindowsService);

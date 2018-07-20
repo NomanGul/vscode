@@ -3,7 +3,6 @@
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
 
-import * as net from 'net';
 import { ParsedArgs, IEnvironmentService } from 'vs/platform/environment/common/environment';
 import { Protocol } from 'vs/base/parts/ipc/node/ipc.net';
 import { ServiceCollection } from 'vs/platform/instantiation/common/serviceCollection';
@@ -25,7 +24,7 @@ import { ExtensionManagementChannel } from 'vs/platform/extensionManagement/comm
 import { RemoteExtensionsEnvironment } from 'vs/workbench/services/extensions/node/remoteExtensionsServiceImpl';
 import { RemoteExtensionsEnvironmentChannel } from 'vs/workbench/services/extensions/node/remoteExtensionsIpc';
 import { REMOTE_EXTENSIONS_FILE_SYSTEM_CHANNEL_NAME, RemoteExtensionsFileSystemImpl, RemoteExtensionsFileSystemChannel } from 'vs/platform/remote/node/remoteFileSystemIpc';
-import { Emitter, fromNodeEventEmitter, once } from 'vs/base/common/event';
+import { Emitter } from 'vs/base/common/event';
 import { IPCServer, ClientConnectionEvent } from 'vs/base/parts/ipc/common/ipc';
 
 export interface IExtensionsManagementProcessInitData {
@@ -42,10 +41,10 @@ class SocketServer extends IPCServer {
 		this._onDidConnectEmitter = emitter;
 	}
 
-	public acceptConnection(socket: net.Socket, firstDataChunk: Buffer): void {
+	public acceptConnection(protocol: Protocol): void {
 		this._onDidConnectEmitter.fire({
-			protocol: new Protocol(socket, firstDataChunk),
-			onDidClientDisconnect: once(fromNodeEventEmitter<void>(socket, 'close'))
+			protocol: protocol,
+			onDidClientDisconnect: protocol.onClose
 		});
 	}
 }
@@ -61,8 +60,8 @@ export class RemoteExtensionManagementServer {
 		this._createServices(this._socketServer);
 	}
 
-	public acceptConnection(socket: net.Socket, firstDataChunk: Buffer): void {
-		this._socketServer.acceptConnection(socket, firstDataChunk);
+	public acceptConnection(protocol: Protocol): void {
+		this._socketServer.acceptConnection(protocol);
 	}
 
 	private _createServices(server: SocketServer): void {
@@ -86,8 +85,8 @@ export class RemoteExtensionManagementServer {
 		const instantiationService = new InstantiationService(services);
 
 		instantiationService.invokeFunction(accessor => {
-			const remoteExtensionsEnvironemntChannel = new RemoteExtensionsEnvironmentChannel(new RemoteExtensionsEnvironment(this._environmentService));
-			server.registerChannel('remoteextensionsenvironment', remoteExtensionsEnvironemntChannel);
+			const remoteExtensionsEnvironmentChannel = new RemoteExtensionsEnvironmentChannel(new RemoteExtensionsEnvironment(this._environmentService));
+			server.registerChannel('remoteextensionsenvironment', remoteExtensionsEnvironmentChannel);
 
 			const remoteExtensionsFileSystemChannel = new RemoteExtensionsFileSystemChannel(new RemoteExtensionsFileSystemImpl());
 			server.registerChannel(REMOTE_EXTENSIONS_FILE_SYSTEM_CHANNEL_NAME, remoteExtensionsFileSystemChannel);

@@ -23,7 +23,7 @@ export class RemoteExtensionsEnvironmentChannel implements IRemoteExtensionsEnvi
 		switch (command) {
 			case 'getRemoteExtensionInformation': return this.service.getRemoteExtensionInformation(arg);
 		}
-		
+
 		throw new Error(`IPC Command ${command} not found`);
 	}
 

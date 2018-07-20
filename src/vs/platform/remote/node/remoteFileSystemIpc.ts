@@ -13,8 +13,31 @@ import * as net from 'net';
 import { Client, Protocol } from 'vs/base/parts/ipc/node/ipc.net';
 import { Event } from 'vs/base/common/event';
 
-export const REMOTE_SOCKET_HANDSHAKE_MANAGEMENT = 1;
-export const REMOTE_SOCKET_HANDSHAKE_EXT_HOST = 2;
+export let USE_VSDA = false;
+
+export const enum ConnectionType {
+	Management = 1,
+	ExtensionHost = 2,
+}
+
+export interface AuthRequest {
+	type: 'auth';
+	auth: string;
+}
+
+export interface SignRequest {
+	type: 'sign';
+	data: string;
+}
+
+export interface ConnectionTypeRequest {
+	type: 'connectionType';
+	signedData?: string;
+	desiredConnectionType?: ConnectionType;
+}
+
+export type HandshakeMessage = AuthRequest | SignRequest | ConnectionTypeRequest;
+
 export const REMOTE_EXTENSIONS_FILE_SYSTEM_CHANNEL_NAME = 'remoteextensionsfilesystem';
 
 export interface IRemoteExtensionsFileSystem {
@@ -63,30 +86,71 @@ export class RemoteExtensionsFileSystemChannelClient implements IRemoteExtension
 	}
 }
 
-export function connectToRemoteExtensionHostManagement(host: string, port: number, clientId: string): TPromise<Client> {
-	return new TPromise<Client>((c, e) => {
+function connectToRemoteExtensionHostAgent(host: string, port: number, connectionType: ConnectionType): TPromise<Protocol> {
+	return new TPromise<Protocol>((c, e) => {
 		const socket = net.createConnection({ host: host, port: port }, () => {
 			socket.removeListener('error', e);
-			const chunk = new Buffer(1);
-			chunk[0] = REMOTE_SOCKET_HANDSHAKE_MANAGEMENT;
-			socket.write(chunk);
-			c(new Client(socket, clientId));
+			c(new Protocol(socket));
 		});
 		socket.once('error', e);
+	}).then((protocol) => {
+
+		return new TPromise<Protocol>((c, e) => {
+
+			const messageRegistration = protocol.onMessage((msg: HandshakeMessage) => {
+
+				// Stop listening for further events
+				messageRegistration.dispose();
+
+				if (msg.type === 'sign') {
+
+					let signed = msg.data;
+					if (USE_VSDA) {
+						try {
+							const vsda = <any>require.__$__nodeRequire('vsda');
+							const obj = new vsda.signer();
+							signed = obj.sign(msg.data);
+						} catch (e) {
+							// return unsigned data
+						}
+					} else {
+						// some fake signing
+						signed = msg.data.toUpperCase();
+					}
+
+					const connTypeRequest: ConnectionTypeRequest = {
+						type: 'connectionType',
+						signedData: signed,
+						desiredConnectionType: connectionType
+					};
+					protocol.send(connTypeRequest);
+
+					c(protocol);
+				} else {
+					e(new Error('handshake error'));
+				}
+			});
+
+			setTimeout(_ => {
+				e(new Error('handshake timeout'));
+			}, 2000);
+
+			// TODO@vs-remote: use real nonce here
+			const authRequest: AuthRequest = {
+				type: 'auth',
+				auth: '00000000000000000000'
+			};
+			protocol.send(authRequest);
+		});
+	});
+}
+
+export function connectToRemoteExtensionHostManagement(host: string, port: number, clientId: string): TPromise<Client> {
+	return connectToRemoteExtensionHostAgent(host, port, ConnectionType.Management).then((protocol) => {
+		return new Client(protocol, clientId);
 	});
 }
 
 export function connectToRemoteExtensionHostServer(host: string, port: number): TPromise<IMessagePassingProtocol> {
-	return new TPromise<IMessagePassingProtocol>((resolve, reject) => {
-		const socket = net.createConnection({ host, port }, () => {
-			socket.removeListener('error', reject);
-
-			const chunk = new Buffer(1);
-			chunk[0] = REMOTE_SOCKET_HANDSHAKE_EXT_HOST;
-			socket.write(chunk);
-
-			resolve(new Protocol(socket));
-		});
-		socket.once('error', reject);
-	});
+	return connectToRemoteExtensionHostAgent(host, port, ConnectionType.ExtensionHost);
 }

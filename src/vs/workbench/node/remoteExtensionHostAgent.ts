@@ -14,7 +14,8 @@ import { ParsedArgs } from 'vs/platform/environment/common/environment';
 import { RemoteExtensionManagementServer } from 'vs/workbench/node/remoteExtensionsManagement';
 import { ExtensionHostConnection } from 'vs/workbench/node/remoteExtensionHostServer';
 import { EnvironmentService } from 'vs/platform/environment/node/environmentService';
-import { REMOTE_SOCKET_HANDSHAKE_MANAGEMENT, REMOTE_SOCKET_HANDSHAKE_EXT_HOST } from 'vs/platform/remote/node/remoteFileSystemIpc';
+import { ConnectionType, HandshakeMessage, SignRequest, USE_VSDA } from 'vs/platform/remote/node/remoteFileSystemIpc';
+import { Protocol } from 'vs/base/parts/ipc/node/ipc.net';
 
 const ifaces = os.networkInterfaces();
 
@@ -79,30 +80,84 @@ class ExtensionHostAgentServer {
 	}
 
 	private handleConnection(socket: net.Socket): void {
-		const listener = (data: Buffer) => {
-			const firstByte = data[0];
-			data = data.slice(1);
-			if (firstByte === REMOTE_SOCKET_HANDSHAKE_MANAGEMENT) {
-				// This should become a management connection
-				socket.removeListener('data', listener);
+		const protocol = new Protocol(socket);
+		const messageRegistration = protocol.onMessage(((msg: HandshakeMessage) => {
 
-				console.log(`==> Received a management connection from ${socket.address().address}`);
-				remoteExtensionManagementServer.acceptConnection(socket, data);
-			} else if (firstByte === REMOTE_SOCKET_HANDSHAKE_EXT_HOST) {
-				// This should become an extension host connectio
-				socket.removeListener('data', listener);
+			const SOME_TEXT = 'remote extension host is cool';
+			let validator;
 
-				console.log(`==> Received an extension host connection from ${socket.address().address}`);
-				const con = new ExtensionHostConnection(socket, data);
-				con.start();
-			} else {
-				socket.removeListener('data', listener);
+			if (msg.type === 'auth') {
 
-				console.error(`Unknown initial data received: ${firstByte}`);
-				socket.destroy();
+				if (typeof msg.auth !== 'string' || msg.auth !== '00000000000000000000') {
+					// TODO@vs-remote: use real nonce here
+					// Invalid nonce, will not communicate further with this client
+					console.error(`Unauthorized client refused.`);
+					socket.destroy();
+					return;
+				}
+
+				let someText = SOME_TEXT;
+				if (USE_VSDA) {
+					try {
+						const vsda = <any>require.__$__nodeRequire('vsda');
+						validator = new vsda.validator();
+						someText = validator.createNewMessage(someText);
+					} catch (e) {
+						// ignore
+					}
+				}
+
+				const signRequest: SignRequest = {
+					type: 'sign',
+					data: someText
+				};
+				protocol.send(signRequest);
+
+			} else if (msg.type === 'connectionType') {
+
+				// Stop listening for further events
+				messageRegistration.dispose();
+
+				let valid = false;
+
+				if (USE_VSDA) {
+					if (validator && typeof msg.signedData === 'string') {
+						try {
+							valid = validator.validate(msg.signedData) === 'ok';
+						} catch (e) {
+						}
+					}
+				} else {
+					// validate the fake signing
+					valid = msg.signedData === SOME_TEXT.toUpperCase();
+				}
+
+				if (!valid) {
+					console.error(`Unauthorized client refused.`);
+					socket.destroy();
+					return;
+				}
+
+				switch (msg.desiredConnectionType) {
+					case ConnectionType.Management:
+						// This should become a management connection
+						console.log(`==> Received a management connection from ${socket.address().address}`);
+						remoteExtensionManagementServer.acceptConnection(protocol);
+						break;
+
+					case ConnectionType.ExtensionHost:
+						// This should become an extension host connection
+						console.log(`==> Received an extension host connection from ${socket.address().address}`);
+						const con = new ExtensionHostConnection(socket, protocol);
+						con.start();
+						break;
+
+					default:
+						console.error(`Unknown initial data received.`);
+						socket.destroy();
+				}
 			}
-		};
-		socket.on('data', listener);
+		}));
 	}
 }
 

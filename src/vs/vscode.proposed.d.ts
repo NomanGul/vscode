@@ -991,6 +991,11 @@ declare module 'vscode' {
 	export interface WorkspaceEdit {
 
 		/**
+		 * The number of affected resources of textual or resource changes.
+		 */
+		readonly size: number;
+
+		/**
 		 * Create a regular file.
 		 *
 		 * @param uri Uri of the new file..
@@ -1003,7 +1008,7 @@ declare module 'vscode' {
 		 *
 		 * @param uri The uri of the file that is to be deleted.
 		 */
-		deleteFile(uri: Uri, options?: { recursive?: boolean }): void;
+		deleteFile(uri: Uri, options?: { recursive?: boolean, ignoreIfNotExists?: boolean }): void;
 
 		/**
 		 * Rename a file or folder.
@@ -1012,11 +1017,7 @@ declare module 'vscode' {
 		 * @param newUri The new location.
 		 * @param options Defines if existing files should be overwritten.
 		 */
-		renameFile(oldUri: Uri, newUri: Uri, options?: { overwrite?: boolean }): void;
-
-		// replaceText(uri: Uri, range: Range, newText: string): void;
-		// insertText(uri: Uri, position: Position, newText: string): void;
-		// deleteText(uri: Uri, range: Range): void;
+		renameFile(oldUri: Uri, newUri: Uri, options?: { overwrite?: boolean, ignoreIfExists?: boolean }): void;
 	}
 
 	export namespace workspace {
@@ -1052,48 +1053,5 @@ declare module 'vscode' {
 		export const onWillRenameFile: Event<FileWillRenameEvent>;
 		export const onDidRenameFile: Event<FileRenameEvent>;
 	}
-	//#endregion
-
-	//#region Matt: Deinition range
-
-	/**
-	 * Information about where a symbol is defined.
-	 *
-	 * Provides additional metadata over normal [location](#Location) definitions, including the range of
-	 * the defining symbol
-	 */
-	export interface DefinitionLink {
-		/**
-		 * Span of the symbol being defined in the source file.
-		 *
-		 * Used as the underlined span for mouse definition hover. Defaults to the word range at
-		 * the definition position.
-		 */
-		origin?: Range;
-
-		/**
-		 * The resource identifier of the definition.
-		 */
-		uri: Uri;
-
-		/**
-		 * The full range of the definition.
-		 *
-		 * For a class definition for example, this would be the entire body of the class definition.
-		 */
-		range: Range;
-
-		/**
-		 * The span of the symbol definition.
-		 *
-		 * For a class definition, this would be the class name itself in the class definition.
-		 */
-		selectionRange?: Range;
-	}
-
-	export interface DefinitionProvider {
-		provideDefinition2?(document: TextDocument, position: Position, token: CancellationToken): ProviderResult<Definition | DefinitionLink[]>;
-	}
-
 	//#endregion
 }
