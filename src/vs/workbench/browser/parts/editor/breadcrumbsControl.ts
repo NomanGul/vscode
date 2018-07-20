@@ -31,7 +31,7 @@ import { IWorkspaceContextService } from 'vs/platform/workspace/common/workspace
 import { FileLabel } from 'vs/workbench/browser/labels';
 import { BreadcrumbsConfig, IBreadcrumbsService } from 'vs/workbench/browser/parts/editor/breadcrumbs';
 import { BreadcrumbElement, EditorBreadcrumbsModel, FileElement } from 'vs/workbench/browser/parts/editor/breadcrumbsModel';
-import { createBreadcrumbsPicker } from 'vs/workbench/browser/parts/editor/breadcrumbsPicker';
+import { createBreadcrumbsPicker, BreadcrumbsPicker } from 'vs/workbench/browser/parts/editor/breadcrumbsPicker';
 import { EditorGroupView } from 'vs/workbench/browser/parts/editor/editorGroupView';
 import { IEditorService } from 'vs/workbench/services/editor/common/editorService';
 import { IEditorGroupsService } from 'vs/workbench/services/group/common/editorGroupsService';
@@ -39,6 +39,7 @@ import { MenuRegistry, MenuId } from 'vs/platform/actions/common/actions';
 import { localize } from 'vs/nls';
 import { WorkbenchListFocusContextKey, IListService } from 'vs/platform/list/browser/listService';
 import { Tree } from 'vs/base/parts/tree/browser/treeImpl';
+import { CommandsRegistry } from 'vs/platform/commands/common/commands';
 
 class Item extends BreadcrumbsItem {
 
@@ -82,6 +83,12 @@ class Item extends BreadcrumbsItem {
 			this._disposables.push(label);
 			dom.toggleClass(container, 'file', this.element.isFile);
 
+		} else if (this.element instanceof OutlineModel) {
+			// has outline element but not in one
+			let label = document.createElement('div');
+			label.innerHTML = '&hellip;';
+			container.appendChild(label);
+
 		} else if (this.element instanceof OutlineGroup) {
 			// provider
 			let label = new IconLabel(container);
@@ -90,14 +97,12 @@ class Item extends BreadcrumbsItem {
 
 		} else if (this.element instanceof OutlineElement) {
 			// symbol
-
 			if (this.options.showSymbolIcons) {
 				let icon = document.createElement('div');
 				icon.className = symbolKindToCssClass(this.element.symbol.kind);
 				container.appendChild(icon);
 				dom.addClass(container, 'shows-symbol-icon');
 			}
-
 			let label = new IconLabel(container);
 			let title = this.element.symbol.name.replace(/\r|\n|\r\n/g, '\u23CE');
 			label.setValue(title, undefined, { title });
@@ -267,14 +272,10 @@ export class BreadcrumbsControl {
 		}
 
 		// show picker
+		let picker: BreadcrumbsPicker;
 		this._contextViewService.showContextView({
-			getAnchor() {
-				return event.node;
-			},
 			render: (parent: HTMLElement) => {
-				let picker = createBreadcrumbsPicker(this._instantiationService, parent, element);
-				picker.layout({ width: Math.max(220, dom.getTotalWidth(event.node)), height: 330 });
-				picker.setInput(element);
+				picker = createBreadcrumbsPicker(this._instantiationService, parent, element);
 				let listener = picker.onDidPickElement(data => {
 					this._contextViewService.hideContextView();
 					this._widget.setFocused(undefined);
@@ -285,6 +286,28 @@ export class BreadcrumbsControl {
 				this._updateCkBreadcrumbsActive();
 
 				return combinedDisposable([listener, picker]);
+			},
+			getAnchor() {
+
+				let pickerHeight = 330;
+				let pickerWidth = Math.max(220, dom.getTotalWidth(event.node));
+				let pickerArrowSize = 8;
+				let pickerArrowOffset: number;
+
+				let data = dom.getDomNodePagePosition(event.node.firstChild as HTMLElement);
+				let y = data.top + data.height - pickerArrowSize;
+				let x = data.left;
+				if (x + pickerWidth >= window.innerWidth) {
+					x = window.innerWidth - pickerWidth;
+				}
+				if (event.payload instanceof StandardMouseEvent) {
+					pickerArrowOffset = event.payload.posx - x - pickerArrowSize;
+				} else {
+					pickerArrowOffset = (data.left + (data.width * .3)) - x;
+				}
+				picker.layout(pickerHeight, pickerWidth, pickerArrowSize, Math.max(0, pickerArrowOffset));
+				picker.setInput(element);
+				return { x, y };
 			},
 			onHide: () => {
 				this._breadcrumbsPickerShowing = false;
@@ -333,6 +356,19 @@ MenuRegistry.appendMenuItem(MenuId.CommandPalette, {
 		id: 'breadcrumbs.focus',
 		title: localize('cmd.focus', "Focus Breadcrumbs")
 	}
+});
+MenuRegistry.appendMenuItem(MenuId.MenubarViewMenu, {
+	group: '5_editor',
+	order: 99,
+	command: {
+		id: 'breadcrumbs.toggle',
+		title: localize('cmd.toggle', "Toggle Breadcrumbs")
+	}
+});
+CommandsRegistry.registerCommand('breadcrumbs.toggle', accessor => {
+	let config = accessor.get(IConfigurationService);
+	let value = BreadcrumbsConfig.IsEnabled.bindTo(config).value;
+	BreadcrumbsConfig.IsEnabled.bindTo(config).value = !value;
 });
 
 KeybindingsRegistry.registerCommandAndKeybindingRule({
