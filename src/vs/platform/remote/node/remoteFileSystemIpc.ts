@@ -15,6 +15,15 @@ import { Event } from 'vs/base/common/event';
 
 export let USE_VSDA = false;
 
+let signer: any;
+if (USE_VSDA) {
+	try {
+		const vsda = <any>require.__$__nodeRequire('vsda');
+		signer = new vsda.signer();
+	} catch (e) {
+	}
+}
+
 export const enum ConnectionType {
 	Management = 1,
 	ExtensionHost = 2,
@@ -107,11 +116,10 @@ function connectToRemoteExtensionHostAgent(host: string, port: number, connectio
 					let signed = msg.data;
 					if (USE_VSDA) {
 						try {
-							const vsda = <any>require.__$__nodeRequire('vsda');
-							const obj = new vsda.signer();
-							signed = obj.sign(msg.data);
+							if (signer) {
+								signed = signer.sign(msg.data);
+							}
 						} catch (e) {
-							// return unsigned data
 						}
 					} else {
 						// some fake signing

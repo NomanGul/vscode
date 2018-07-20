@@ -17,6 +17,15 @@ import { EnvironmentService } from 'vs/platform/environment/node/environmentServ
 import { ConnectionType, HandshakeMessage, SignRequest, USE_VSDA } from 'vs/platform/remote/node/remoteFileSystemIpc';
 import { Protocol } from 'vs/base/parts/ipc/node/ipc.net';
 
+let validator: any;
+if (USE_VSDA) {
+	try {
+		const vsda = <any>require.__$__nodeRequire('vsdb');
+		validator = new vsda.validator();
+	} catch (e) {
+	}
+}
+
 const ifaces = os.networkInterfaces();
 
 Object.keys(ifaces).forEach(function (ifname) {
@@ -81,10 +90,10 @@ class ExtensionHostAgentServer {
 
 	private handleConnection(socket: net.Socket): void {
 		const protocol = new Protocol(socket);
+
 		const messageRegistration = protocol.onMessage(((msg: HandshakeMessage) => {
 
 			const SOME_TEXT = 'remote extension host is cool';
-			let validator;
 
 			if (msg.type === 'auth') {
 
@@ -99,11 +108,10 @@ class ExtensionHostAgentServer {
 				let someText = SOME_TEXT;
 				if (USE_VSDA) {
 					try {
-						const vsda = <any>require.__$__nodeRequire('vsda');
-						validator = new vsda.validator();
-						someText = validator.createNewMessage(someText);
+						if (validator) {
+							someText = validator.createNewMessage(someText);
+						}
 					} catch (e) {
-						// ignore
 					}
 				}
 
@@ -121,9 +129,11 @@ class ExtensionHostAgentServer {
 				let valid = false;
 
 				if (USE_VSDA) {
-					if (validator && typeof msg.signedData === 'string') {
+					if (typeof msg.signedData === 'string') {
 						try {
-							valid = validator.validate(msg.signedData) === 'ok';
+							if (validator) {
+								valid = validator.validate(msg.signedData) === 'ok';
+							}
 						} catch (e) {
 						}
 					}
