@@ -97,7 +97,6 @@ export class RemoteExtensionHostClient implements IExtensionHostStarter {
 					isExtensionDevelopmentDebug: false,// TODO@vs-remote this._isExtensionDevDebug,
 					appRoot: remoteExtensionHostData.agentAppRoot,
 					appSettingsHome: remoteExtensionHostData.agentAppSettingsHome,
-					disableExtensions: this._environmentService.disableExtensions,
 					extensionDevelopmentPath: this._environmentService.extensionDevelopmentPath,
 					extensionTestsPath: this._environmentService.extensionTestsPath,
 				},
