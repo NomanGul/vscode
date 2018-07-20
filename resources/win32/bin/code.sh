@@ -13,7 +13,7 @@ if grep -q Microsoft /proc/version; then
 		if [ ! -d $VSCODE_REMOTE/node_modules ]; then
 			echo "Installing VSCode WSL components..."
 			mkdir -p $VSCODE_REMOTE
-			tar -xf $VSCODE_PATH/linux64-remote.tar.gz -C $VSCODE_REMOTE
+			tar -xf $VSCODE_PATH/VSCode-wsl-x64.tar.gz -C $VSCODE_REMOTE
 		fi
 		# On recent WSL builds, we just need to set WSLENV so that
 		# ELECTRON_RUN_AS_NODE is visible to the win32 process
@@ -33,6 +33,7 @@ elif [ "$(expr substr $(uname -s) 1 9)" == "CYGWIN_NT" ]; then
 else
 	CLI="$VSCODE_PATH/resources/app/out/cli.js"
 fi
+echo $ELECTRON
 
 ELECTRON_RUN_AS_NODE=1 "$ELECTRON" "$CLI" "$WSL" "$@"
 exit $?
