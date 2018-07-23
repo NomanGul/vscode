@@ -627,12 +627,17 @@ export class CodeApplication {
 			let script: string = environmentService.isBuilt
 				? URI.parse(require.toUrl('./wslAgent.sh')).fsPath
 				: URI.parse(require.toUrl('./wslAgent-dev.sh')).fsPath;
+
 			cp.execFile('wsl', ['wslpath', '-a', script.replace(/\\/g, '\\\\')], { encoding: 'utf8' }, (error, stdout, stderr) => {
 				if (error || (stderr && stderr.length > 0)) {
 					reject(error || new Error(stderr));
 				}
-				let wslScript = stdout;
-				let extHostProcess = cp.spawn('C:\\Windows\\System32\\bash.exe', ['-i', '-c', wslScript], { cwd: process.cwd() });
+				let wslScript = stdout.replace('\n', '').replace('\r', '');
+				// The script path contains a blank. We have to escape the blank and put single quotes around it.
+				if (wslScript.indexOf(' ') >= 0) {
+					wslScript = `'${wslScript.replace(/ /g, '\\ ')}'`;
+				}
+				let extHostProcess = cp.spawn('C:\\Windows\\System32\\bash.exe', ['-i', '-c', wslScript], { cwd: process.cwd(), windowsVerbatimArguments: true });
 				if (extHostProcess.pid === void 0) {
 					reject(new Error('WSL remote extension host agent couldn\'t be started'));
 				} else {
