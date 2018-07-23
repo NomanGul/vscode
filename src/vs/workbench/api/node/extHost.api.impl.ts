@@ -479,17 +479,17 @@ export function createApiFactory(
 			registerUriHandler(handler: vscode.UriHandler) {
 				return extHostUrls.registerUriHandler(extension.id, handler);
 			},
-			get quickInputBackButton() {
-				return proposedApiFunction(extension, (): vscode.QuickInputButton => {
-					return extHostQuickOpen.backButton;
-				})();
-			},
-			createQuickPick: proposedApiFunction(extension, <T extends vscode.QuickPickItem>(): vscode.QuickPick<T> => {
+			createQuickPick<T extends vscode.QuickPickItem>(): vscode.QuickPick<T> {
 				return extHostQuickOpen.createQuickPick(extension.id);
-			}),
-			createInputBox: proposedApiFunction(extension, (): vscode.InputBox => {
+			},
+			createInputBox(): vscode.InputBox {
 				return extHostQuickOpen.createInputBox(extension.id);
-			}),
+			},
+		};
+
+		// namespace: QuickInputButtons
+		const QuickInputButtons: typeof vscode.QuickInputButtons = {
+			Back: extHostQuickOpen.backButton,
 		};
 
 		// namespace: workspace
@@ -746,6 +746,7 @@ export function createApiFactory(
 			OverviewRulerLane: OverviewRulerLane,
 			ParameterInformation: extHostTypes.ParameterInformation,
 			Position: extHostTypes.Position,
+			QuickInputButtons,
 			Range: extHostTypes.Range,
 			Selection: extHostTypes.Selection,
 			SignatureHelp: extHostTypes.SignatureHelp,
