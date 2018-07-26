@@ -94,9 +94,8 @@ export class ExtensionHostMain {
 
 		// services
 		let uriTransformer: IURITransformer = null;
-		if (initData.remoteOptions) {
-			const remoteAuthority = `${initData.remoteOptions.host}:${initData.remoteOptions.port}`;
-			uriTransformer = createRemoteURITransformer(remoteAuthority);
+		if (initData.remoteAuthority) {
+			uriTransformer = createRemoteURITransformer(initData.remoteAuthority);
 		}
 		const rpcProtocol = new RPCProtocol(protocol, uriTransformer);
 		this._workspace = rpcProtocol.transformIncomingURIs(initData.workspace);

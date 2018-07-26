@@ -66,8 +66,6 @@ import { RunOnceScheduler } from 'vs/base/common/async';
 import { IMenubarService } from 'vs/platform/menubar/common/menubar';
 import { MenubarService } from 'vs/platform/menubar/electron-main/menubarService';
 import { MenubarChannel } from 'vs/platform/menubar/common/menubarIpc';
-// TODO@sbatten: Remove after conversion to new dynamic menubar
-import { CodeMenu } from 'vs/code/electron-main/menus';
 
 export class CodeApplication {
 
@@ -166,12 +164,11 @@ export class CodeApplication {
 			private _client: TPromise<Client>;
 			private _disposeRunner: RunOnceScheduler;
 
-			constructor(authority: string) {
+			constructor(authority: string, connectionInfo: TPromise<{ host: string; port: number; }>) {
 				this._authority = authority;
-				const pieces = authority.split(':');
-				const host = pieces[0];
-				const port = parseInt(pieces[1], 10);
-				this._client = connectToRemoteExtensionHostManagement(host, port, `main`);
+				this._client = connectionInfo.then(({ host, port }) => {
+					return connectToRemoteExtensionHostManagement(host, port, `main`);
+				});
 				this._disposeRunner = new RunOnceScheduler(() => this._dispose(), 1000);
 			}
 
@@ -200,7 +197,7 @@ export class CodeApplication {
 			if (connectionPool.has(uri.authority)) {
 				activeConnection = connectionPool.get(uri.authority);
 			} else {
-				activeConnection = new ActiveConnection(uri.authority);
+				activeConnection = new ActiveConnection(uri.authority, this.resolveAuthority(uri.authority));
 				connectionPool.set(uri.authority, activeConnection);
 			}
 			try {
@@ -212,6 +209,13 @@ export class CodeApplication {
 				errors.onUnexpectedError(err);
 				callback(null);
 			}
+		});
+
+		ipc.on('vscode:resolveAuthorityRequest', (event: any, authority: string) => {
+			const webContents = event.sender.webContents;
+			this.resolveAuthority(authority).then(({ host, port }) => {
+				webContents.send('vscode:resolveAuthorityReply', { authority, host, port });
+			});
 		});
 
 		let macOpenFileURIs: URI[] = [];
@@ -343,7 +347,7 @@ export class CodeApplication {
 		// See: https://github.com/Microsoft/vscode/issues/35361#issuecomment-399794085
 		try {
 			if (platform.isMacintosh && this.configurationService.getValue<boolean>('window.nativeTabs') === true && !systemPreferences.getUserDefault('NSUseImprovedLayoutPass', 'boolean')) {
-				systemPreferences.setUserDefault('NSUseImprovedLayoutPass', 'boolean', true as any);
+				systemPreferences.registerDefaults({ NSUseImprovedLayoutPass: true });
 			}
 		} catch (error) {
 			this.logService.error(error);
@@ -363,12 +367,6 @@ export class CodeApplication {
 
 			// Services
 			const appInstantiationService = this.initServices(machineId);
-			appInstantiationService.invokeFunction(accessor => {
-				const launchService = accessor.get(ILaunchService);
-				launchService.setRemoteSupport(() => {
-					return appInstantiationService.invokeFunction(accessor => this.startWslExtensionHost(accessor.get(IEnvironmentService)));
-				});
-			});
 
 			let promise: TPromise<any> = TPromise.as(null);
 
@@ -386,27 +384,11 @@ export class CodeApplication {
 				const authHandler = appInstantiationService.createInstance(ProxyAuthHandler);
 				this.toDispose.push(authHandler);
 
-				// Check to start WSL support
-				appInstantiationService.invokeFunction((accessor) => {
-					let environmentService = accessor.get(IEnvironmentService);
-					let p: TPromise<void>;
-					if (environmentService.args.wsl) {
-						p = this.startWslExtensionHost(environmentService);
-					} else {
-						p = TPromise.as(undefined);
-					}
-					p.then(undefined, (err: Error) => {
-						this.logService.error(`Unable to start WSL remote extension host agent:\n${err.message}`);
-						return undefined;
-					}).done(() => {
-						// Open Windows
-						appInstantiationService.invokeFunction(accessor => this.openFirstWindow(accessor));
+				// Open Windows
+				appInstantiationService.invokeFunction(accessor => this.openFirstWindow(accessor));
 
-						// Post Open Windows Tasks
-						appInstantiationService.invokeFunction(accessor => this.afterWindowOpen(accessor));
-					});
-				});
-
+				// Post Open Windows Tasks
+				appInstantiationService.invokeFunction(accessor => this.afterWindowOpen(accessor));
 			});
 		});
 	}
@@ -593,14 +575,6 @@ export class CodeApplication {
 			}
 		}
 
-		// TODO@sbatten: Remove when menu is converted
-		// Install Menu
-		const instantiationService = accessor.get(IInstantiationService);
-		const configurationService = accessor.get(IConfigurationService);
-		if (platform.isMacintosh || configurationService.getValue<string>('window.titleBarStyle') !== 'custom') {
-			instantiationService.createInstance(CodeMenu);
-		}
-
 		// Jump List
 		this.historyMainService.updateWindowsJumpList();
 		this.historyMainService.onRecentlyOpenedChange(() => this.historyMainService.updateWindowsJumpList());
@@ -611,6 +585,22 @@ export class CodeApplication {
 
 	private dispose(): void {
 		this.toDispose = dispose(this.toDispose);
+	}
+
+	private resolveAuthority(authority: string): TPromise<{ host: string; port: number; }> {
+		if (/^wsl\+/.test(authority)) {
+			return this.startWslExtensionHost(this.environmentService).then(() => {
+				return {
+					host: 'localhost',
+					port: 8000
+				};
+			});
+		}
+
+		// Perhaps it is a host:port URI
+		const [host, strPort] = authority.split(':');
+		const port = parseInt(strPort, 10);
+		return TPromise.as({ host, port });
 	}
 
 	private startWslExtensionHost(environmentService: IEnvironmentService): TPromise<void> {

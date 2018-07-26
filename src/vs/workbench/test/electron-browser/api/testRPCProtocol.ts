@@ -12,7 +12,7 @@ import { IExtHostContext } from 'vs/workbench/api/node/extHost.protocol';
 
 export function SingleProxyRPCProtocol(thing: any): IExtHostContext {
 	return {
-		connectionInformation: null,
+		remoteAuthority: null,
 		getProxy<T>(): T {
 			return thing;
 		},
@@ -27,7 +27,7 @@ declare var Proxy: any; // TODO@TypeScript
 
 export class TestRPCProtocol implements IExtHostContext {
 
-	public connectionInformation = null;
+	public remoteAuthority = null;
 
 	private _callCountValue: number = 0;
 	private _idle: Promise<any>;

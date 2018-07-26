@@ -9,16 +9,18 @@ import { ITerminalService, ITerminalInstance, IShellLaunchConfig, ITerminalProce
 import { TPromise } from 'vs/base/common/winjs.base';
 import { ExtHostContext, ExtHostTerminalServiceShape, MainThreadTerminalServiceShape, MainContext, IExtHostContext, ShellLaunchConfigDto } from 'vs/workbench/api/node/extHost.protocol';
 import { extHostNamedCustomer } from 'vs/workbench/api/electron-browser/extHostCustomers';
-import { IRemoteExtensionsService, IRemoteConnectionInformation } from 'vs/workbench/services/extensions/common/remoteExtensionsService';
+import { IRemoteExtensionsService } from 'vs/workbench/services/extensions/common/remoteExtensionsService';
 import { IWorkspaceContextService, IWorkspaceFolder } from 'vs/platform/workspace/common/workspace';
 
 @extHostNamedCustomer(MainContext.MainThreadTerminalService)
 export class MainThreadTerminalService implements MainThreadTerminalServiceShape {
 
 	private _proxy: ExtHostTerminalServiceShape;
-	private _connectionInformation: IRemoteConnectionInformation;
+	private _remoteAuthority: string;
 	private _toDispose: IDisposable[] = [];
 	private _terminalProcesses: { [id: number]: ITerminalProcessExtHostProxy } = {};
+	private _terminalOnDidWriteDataListeners: { [id: number]: IDisposable } = {};
+	private _terminalOnDidAcceptInputListeners: { [id: number]: IDisposable } = {};
 
 	constructor(
 		extHostContext: IExtHostContext,
@@ -26,7 +28,7 @@ export class MainThreadTerminalService implements MainThreadTerminalServiceShape
 		@IRemoteExtensionsService private remoteExtensionsService: IRemoteExtensionsService,
 		@IWorkspaceContextService private readonly _contextService: IWorkspaceContextService
 	) {
-		this._connectionInformation = extHostContext.connectionInformation;
+		this._remoteAuthority = extHostContext.remoteAuthority;
 		this._proxy = extHostContext.getProxy(ExtHostContext.ExtHostTerminalService);
 		this._toDispose.push(terminalService.onInstanceCreated((instance) => {
 			// Delay this message so the TerminalInstance constructor has a chance to finish and
@@ -120,9 +122,18 @@ export class MainThreadTerminalService implements MainThreadTerminalServiceShape
 
 	public $terminalRendererRegisterOnInputListener(terminalId: number): void {
 		const terminalInstance = this.terminalService.getInstanceFromId(terminalId);
-		if (terminalInstance) {
-			terminalInstance.addDisposable(terminalInstance.onRendererInput(data => this._onTerminalRendererInput(terminalId, data)));
+		if (!terminalInstance) {
+			return;
 		}
+
+		// Listener already registered
+		if (this._terminalOnDidAcceptInputListeners.hasOwnProperty(terminalId)) {
+			return;
+		}
+
+		// Register
+		this._terminalOnDidAcceptInputListeners[terminalId] = terminalInstance.onRendererInput(data => this._onTerminalRendererInput(terminalId, data));
+		terminalInstance.addDisposable(this._terminalOnDidAcceptInputListeners[terminalId]);
 	}
 
 	public $sendText(terminalId: number, text: string, addNewLine: boolean): void {
@@ -134,11 +145,20 @@ export class MainThreadTerminalService implements MainThreadTerminalServiceShape
 
 	public $registerOnDataListener(terminalId: number): void {
 		const terminalInstance = this.terminalService.getInstanceFromId(terminalId);
-		if (terminalInstance) {
-			terminalInstance.addDisposable(terminalInstance.onData(data => {
-				this._onTerminalData(terminalId, data);
-			}));
+		if (!terminalInstance) {
+			return;
 		}
+
+		// Listener already registered
+		if (this._terminalOnDidWriteDataListeners[terminalId]) {
+			return;
+		}
+
+		// Register
+		this._terminalOnDidWriteDataListeners[terminalId] = terminalInstance.onData(data => {
+			this._onTerminalData(terminalId, data);
+		});
+		terminalInstance.addDisposable(this._terminalOnDidWriteDataListeners[terminalId]);
 	}
 
 	private _onActiveTerminalChanged(terminalId: number | undefined): void {
@@ -175,10 +195,10 @@ export class MainThreadTerminalService implements MainThreadTerminalServiceShape
 
 	private _ownsWorkspace(workspaceFolder: IWorkspaceFolder): boolean {
 		const connection = this.remoteExtensionsService.getRemoteWorkspaceFolderConnection(workspaceFolder);
-		if (this._connectionInformation === null && connection === null) {
+		if (this._remoteAuthority === null && connection === null) {
 			// Both the extension host and workspace is local
 			return true;
-		} else if (connection && this._connectionInformation && connection.connectionInformation.getHashCode() === this._connectionInformation.getHashCode()) {
+		} else if (connection && this._remoteAuthority && connection.remoteAuthority === this._remoteAuthority) {
 			// Both the extension host and workspace are remote
 			return true;
 		}

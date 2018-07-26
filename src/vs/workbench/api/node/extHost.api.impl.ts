@@ -98,7 +98,7 @@ export function createApiFactory(
 ): IExtensionApiFactory {
 
 	let schemeTransformer: ISchemeTransformer = null;
-	if (initData.remoteOptions) {
+	if (initData.remoteAuthority) {
 		schemeTransformer = new class implements ISchemeTransformer {
 			transformOutgoing(scheme: string): string {
 				if (scheme === 'file') {
@@ -123,7 +123,7 @@ export function createApiFactory(
 	const extHostDocumentSaveParticipant = rpcProtocol.set(ExtHostContext.ExtHostDocumentSaveParticipant, new ExtHostDocumentSaveParticipant(extHostLogService, extHostDocuments, rpcProtocol.getProxy(MainContext.MainThreadTextEditors)));
 	const extHostEditors = rpcProtocol.set(ExtHostContext.ExtHostEditors, new ExtHostEditors(rpcProtocol, extHostDocumentsAndEditors));
 	const extHostCommands = rpcProtocol.set(ExtHostContext.ExtHostCommands, new ExtHostCommands(rpcProtocol, extHostHeapService, extHostLogService));
-	const extHostTreeViews = rpcProtocol.set(ExtHostContext.ExtHostTreeViews, new ExtHostTreeViews(rpcProtocol.getProxy(MainContext.MainThreadTreeViews), extHostCommands));
+	const extHostTreeViews = rpcProtocol.set(ExtHostContext.ExtHostTreeViews, new ExtHostTreeViews(rpcProtocol.getProxy(MainContext.MainThreadTreeViews), extHostCommands, extHostLogService));
 	rpcProtocol.set(ExtHostContext.ExtHostWorkspace, extHostWorkspace);
 	rpcProtocol.set(ExtHostContext.ExtHostConfiguration, extHostConfiguration);
 	const extHostDiagnostics = rpcProtocol.set(ExtHostContext.ExtHostDiagnostics, new ExtHostDiagnostics(rpcProtocol));
@@ -141,13 +141,12 @@ export function createApiFactory(
 	const extHostProgress = rpcProtocol.set(ExtHostContext.ExtHostProgress, new ExtHostProgress(rpcProtocol.getProxy(MainContext.MainThreadProgress)));
 	const exthostCommentProviders = rpcProtocol.set(ExtHostContext.ExtHostComments, new ExtHostComments(rpcProtocol, extHostCommands.converter, extHostDocuments));
 
-	if (initData.remoteOptions) {
+	if (initData.remoteAuthority) {
 		const fileSystemProvider = new FileSystemProvider(extHostLogService, extHostFileSystemEvent);
 		extHostFileSystem.registerFileSystemProvider('vscode-remote', fileSystemProvider, { isCaseSensitive: platform.isLinux });
 		extHostTask.registerTaskSystem('vscode-remote', {
 			scheme: 'vscode-remote',
-			host: initData.remoteOptions.host,
-			port: initData.remoteOptions.port,
+			authority: initData.remoteAuthority,
 			platform: process.platform
 		});
 	}
@@ -449,7 +448,7 @@ export function createApiFactory(
 				return extHostOutputService.createOutputChannel(name);
 			},
 			createWebviewPanel(viewType: string, title: string, showOptions: vscode.ViewColumn | { viewColumn: vscode.ViewColumn, preserveFocus?: boolean }, options: vscode.WebviewPanelOptions & vscode.WebviewOptions): vscode.WebviewPanel {
-				return extHostWebviews.createWebview(viewType, title, showOptions, options, extension.extensionLocation);
+				return extHostWebviews.createWebview(extension.extensionLocation, viewType, title, showOptions, options);
 			},
 			createTerminal(nameOrOptions: vscode.TerminalOptions | string, shellPath?: string, shellArgs?: string[]): vscode.Terminal {
 				if (typeof nameOrOptions === 'object') {

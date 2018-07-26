@@ -41,7 +41,6 @@ import { createExtHostContextProxyIdentifier as createExtId, createMainContextPr
 import { IProgressOptions, IProgressStep } from 'vs/workbench/services/progress/common/progress';
 import { SaveReason } from 'vs/workbench/services/textfile/common/textfiles';
 import * as vscode from 'vscode';
-import { IRemoteConnectionInformation } from 'vs/workbench/services/extensions/common/remoteExtensionsService';
 
 export interface IEnvironment {
 	isExtensionDevelopmentDebug: boolean;
@@ -76,7 +75,7 @@ export interface IInitData {
 	/**
 	 * The remote information.
 	 */
-	remoteOptions?: IRemoteOptions;
+	remoteAuthority?: string | null;
 }
 
 export interface IConfigurationInitData extends IConfigurationData {
@@ -89,7 +88,7 @@ export interface IWorkspaceConfigurationChangeEventData {
 }
 
 export interface IExtHostContext extends IRPCProtocol {
-	connectionInformation: IRemoteConnectionInformation;
+	remoteAuthority: string;
 }
 
 export interface IMainContext extends IRPCProtocol {
@@ -436,11 +435,17 @@ export interface MainThreadTelemetryShape extends IDisposable {
 
 export type WebviewPanelHandle = string;
 
+export interface WebviewPanelShowOptions {
+	readonly viewColumn?: EditorViewColumn;
+	readonly preserveFocus?: boolean;
+}
+
 export interface MainThreadWebviewsShape extends IDisposable {
-	$createWebviewPanel(handle: WebviewPanelHandle, viewType: string, title: string, viewOptions: { viewColumn: EditorViewColumn, preserveFocus: boolean }, options: vscode.WebviewPanelOptions & vscode.WebviewOptions, extensionLocation: UriComponents): void;
+	$createWebviewPanel(handle: WebviewPanelHandle, viewType: string, title: string, showOptions: WebviewPanelShowOptions, options: vscode.WebviewPanelOptions & vscode.WebviewOptions, extensionLocation: UriComponents): void;
 	$disposeWebview(handle: WebviewPanelHandle): void;
-	$reveal(handle: WebviewPanelHandle, viewColumn: EditorViewColumn | null, preserveFocus: boolean): void;
+	$reveal(handle: WebviewPanelHandle, showOptions: WebviewPanelShowOptions): void;
 	$setTitle(handle: WebviewPanelHandle, value: string): void;
+	$setIconPath(handle: WebviewPanelHandle, value: { light: UriComponents, dark: UriComponents } | undefined): void;
 	$setHtml(handle: WebviewPanelHandle, value: string): void;
 	$setOptions(handle: WebviewPanelHandle, options: vscode.WebviewOptions): void;
 	$postMessage(handle: WebviewPanelHandle, value: any): Thenable<boolean>;

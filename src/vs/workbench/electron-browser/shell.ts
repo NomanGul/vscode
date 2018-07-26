@@ -92,7 +92,7 @@ import { IDialogService } from 'vs/platform/dialogs/common/dialogs';
 import { DialogService } from 'vs/workbench/services/dialogs/electron-browser/dialogService';
 import { DialogChannel } from 'vs/platform/dialogs/common/dialogIpc';
 import { EventType, addDisposableListener, addClass } from 'vs/base/browser/dom';
-import { RemoteExtensionsService } from 'vs/workbench/services/extensions/node/remoteExtensionsServiceImpl';
+import { RemoteExtensionsService } from 'vs/workbench/services/extensions/electron-browser/remoteExtensionsServiceImpl';
 import { IRemoteExtensionsService } from 'vs/workbench/services/extensions/common/remoteExtensionsService';
 import { IOpenerService } from 'vs/platform/opener/common/opener';
 import { OpenerService } from 'vs/editor/browser/services/openerService';
@@ -519,6 +519,7 @@ export class WorkbenchShell extends Disposable {
 		}
 	}
 }
+
 
 registerThemingParticipant((theme: ITheme, collector: ICssStyleCollector) => {
 

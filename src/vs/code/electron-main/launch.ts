@@ -65,7 +65,6 @@ export interface ILaunchService {
 	getMainProcessId(): TPromise<number>;
 	getMainProcessInfo(): TPromise<IMainProcessInfo>;
 	getLogsPath(): TPromise<string>;
-	setRemoteSupport(cb: () => TPromise<void>);
 }
 
 export interface ILaunchChannel extends IChannel {
@@ -125,16 +124,11 @@ export class LaunchChannelClient implements ILaunchService {
 	getLogsPath(): TPromise<string> {
 		return this.channel.call('get-logs-path', null);
 	}
-
-	public setRemoteSupport(cb: () => void): void {
-		// Do nothing. Will always be executed on the main side.
-	}
 }
 
 export class LaunchService implements ILaunchService {
 
 	_serviceBrand: any;
-	_remoteSupport: () => TPromise<void>;
 
 	constructor(
 		@ILogService private logService: ILogService,
@@ -148,32 +142,30 @@ export class LaunchService implements ILaunchService {
 	start(args: ParsedArgs, userEnv: IProcessEnvironment): TPromise<void> {
 		this.logService.trace('Received data from other instance: ', args, userEnv);
 
-		return (args.wsl && this._remoteSupport ? this._remoteSupport() : TPromise.as(undefined)).then(() => {
-			const urlsToOpen = parseOpenUrl(args);
+		const urlsToOpen = parseOpenUrl(args);
 
-			// Check early for open-url which is handled in URL service
-			if (urlsToOpen.length) {
-				let whenWindowReady = TPromise.as<any>(null);
+		// Check early for open-url which is handled in URL service
+		if (urlsToOpen.length) {
+			let whenWindowReady = TPromise.as<any>(null);
 
-				// Create a window if there is none
-				if (this.windowsMainService.getWindowCount() === 0) {
-					const window = this.windowsMainService.openNewWindow(OpenContext.DESKTOP)[0];
-					whenWindowReady = window.ready();
-				}
-
-				// Make sure a window is open, ready to receive the url event
-				whenWindowReady.then(() => {
-					for (const url of urlsToOpen) {
-						this.urlService.open(url);
-					}
-				});
-
-				return TPromise.as(null);
+			// Create a window if there is none
+			if (this.windowsMainService.getWindowCount() === 0) {
+				const window = this.windowsMainService.openNewWindow(OpenContext.DESKTOP)[0];
+				whenWindowReady = window.ready();
 			}
 
-			// Otherwise handle in windows service
-			return this.startOpenWindow(args, userEnv);
-		});
+			// Make sure a window is open, ready to receive the url event
+			whenWindowReady.then(() => {
+				for (const url of urlsToOpen) {
+					this.urlService.open(url);
+				}
+			});
+
+			return TPromise.as(null);
+		}
+
+		// Otherwise handle in windows service
+		return this.startOpenWindow(args, userEnv);
 	}
 
 	private startOpenWindow(args: ParsedArgs, userEnv: IProcessEnvironment): TPromise<void> {
@@ -302,9 +294,5 @@ export class LaunchService implements ILaunchService {
 			title: win.getTitle(),
 			folderURIs
 		} as IWindowInfo;
-	}
-
-	public setRemoteSupport(cb: () => TPromise<void>) {
-		this._remoteSupport = cb;
 	}
 }
