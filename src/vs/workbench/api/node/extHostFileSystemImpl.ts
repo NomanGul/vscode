@@ -24,11 +24,14 @@ export default class FileSystemProvider implements vscode.FileSystemProvider {
 	constructor(logService: ExtHostLogService, extHostFileSystemEventService: ExtHostFileSystemEventService) {
 		const onDidChangeFileEmitter = new Emitter<vscode.FileChangeEvent[]>();
 
-		let verboseLogging = logService.getLevel() === LogLevel.Debug;
-		this.fileWatcher = createWatcher(verboseLogging, onDidChangeFileEmitter);
+		this.fileWatcher = createWatcher(logService.getLevel(), onDidChangeFileEmitter);
 		this.onDidChangeFile = onDidChangeFileEmitter.event;
 
-		if (verboseLogging) {
+		logService.onDidChangeLogLevel(level => {
+			this.fileWatcher.setLogLevel(logService.getLevel());
+		});
+
+		if (logService.getLevel() <= LogLevel.Debug) {
 			// install a ext host file system watcher to observe if our events are received
 			const fileWatcher = extHostFileSystemEventService.createFileSystemWatcher('**');
 			fileWatcher.onDidChange(u => console.info(`[FileWatcher] observing file event: [changed] ${u.toString()}`));

@@ -45,7 +45,8 @@ export class ChokidarWatcherService implements IWatcherService {
 	private _watchers: { [watchPath: string]: IWatcher };
 	private _watcherCount: number;
 
-	private _options: IWatcherOptions & IChockidarWatcherOptions;
+	private _pollingInterval: number;
+	private _verboseLogging: boolean;
 
 	private spamCheckStartTime: number;
 	private spamWarningLogged: boolean;
@@ -54,11 +55,16 @@ export class ChokidarWatcherService implements IWatcherService {
 	private _onWatchEvent = new Emitter<watcherCommon.IRawFileChange[] | IWatchError>();
 	readonly onWatchEvent = this._onWatchEvent.event;
 
-	watch(options: IWatcherOptions & IChockidarWatcherOptions): Event<watcherCommon.IRawFileChange[] | IWatchError> {
-		this._options = options;
+	public watch(options: IWatcherOptions & IChockidarWatcherOptions): Event<watcherCommon.IRawFileChange[] | IWatchError> {
+		this._verboseLogging = options.verboseLogging;
+		this._pollingInterval = options.pollingInterval;
 		this._watchers = Object.create(null);
 		this._watcherCount = 0;
 		return this.onWatchEvent;
+	}
+
+	public setVerboseLogging(enabled: boolean): void {
+		this._verboseLogging = enabled;
 	}
 
 	public setRoots(requests: IWatcherRequest[]): TPromise<void> {
@@ -97,11 +103,11 @@ export class ChokidarWatcherService implements IWatcherService {
 	}
 
 	private _watch(basePath: string, requests: IWatcherRequest[]): IWatcher {
-		if (this._options.verboseLogging) {
+		if (this._verboseLogging) {
 			console.log(`Start watching: ${basePath}]`);
 		}
 
-		const pollingInterval = this._options.pollingInterval || 1000;
+		const pollingInterval = this._pollingInterval || 1000;
 
 		const watcherOpts: chokidar.IOptions = {
 			ignoreInitial: true,
@@ -143,7 +149,7 @@ export class ChokidarWatcherService implements IWatcherService {
 			requests,
 			stop: () => {
 				try {
-					if (this._options.verboseLogging) {
+					if (this._verboseLogging) {
 						console.log(`Stop watching: ${basePath}]`);
 					}
 					if (chokidarWatcher) {
@@ -201,7 +207,7 @@ export class ChokidarWatcherService implements IWatcherService {
 			let event = { type: eventType, path };
 
 			// Logging
-			if (this._options.verboseLogging) {
+			if (this._verboseLogging) {
 				console.log(eventType === FileChangeType.ADDED ? '[ADDED]' : eventType === FileChangeType.DELETED ? '[DELETED]' : '[CHANGED]', path);
 			}
 
@@ -228,7 +234,7 @@ export class ChokidarWatcherService implements IWatcherService {
 				this._onWatchEvent.fire(res);
 
 				// Logging
-				if (this._options.verboseLogging) {
+				if (this._verboseLogging) {
 					res.forEach(r => {
 						console.log(' >> normalized', r.type === FileChangeType.ADDED ? '[ADDED]' : r.type === FileChangeType.DELETED ? '[DELETED]' : '[CHANGED]', r.path);
 					});

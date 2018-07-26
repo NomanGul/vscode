@@ -16,6 +16,7 @@ export interface IWatcherChannel extends IChannel {
 	listen<T>(event: string, arg?: any): Event<T>;
 
 	call(command: 'setRoots', request: IWatcherRequest[]): TPromise<void>;
+	call(command: 'setVerboseLogging', request: boolean): TPromise<void>;
 	call<T>(command: string, arg?: any): TPromise<T>;
 }
 
@@ -44,6 +45,10 @@ export class WatcherChannelClient implements IWatcherService {
 
 	watch(options: IWatcherOptions): Event<IRawFileChange[] | IWatchError> {
 		return this.channel.listen('watch', options);
+	}
+
+	setVerboseLogging(enable: boolean): TPromise<void> {
+		return this.channel.call('setVerboseLogging', enable);
 	}
 
 	setRoots(roots: IWatcherRequest[]): TPromise<void> {

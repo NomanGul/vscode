@@ -15,18 +15,20 @@ import { IRawFileChange } from 'vs/workbench/services/files/node/watcher/common'
 import { IWatcherRequest, IWatchError } from '../../services/files/node/watcher/unix/watcher';
 import { filterEvent } from 'vs/base/common/event';
 import { IDisposable, dispose } from 'vs/base/common/lifecycle';
+import { LogLevel } from 'vs/platform/log/common/log';
 
 export interface FileWatcher {
 	watch(path: URI, options: { recursive: boolean; excludes: string[]; }): vscode.Disposable;
+	setLogLevel(logLevel: LogLevel);
 	terminate();
 }
 
-export function createWatcher(verboseLogging: boolean, eventEmmiter: vscode.EventEmitter<vscode.FileChangeEvent[]>): FileWatcher {
+export function createWatcher(logLevel: LogLevel, eventEmmiter: vscode.EventEmitter<vscode.FileChangeEvent[]>): FileWatcher {
 	let watcherService = new ChokidarWatcherService();
 	let requests: IWatcherRequest[] = [];
 
 	const disposables: IDisposable[] = [];
-	const onWatchEvent = watcherService.watch({ verboseLogging });
+	const onWatchEvent = watcherService.watch({ verboseLogging: logLevel <= LogLevel.Trace });
 
 	const onError = filterEvent<any, IWatchError>(onWatchEvent, (e): e is IWatchError => typeof e.message === 'string');
 	onError(err => console.error(err), null, disposables);
@@ -45,7 +47,7 @@ export function createWatcher(verboseLogging: boolean, eventEmmiter: vscode.Even
 					uri: URI.file(e.path)
 				};
 			});
-			if (verboseLogging) {
+			if (logLevel <= LogLevel.Debug) {
 				let eventToString = (e: IRawFileChange) => `[${e.type === FileChangeType.UPDATED ? 'updated' : e.type === FileChangeType.ADDED ? 'created' : 'deleted'}] ${e.path}`;
 				console.info(`[FileWatcher] emitting file event(s): ${events.map(eventToString).join(', ')}`);
 			}
@@ -58,7 +60,7 @@ export function createWatcher(verboseLogging: boolean, eventEmmiter: vscode.Even
 			if (!watcherService) {
 				throw Error('Watcher has already been terminated');
 			}
-			console.info(`[FileWatcher] start watching: ${path}, ignoring: ${options.excludes.join(', ')}`);
+			console.info(`[FileWatcher] start watching: ${path}, ignoring: ${options.excludes.join(', ')}, logLevel: ${logLevel}}`);
 
 			const request = { basePath: path.fsPath, ignored: options.excludes, recursive: options.recursive };
 			requests.push(request);
@@ -71,6 +73,13 @@ export function createWatcher(verboseLogging: boolean, eventEmmiter: vscode.Even
 					}
 				}
 			};
+		},
+		setLogLevel(newLogLevel: LogLevel) {
+			console.log('New log level: ' + logLevel);
+			logLevel = newLogLevel;
+			if (watcherService) {
+				watcherService.setVerboseLogging(logLevel <= LogLevel.Trace);
+			}
 		},
 		terminate: () => {
 			dispose(disposables);
