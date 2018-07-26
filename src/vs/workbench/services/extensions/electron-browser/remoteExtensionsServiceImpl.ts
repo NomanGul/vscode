@@ -4,13 +4,13 @@
  *--------------------------------------------------------------------------------------------*/
 
 import { TPromise } from 'vs/base/common/winjs.base';
-import { IRemoteExtensionsService, IRemoteWorkspaceFolderConnection, IRemoteConnectionInformation } from 'vs/workbench/services/extensions/common/remoteExtensionsService';
+import { IRemoteExtensionsService, IRemoteWorkspaceFolderConnection } from 'vs/workbench/services/extensions/common/remoteExtensionsService';
 import { IWorkspaceFolder } from 'vs/platform/workspace/common/workspace';
 import { Client } from 'vs/base/parts/ipc/node/ipc.net';
 import { getDelayedChannel, IChannel } from 'vs/base/parts/ipc/common/ipc';
 import { Disposable } from 'vs/base/common/lifecycle';
 import { connectToRemoteExtensionHostManagement } from 'vs/platform/remote/node/remoteFileSystemIpc';
-// import { RemoteAuthorityRegistry } from 'vs/workbench/services/extensions/electron-browser/remoteAuthorityRegistry';
+import { RemoteAuthorityRegistry } from 'vs/workbench/services/extensions/electron-browser/remoteAuthorityRegistry';
 
 export class RemoteExtensionsService implements IRemoteExtensionsService {
 
@@ -25,8 +25,8 @@ export class RemoteExtensionsService implements IRemoteExtensionsService {
 	}
 
 	getRemoteWorkspaceFolderConnection(workspaceFolder: IWorkspaceFolder): IRemoteWorkspaceFolderConnection {
-		const connectionInformation = this._parseRemoteConnectionInformation(workspaceFolder);
-		return (connectionInformation ? new RemoteWorkspaceFolder(connectionInformation, this) : null);
+		const authority = this._getAuthority(workspaceFolder);
+		return (authority ? new RemoteWorkspaceFolder(authority, this) : null);
 	}
 
 	getRemoteWorkspaceFolderConnections(workspaceFolders: IWorkspaceFolder[]): IRemoteWorkspaceFolderConnection[] {
@@ -37,7 +37,7 @@ export class RemoteExtensionsService implements IRemoteExtensionsService {
 			if (!workspaceFolderConnection) {
 				continue;
 			}
-			resultMap.set(workspaceFolderConnection.connectionInformation.getHashCode(), workspaceFolderConnection);
+			resultMap.set(workspaceFolderConnection.remoteAuthority, workspaceFolderConnection);
 		}
 
 		let result: IRemoteWorkspaceFolderConnection[] = [];
@@ -45,48 +45,39 @@ export class RemoteExtensionsService implements IRemoteExtensionsService {
 		return result;
 	}
 
-	getChannel<T extends IChannel>(connectionInformation: IRemoteConnectionInformation, channelName: string): T {
-		const hashCode = connectionInformation.getHashCode();
-		if (!this._channels.has(hashCode)) {
-			// // TODO@vs-remote: do not split authority
-			// const authority = `${connectionInformation.host}:${connectionInformation.port}`;
-			// RemoteAuthorityRegistry.resolveAuthority(authority).then((resolvedAuthority) => {
-			// 	console.log(`received a resolved authority`);
-			// });
-			// TODO@vs-remote: dispose this connection when all remote folders pointing to the same address have been removed.
-			const result = connectToRemoteExtensionHostManagement(connectionInformation.host, connectionInformation.port, `window:${this._windowId}`);
-			this._channels.set(hashCode, result);
+	getChannel<T extends IChannel>(remoteAuthority: string, channelName: string): T {
+		if (!this._channels.has(remoteAuthority)) {
+			this._channels.set(remoteAuthority, this._getClient(remoteAuthority));
 		}
-		return <T>getDelayedChannel(this._channels.get(hashCode).then(c => c.getChannel(channelName)));
+		return <T>getDelayedChannel(this._channels.get(remoteAuthority).then(c => c.getChannel(channelName)));
 	}
 
-	private _parseRemoteConnectionInformation(folder: IWorkspaceFolder): IRemoteConnectionInformation {
+	private _getClient<T extends IChannel>(remoteAuthority: string): TPromise<Client> {
+		return RemoteAuthorityRegistry.resolveAuthority(remoteAuthority).then((resolvedAuthority) => {
+			// TODO@vs-remote: dispose this connection when all remote folders pointing to the same address have been removed.
+			return connectToRemoteExtensionHostManagement(resolvedAuthority.host, resolvedAuthority.port, `window:${this._windowId}`);
+		});
+	}
+
+	private _getAuthority(folder: IWorkspaceFolder): string {
 		if (folder.uri.scheme === 'vscode-remote') {
-			let [host, strPort] = folder.uri.authority.split(':');
-			let port = strPort ? parseInt(strPort, 10) : NaN;
-			if (host && !isNaN(port)) {
-				return {
-					host: host,
-					port,
-					getHashCode: () => host + port
-				};
-			}
+			return folder.uri.authority;
 		}
 		return null;
 	}
 }
 
 class RemoteWorkspaceFolder extends Disposable implements IRemoteWorkspaceFolderConnection {
-	readonly connectionInformation: IRemoteConnectionInformation;
+	readonly remoteAuthority: string;
 	private readonly _parent: RemoteExtensionsService;
 
-	constructor(connectionInformation: IRemoteConnectionInformation, parent: RemoteExtensionsService) {
+	constructor(remoteAuthority: string, parent: RemoteExtensionsService) {
 		super();
-		this.connectionInformation = connectionInformation;
+		this.remoteAuthority = remoteAuthority;
 		this._parent = parent;
 	}
 
 	getChannel<T extends IChannel>(channelName: string): T {
-		return this._parent.getChannel(this.connectionInformation, channelName);
+		return this._parent.getChannel(this.remoteAuthority, channelName);
 	}
 }

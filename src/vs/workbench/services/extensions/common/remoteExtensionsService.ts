@@ -11,12 +11,12 @@ import { IWorkspaceFolder } from 'vs/platform/workspace/common/workspace';
 
 export const IRemoteExtensionsService = createDecorator<IRemoteExtensionsService>('remoteExtensionsService');
 
-export interface IRemoteConnectionInformation {
-	host: string;
-	port: number;
+// export interface IRemoteConnectionInformation {
+// 	host: string;
+// 	port: number;
 
-	getHashCode(): string;
-}
+// 	getHashCode(): string;
+// }
 
 export interface IRemoteExtensionsEnvironmentData {
 	agentPid: number;
@@ -40,6 +40,7 @@ export interface IRemoteExtensionsService {
 }
 
 export interface IRemoteWorkspaceFolderConnection {
-	readonly connectionInformation: IRemoteConnectionInformation;
+	// readonly connectionInformation: IRemoteConnectionInformation;
+	readonly remoteAuthority: string;
 	getChannel<T extends IChannel>(channelName: string): T;
 }

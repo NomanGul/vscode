@@ -214,6 +214,19 @@ export class CodeApplication {
 			}
 		});
 
+		ipc.on('vscode:resolveAuthorityRequest', (event: any, authority: string) => {
+			const webContents = event.sender.webContents;
+
+			const [host, strPort] = authority.split(':');
+			const port = parseInt(strPort, 10);
+
+			webContents.send('vscode:resolveAuthorityReply', {
+				authority: authority,
+				host: host,
+				port: port
+			});
+		});
+
 		let macOpenFileURIs: URI[] = [];
 		let runningTimeout: number = null;
 		app.on('open-file', (event: Event, path: string) => {

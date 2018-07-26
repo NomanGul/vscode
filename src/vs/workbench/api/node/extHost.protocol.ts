@@ -41,7 +41,6 @@ import { createExtHostContextProxyIdentifier as createExtId, createMainContextPr
 import { IProgressOptions, IProgressStep } from 'vs/workbench/services/progress/common/progress';
 import { SaveReason } from 'vs/workbench/services/textfile/common/textfiles';
 import * as vscode from 'vscode';
-import { IRemoteConnectionInformation } from 'vs/workbench/services/extensions/common/remoteExtensionsService';
 
 export interface IEnvironment {
 	isExtensionDevelopmentDebug: boolean;
@@ -76,7 +75,7 @@ export interface IInitData {
 	/**
 	 * The remote information.
 	 */
-	remoteOptions?: IRemoteOptions;
+	remoteAuthority?: string | null;
 }
 
 export interface IConfigurationInitData extends IConfigurationData {
@@ -89,7 +88,7 @@ export interface IWorkspaceConfigurationChangeEventData {
 }
 
 export interface IExtHostContext extends IRPCProtocol {
-	connectionInformation: IRemoteConnectionInformation;
+	remoteAuthority: string;
 }
 
 export interface IMainContext extends IRPCProtocol {

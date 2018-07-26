@@ -98,7 +98,7 @@ export function createApiFactory(
 ): IExtensionApiFactory {
 
 	let schemeTransformer: ISchemeTransformer = null;
-	if (initData.remoteOptions) {
+	if (initData.remoteAuthority) {
 		schemeTransformer = new class implements ISchemeTransformer {
 			transformOutgoing(scheme: string): string {
 				if (scheme === 'file') {
@@ -141,13 +141,12 @@ export function createApiFactory(
 	const extHostProgress = rpcProtocol.set(ExtHostContext.ExtHostProgress, new ExtHostProgress(rpcProtocol.getProxy(MainContext.MainThreadProgress)));
 	const exthostCommentProviders = rpcProtocol.set(ExtHostContext.ExtHostComments, new ExtHostComments(rpcProtocol, extHostCommands.converter, extHostDocuments));
 
-	if (initData.remoteOptions) {
+	if (initData.remoteAuthority) {
 		const fileSystemProvider = new FileSystemProvider(extHostLogService, extHostFileSystemEvent);
 		extHostFileSystem.registerFileSystemProvider('vscode-remote', fileSystemProvider, { isCaseSensitive: platform.isLinux });
 		extHostTask.registerTaskSystem('vscode-remote', {
 			scheme: 'vscode-remote',
-			host: initData.remoteOptions.host,
-			port: initData.remoteOptions.port,
+			authority: initData.remoteAuthority,
 			platform: process.platform
 		});
 	}

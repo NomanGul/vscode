@@ -18,11 +18,12 @@ import { IInitData, IWorkspaceData, IConfigurationInitData } from 'vs/workbench/
 import { IWorkspaceConfigurationService } from 'vs/workbench/services/configuration/common/configuration';
 import { getScopes } from 'vs/platform/configuration/common/configurationRegistry';
 import { ILogService } from 'vs/platform/log/common/log';
-import { IRemoteConnectionInformation, IRemoteExtensionsEnvironmentData } from 'vs/workbench/services/extensions/common/remoteExtensionsService';
+import { IRemoteExtensionsEnvironmentData } from 'vs/workbench/services/extensions/common/remoteExtensionsService';
 import { IExtensionHostStarter } from 'vs/workbench/services/extensions/electron-browser/extensionHost';
+import { RemoteAuthorityRegistry } from 'vs/workbench/services/extensions/electron-browser/remoteAuthorityRegistry';
 
 export interface IInitDataProvider {
-	readonly connectionInformation: IRemoteConnectionInformation;
+	readonly remoteAuthority: string;
 	getInitData(): TPromise<IRemoteExtensionsEnvironmentData>;
 }
 
@@ -49,41 +50,43 @@ export class RemoteExtensionHostClient implements IExtensionHostStarter {
 	}
 
 	public start(): TPromise<IMessagePassingProtocol> {
-		const info = this._initDataProvider.connectionInformation;
-		return connectToRemoteExtensionHostServer(info.host, info.port).then((protocol) => {
+		return RemoteAuthorityRegistry.resolveAuthority(this._initDataProvider.remoteAuthority).then((resolvedAuthority) => {
 
-			// 1) wait for the incoming `ready` event and send the initialization data.
-			// 2) wait for the incoming `initialized` event.
-			return new TPromise<IMessagePassingProtocol>((resolve, reject) => {
+			return connectToRemoteExtensionHostServer(resolvedAuthority.host, resolvedAuthority.port).then((protocol) => {
 
-				let handle = setTimeout(() => {
-					reject('timeout');
-				}, 60 * 1000);
+				// 1) wait for the incoming `ready` event and send the initialization data.
+				// 2) wait for the incoming `initialized` event.
+				return new TPromise<IMessagePassingProtocol>((resolve, reject) => {
 
-				const disposable = protocol.onMessage(msg => {
+					let handle = setTimeout(() => {
+						reject('timeout');
+					}, 60 * 1000);
 
-					if (msg === 'ready') {
-						// 1) Extension Host is ready to receive messages, initialize it
-						this._createExtHostInitData().then(data => protocol.send(JSON.stringify(data)));
-						return;
-					}
+					const disposable = protocol.onMessage(msg => {
 
-					if (msg === 'initialized') {
-						// 2) Extension Host is initialized
+						if (msg === 'ready') {
+							// 1) Extension Host is ready to receive messages, initialize it
+							this._createExtHostInitData().then(data => protocol.send(JSON.stringify(data)));
+							return;
+						}
 
-						clearTimeout(handle);
+						if (msg === 'initialized') {
+							// 2) Extension Host is initialized
 
-						// stop listening for messages here
-						disposable.dispose();
+							clearTimeout(handle);
 
-						// release this promise
-						resolve(protocol);
-						return;
-					}
+							// stop listening for messages here
+							disposable.dispose();
 
-					console.error(`received unexpected message during handshake phase from the extension host: `, msg);
+							// release this promise
+							resolve(protocol);
+							return;
+						}
+
+						console.error(`received unexpected message during handshake phase from the extension host: `, msg);
+					});
+
 				});
-
 			});
 		});
 	}
@@ -108,10 +111,7 @@ export class RemoteExtensionHostClient implements IExtensionHostStarter {
 				windowId: this._windowService.getCurrentWindowId(),
 				logLevel: this._logService.getLevel(),
 				logsPath: remoteExtensionHostData.agentLogsPath,
-				remoteOptions: {
-					host: this._initDataProvider.connectionInformation.host,
-					port: this._initDataProvider.connectionInformation.port
-				}
+				remoteAuthority: this._initDataProvider.remoteAuthority,
 			};
 			return r;
 		});
