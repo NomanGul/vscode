@@ -520,6 +520,7 @@ export class WorkbenchShell extends Disposable {
 	}
 }
 
+
 registerThemingParticipant((theme: ITheme, collector: ICssStyleCollector) => {
 
 	// Foreground
