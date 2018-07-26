@@ -105,7 +105,7 @@ function main(args, wslExecutable, vsCodeWinExecutable) {
 			folderURIS.push(folderUri);
 		}
 	}
-	let newCommandline = ["--wsl"];
+	let newCommandline = [];
 	for (let key in parsedArgs) {
 		if (key == '_' || aliases[key]) {
 			continue;
@@ -177,7 +177,7 @@ function toArray(items) {
 }
 
 function mapFileUri(uri) {
-	return uri.replace(/^file:\/\//, "vscode-remote://127.0.0.1:8000");
+	return uri.replace(/^file:\/\//, "vscode-remote://wsl+default");
 }
 
 function localize(key, value) {
