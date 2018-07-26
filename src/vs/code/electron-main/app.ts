@@ -164,12 +164,11 @@ export class CodeApplication {
 			private _client: TPromise<Client>;
 			private _disposeRunner: RunOnceScheduler;
 
-			constructor(authority: string) {
+			constructor(authority: string, connectionInfo: TPromise<{ host: string; port: number; }>) {
 				this._authority = authority;
-				const pieces = authority.split(':');
-				const host = pieces[0];
-				const port = parseInt(pieces[1], 10);
-				this._client = connectToRemoteExtensionHostManagement(host, port, `main`);
+				this._client = connectionInfo.then(({ host, port }) => {
+					return connectToRemoteExtensionHostManagement(host, port, `main`);
+				});
 				this._disposeRunner = new RunOnceScheduler(() => this._dispose(), 1000);
 			}
 
@@ -198,7 +197,7 @@ export class CodeApplication {
 			if (connectionPool.has(uri.authority)) {
 				activeConnection = connectionPool.get(uri.authority);
 			} else {
-				activeConnection = new ActiveConnection(uri.authority);
+				activeConnection = new ActiveConnection(uri.authority, this.resolveAuthority(uri.authority));
 				connectionPool.set(uri.authority, activeConnection);
 			}
 			try {
@@ -213,25 +212,8 @@ export class CodeApplication {
 		});
 
 		ipc.on('vscode:resolveAuthorityRequest', (event: any, authority: string) => {
-
-			const resolveAuthority = (authority: string): TPromise<{ host: string; port: number; }> => {
-				if (/^wsl\+/.test(authority)) {
-					return this.startWslExtensionHost(this.environmentService).then(() => {
-						return {
-							host: 'localhost',
-							port: 8000
-						};
-					});
-				}
-
-				// Perhaps it is a host:port URI
-				const [host, strPort] = authority.split(':');
-				const port = parseInt(strPort, 10);
-				return TPromise.as({ host, port });
-			};
-
 			const webContents = event.sender.webContents;
-			resolveAuthority(authority).then(({ host, port }) => {
+			this.resolveAuthority(authority).then(({ host, port }) => {
 				webContents.send('vscode:resolveAuthorityReply', { authority, host, port });
 			});
 		});
@@ -625,6 +607,22 @@ export class CodeApplication {
 
 	private dispose(): void {
 		this.toDispose = dispose(this.toDispose);
+	}
+
+	private resolveAuthority(authority: string): TPromise<{ host: string; port: number; }> {
+		if (/^wsl\+/.test(authority)) {
+			return this.startWslExtensionHost(this.environmentService).then(() => {
+				return {
+					host: 'localhost',
+					port: 8000
+				};
+			});
+		}
+
+		// Perhaps it is a host:port URI
+		const [host, strPort] = authority.split(':');
+		const port = parseInt(strPort, 10);
+		return TPromise.as({ host, port });
 	}
 
 	private startWslExtensionHost(environmentService: IEnvironmentService): TPromise<void> {
