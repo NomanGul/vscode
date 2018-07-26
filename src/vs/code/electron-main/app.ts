@@ -367,12 +367,6 @@ export class CodeApplication {
 
 			// Services
 			const appInstantiationService = this.initServices(machineId);
-			appInstantiationService.invokeFunction(accessor => {
-				const launchService = accessor.get(ILaunchService);
-				launchService.setRemoteSupport(() => {
-					return appInstantiationService.invokeFunction(accessor => this.startWslExtensionHost(accessor.get(IEnvironmentService)));
-				});
-			});
 
 			let promise: TPromise<any> = TPromise.as(null);
 
@@ -390,27 +384,11 @@ export class CodeApplication {
 				const authHandler = appInstantiationService.createInstance(ProxyAuthHandler);
 				this.toDispose.push(authHandler);
 
-				// Check to start WSL support
-				appInstantiationService.invokeFunction((accessor) => {
-					let environmentService = accessor.get(IEnvironmentService);
-					let p: TPromise<void>;
-					if (environmentService.args.wsl) {
-						p = this.startWslExtensionHost(environmentService);
-					} else {
-						p = TPromise.as(undefined);
-					}
-					p.then(undefined, (err: Error) => {
-						this.logService.error(`Unable to start WSL remote extension host agent:\n${err.message}`);
-						return undefined;
-					}).done(() => {
-						// Open Windows
-						appInstantiationService.invokeFunction(accessor => this.openFirstWindow(accessor));
+				// Open Windows
+				appInstantiationService.invokeFunction(accessor => this.openFirstWindow(accessor));
 
-						// Post Open Windows Tasks
-						appInstantiationService.invokeFunction(accessor => this.afterWindowOpen(accessor));
-					});
-				});
-
+				// Post Open Windows Tasks
+				appInstantiationService.invokeFunction(accessor => this.afterWindowOpen(accessor));
 			});
 		});
 	}
