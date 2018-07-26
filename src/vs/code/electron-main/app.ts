@@ -213,15 +213,26 @@ export class CodeApplication {
 		});
 
 		ipc.on('vscode:resolveAuthorityRequest', (event: any, authority: string) => {
+
+			const resolveAuthority = (authority: string): TPromise<{ host: string; port: number; }> => {
+				if (/^wsl\+/.test(authority)) {
+					return this.startWslExtensionHost(this.environmentService).then(() => {
+						return {
+							host: 'localhost',
+							port: 8000
+						};
+					});
+				}
+
+				// Perhaps it is a host:port URI
+				const [host, strPort] = authority.split(':');
+				const port = parseInt(strPort, 10);
+				return TPromise.as({ host, port });
+			};
+
 			const webContents = event.sender.webContents;
-
-			const [host, strPort] = authority.split(':');
-			const port = parseInt(strPort, 10);
-
-			webContents.send('vscode:resolveAuthorityReply', {
-				authority: authority,
-				host: host,
-				port: port
+			resolveAuthority(authority).then(({ host, port }) => {
+				webContents.send('vscode:resolveAuthorityReply', { authority, host, port });
 			});
 		});
 

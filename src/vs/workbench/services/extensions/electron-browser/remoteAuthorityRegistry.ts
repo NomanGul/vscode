@@ -41,11 +41,17 @@ export class RemoteAuthorityRegistryImpl {
 	}
 
 	private _resolveAuthority(authority: string): TPromise<ResolvedAuthority> {
-		// TODO@vs-remote: Do not send message if the authority is already resolved to a hostname/IP address
-		return new TPromise<ResolvedAuthority>((c, e) => {
-			this._awaitingResolveRequests[authority] = c;
-			ipc.send('vscode:resolveAuthorityRequest', authority);
-		});
+		if (authority.indexOf('+') >= 0) {
+			// This is a special kind of authority that needs to be resolved by the main process
+			return new TPromise<ResolvedAuthority>((c, e) => {
+				this._awaitingResolveRequests[authority] = c;
+				ipc.send('vscode:resolveAuthorityRequest', authority);
+			});
+		} else {
+			const [host, strPort] = authority.split(':');
+			const port = parseInt(strPort, 10);
+			return TPromise.as(new ResolvedAuthority(authority, host, port));
+		}
 	}
 }
 export const RemoteAuthorityRegistry = new RemoteAuthorityRegistryImpl();
