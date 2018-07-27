@@ -354,7 +354,7 @@ function packageTask(platform, arch, opts) {
 
 			result = es.merge(result, gulp.src('resources/win32/bin/code.sh', { base: 'resources/win32' })
 				.pipe(replace('@@NAME@@', product.nameShort))
-				.pipe(replace('@@VERSION@@', `{$version)-${commit.substr(0, 7)}`))
+				.pipe(replace('@@VERSION@@', `{$version}-${commit.substr(0, 7)}`))
 				.pipe(rename(function (f) { f.basename = product.applicationName; f.extname = ''; })));
 
 			result = es.merge(result, gulp.src('resources/win32/VisualElementsManifest.xml', { base: 'resources/win32' })
