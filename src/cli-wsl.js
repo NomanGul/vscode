@@ -86,9 +86,8 @@ for (let o of options) {
 	}
 }
 
-
-function main(args, wslExecutable, vsCodeWinExecutable) {
-	var parsedArgs = _minimist(args, options);
+function main(args, wslExecutable, vsCodeWinExecutable, vsCodeWinExecutableArg) {
+	var parsedArgs = _minimist(args, minimistOptions);
 
 	if (parsedArgs['help']) {
 		printHelp(wslExecutable);
@@ -130,14 +129,19 @@ function main(args, wslExecutable, vsCodeWinExecutable) {
 		}
 	}
 
-	if (_path.extname(vsCodeWinExecutable) === '.bat') {
-		// selfhost setup
-		console.log(`new command line: cmd.exe /C ${vsCodeWinExecutable} ${newCommandline.join(' ')}`);
+	const ext = _path.extname(vsCodeWinExecutable);
+	if (ext === '.bat' || ext === '.cmd') {
+		if (parsedArgs['verbose']) {
+			console.log(`Invoking: cmd.exe /C ${vsCodeWinExecutable} ${newCommandline.join(' ')}`);
+		}
 		_cp.spawn("cmd.exe", ["/C", vsCodeWinExecutable, ...newCommandline], {
 			stdio: 'inherit'
 		});
 	} else {
-		_cp.spawn(vsCodeWinExecutable, newCommandline, {
+		if (parsedArgs['verbose']) {
+			console.log(`Invoking: ${vsCodeWinExecutable} ${vsCodeWinExecutableArg} ${newCommandline.join(' ')}`);
+		}
+		_cp.spawn(vsCodeWinExecutable, [vsCodeWinExecutableArg, ...newCommandline], {
 			stdio: 'inherit'
 		});
 	}
@@ -254,5 +258,5 @@ ${formatOptions('t', columns)}`
 	);
 }
 
-let [, , wslExecutable, vsCodeWinExecutable, ...args] = process.argv;
-main(args, wslExecutable, vsCodeWinExecutable);
+let [, , wslExecutable, vsCodeWinExecutable, vsCodeWinExecutableArg, ...args] = process.argv;
+main(args, wslExecutable, vsCodeWinExecutable, vsCodeWinExecutableArg);

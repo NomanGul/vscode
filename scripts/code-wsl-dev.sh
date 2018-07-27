@@ -14,7 +14,7 @@ if grep -q Microsoft /proc/version; then
 			npm install
 		fi
 		cp "$VSCODE_PATH/out/cli-wsl.js" "$VSCODE_PATH/remote"
-		node "$VSCODE_PATH/remote/cli-wsl.js" "$SCRIPT_NAME" "$(wslpath -m $VSCODE_PATH/scripts/code-cli.bat)" "$@"
+		node "$VSCODE_PATH/remote/cli-wsl.js" "$SCRIPT_NAME" "$(wslpath -m $VSCODE_PATH/scripts/code-cli.bat)" "--" "$@"
 		exit $?
 	else
 		echo "wslpath not available."
