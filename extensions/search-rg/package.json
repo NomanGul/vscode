@@ -34,7 +34,7 @@
       "properties": {
         "searchRipgrep.enable": {
           "type": "boolean",
-          "default": false,
+          "default": true,
           "scope": "window",
           "description": "%searchRipgrep.enable.description%"
         }
