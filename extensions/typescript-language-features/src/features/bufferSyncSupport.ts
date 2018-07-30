@@ -63,7 +63,7 @@ class SyncedBuffer {
 			}
 		}
 
-		this.client.execute('open', args, false);
+		this.client.executeWithoutWaitingForResponse('open', args);
 	}
 
 	public get resource(): vscode.Uri {
@@ -91,7 +91,7 @@ class SyncedBuffer {
 		const args: Proto.FileRequestArgs = {
 			file: this.filepath
 		};
-		this.client.execute('close', args, false);
+		this.client.executeWithoutWaitingForResponse('close', args);
 	}
 
 	public onContentChanged(events: vscode.TextDocumentContentChangeEvent[]): void {
@@ -100,7 +100,7 @@ class SyncedBuffer {
 				insertString: text,
 				...typeConverters.Range.toFormattingRequestArgs(this.filepath, range)
 			};
-			this.client.execute('change', args, false);
+			this.client.executeWithoutWaitingForResponse('change', args);
 		}
 	}
 }
@@ -117,10 +117,16 @@ class SyncedBufferMap extends ResourceMap<SyncedBuffer> {
 }
 
 class PendingDiagnostics extends ResourceMap<number> {
-	public getFileList(): Set<string> {
-		return new Set(Array.from(this.entries)
-			.sort((a, b) => a[1] - b[1])
-			.map(entry => entry[0]));
+	public getOrderedFileSet(): ResourceMap<void> {
+		const orderedResources = Array.from(this.entries)
+			.sort((a, b) => a.value - b.value)
+			.map(entry => entry.resource);
+
+		const map = new ResourceMap<void>();
+		for (const resource of orderedResources) {
+			map.set(resource, void 0);
+		}
+		return map;
 	}
 }
 
@@ -128,7 +134,7 @@ class GetErrRequest {
 
 	public static executeGetErrRequest(
 		client: ITypeScriptServiceClient,
-		files: string[],
+		files: ResourceMap<void>,
 		onDone: () => void
 	) {
 		const token = new vscode.CancellationTokenSource();
@@ -139,13 +145,15 @@ class GetErrRequest {
 
 	private constructor(
 		client: ITypeScriptServiceClient,
-		public readonly files: string[],
+		public readonly files: ResourceMap<void>,
 		private readonly _token: vscode.CancellationTokenSource,
 		onDone: () => void
 	) {
 		const args: Proto.GeterrRequestArgs = {
 			delay: 0,
-			files
+			files: Array.from(files.entries)
+				.map(entry => client.normalizedPath(entry.resource))
+				.filter(x => !!x) as string[]
 		};
 
 		client.executeAsync('geterr', args, _token.token)
@@ -256,12 +264,27 @@ export default class BufferSyncSupport extends Disposable {
 		if (!syncedBuffer) {
 			return;
 		}
+		this.pendingDiagnostics.delete(resource);
 		this.syncedBuffers.delete(resource);
 		syncedBuffer.close();
 		if (!fs.existsSync(resource.fsPath)) {
 			this._onDelete.fire(resource);
 			this.requestAllDiagnostics();
 		}
+	}
+
+	public interuptGetErr<R>(f: () => R): R {
+		// TODO: re-enable for 1.27 insiders
+		return f();
+		// if (!this.pendingGetErr) {
+		// 	return f();
+		// }
+
+		// this.pendingGetErr.cancel();
+		// this.pendingGetErr = undefined;
+		// const result = f();
+		// this.triggerDiagnostics();
+		// return result;
 	}
 
 	private onDidCloseTextDocument(document: vscode.TextDocument): void {
@@ -330,27 +353,23 @@ export default class BufferSyncSupport extends Disposable {
 	}
 
 	private sendPendingDiagnostics(): void {
-		const fileList = this.pendingDiagnostics.getFileList();
+		const orderedFileSet = this.pendingDiagnostics.getOrderedFileSet();
 
 		// Add all open TS buffers to the geterr request. They might be visible
 		for (const buffer of this.syncedBuffers.values) {
-			if (!this.pendingDiagnostics.has(buffer.resource)) {
-				fileList.add(buffer.filepath);
-			}
+			orderedFileSet.set(buffer.resource, void 0);
 		}
 
-		if (this.pendingGetErr) {
-			for (const file of this.pendingGetErr.files) {
-				fileList.add(file);
-			}
-		}
-
-		if (fileList.size) {
+		if (orderedFileSet.size) {
 			if (this.pendingGetErr) {
 				this.pendingGetErr.cancel();
+
+				for (const file of this.pendingGetErr.files.entries) {
+					orderedFileSet.set(file.resource, void 0);
+				}
 			}
 
-			const getErr = this.pendingGetErr = GetErrRequest.executeGetErrRequest(this.client, Array.from(fileList), () => {
+			const getErr = this.pendingGetErr = GetErrRequest.executeGetErrRequest(this.client, orderedFileSet, () => {
 				if (this.pendingGetErr === getErr) {
 					this.pendingGetErr = undefined;
 				}

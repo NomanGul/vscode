@@ -207,7 +207,14 @@ Registry.as<IConfigurationRegistry>(ConfigurationExtensions.Configuration)
 				description: localize('extensionsAutoUpdate', "Automatically update extensions."),
 				default: true,
 				scope: ConfigurationScope.APPLICATION,
-				tags: ['backgroundOnlineFeature']
+				tags: ['usesOnlineServices']
+			},
+			'extensions.autoCheckUpdates': {
+				type: 'boolean',
+				description: localize('extensionsCheckUpdates', "Automatically checks for extension updates. If an extension update is available and the extension auto update feature is disabled, then the extension will appear as outdated in the Extensions view."),
+				default: true,
+				scope: ConfigurationScope.APPLICATION,
+				tags: ['usesOnlineServices']
 			},
 			'extensions.ignoreRecommendations': {
 				type: 'boolean',
@@ -218,7 +225,7 @@ Registry.as<IConfigurationRegistry>(ConfigurationExtensions.Configuration)
 				type: 'boolean',
 				description: localize('extensionsShowRecommendationsOnlyOnDemand', "When enabled, recommendations will not be fetched or shown unless specifically requested by the user."),
 				default: false,
-				tags: ['backgroundOnlineFeature']
+				tags: ['usesOnlineServices']
 			},
 			'extensions.closeExtensionDetailsOnViewChange': {
 				type: 'boolean',

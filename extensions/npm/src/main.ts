@@ -10,6 +10,7 @@ import { addJSONProviders } from './features/jsonContributions';
 import { NpmScriptsTreeDataProvider } from './npmView';
 import { invalidateTasksCache, NpmTaskProvider } from './tasks';
 import { invalidateHoverScriptsCache, NpmScriptHoverProvider } from './scriptHover';
+import { runSelectedScript } from './commands';
 
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
 	const taskProvider = registerTaskProvider(context);
@@ -17,7 +18,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 	const hoverProvider = registerHoverProvider(context);
 
 	configureHttpRequest();
-	vscode.workspace.onDidChangeConfiguration((e) => {
+	let d = vscode.workspace.onDidChangeConfiguration((e) => {
 		configureHttpRequest();
 		if (e.affectsConfiguration('npm.exclude')) {
 			invalidateTasksCache();
@@ -31,6 +32,13 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 			}
 		}
 	});
+	context.subscriptions.push(d);
+
+	d = vscode.workspace.onDidChangeTextDocument((e) => {
+		invalidateHoverScriptsCache(e.document);
+	});
+	context.subscriptions.push(d);
+	context.subscriptions.push(vscode.commands.registerCommand('npm.runSelectedScript', runSelectedScript));
 	context.subscriptions.push(addJSONProviders(httpRequest.xhr));
 }
 

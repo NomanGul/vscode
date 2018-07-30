@@ -74,7 +74,7 @@
           "default": false,
           "description": "%typescript.disableAutomaticTypeAcquisition%",
           "scope": "window",
-          "tags": ["backgroundOnlineFeature"]
+          "tags": ["usesOnlineServices"]
         },
         "typescript.npm": {
           "type": [
@@ -495,6 +495,11 @@
             "prompt",
             "always",
             "never"
+          ],
+          "enumDescriptions": [
+            "%typescript.updateImportsOnFileMove.enabled.prompt%",
+            "%typescript.updateImportsOnFileMove.enabled.always%",
+            "%typescript.updateImportsOnFileMove.enabled.never%"
           ],
           "default": "prompt",
           "description": "%typescript.updateImportsOnFileMove.enabled%",

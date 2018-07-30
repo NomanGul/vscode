@@ -66,6 +66,7 @@ import { RunOnceScheduler } from 'vs/base/common/async';
 import { IMenubarService } from 'vs/platform/menubar/common/menubar';
 import { MenubarService } from 'vs/platform/menubar/electron-main/menubarService';
 import { MenubarChannel } from 'vs/platform/menubar/common/menubarIpc';
+import { IUriDisplayService } from 'vs/platform/uriDisplay/common/uriDisplay';
 
 export class CodeApplication {
 
@@ -90,7 +91,8 @@ export class CodeApplication {
 		@ILifecycleService private lifecycleService: ILifecycleService,
 		@IConfigurationService private configurationService: ConfigurationService,
 		@IStateService private stateService: IStateService,
-		@IHistoryMainService private historyMainService: IHistoryMainService
+		@IHistoryMainService private historyMainService: IHistoryMainService,
+		@IUriDisplayService private uriDisplayService: IUriDisplayService
 	) {
 		this.toDispose = [mainIpcServer, configurationService];
 
@@ -284,6 +286,10 @@ export class CodeApplication {
 				// Send to all windows (except sender window)
 				this.windowsMainService.sendToAll('vscode:broadcast', broadcast, [windowId]);
 			}
+		});
+
+		ipc.on('vscode:uriDisplayRegisterFormater', (event: any, { scheme, formater }) => {
+			this.uriDisplayService.registerFormater(scheme, formater);
 		});
 
 		// Keyboard layout changes

@@ -16,12 +16,13 @@ import { IUpdateService, StateType } from 'vs/platform/update/common/update';
 import product from 'vs/platform/node/product';
 import { RunOnceScheduler } from 'vs/base/common/async';
 import { IInstantiationService } from 'vs/platform/instantiation/common/instantiation';
-import { mnemonicMenuLabel as baseMnemonicLabel, unmnemonicLabel, getPathLabel } from 'vs/base/common/labels';
+import { mnemonicMenuLabel as baseMnemonicLabel, unmnemonicLabel } from 'vs/base/common/labels';
 import { IWindowsMainService, IWindowsCountChangedEvent } from 'vs/platform/windows/electron-main/windows';
 import { IHistoryMainService } from 'vs/platform/history/common/history';
 import { IWorkspaceIdentifier, getWorkspaceLabel, ISingleFolderWorkspaceIdentifier, isSingleFolderWorkspaceIdentifier, isWorkspaceIdentifier } from 'vs/platform/workspaces/common/workspaces';
 import { IMenubarData, IMenubarKeybinding, MenubarMenuItem, isMenubarMenuItemSeparator, isMenubarMenuItemSubmenu, isMenubarMenuItemAction } from 'vs/platform/menubar/common/menubar';
 import URI from 'vs/base/common/uri';
+import { IUriDisplayService } from 'vs/platform/uriDisplay/common/uriDisplay';
 
 const telemetryFrom = 'menu';
 
@@ -46,7 +47,8 @@ export class Menubar {
 		@IWindowsMainService private windowsMainService: IWindowsMainService,
 		@IEnvironmentService private environmentService: IEnvironmentService,
 		@ITelemetryService private telemetryService: ITelemetryService,
-		@IHistoryMainService private historyMainService: IHistoryMainService
+		@IHistoryMainService private historyMainService: IHistoryMainService,
+		@IUriDisplayService private uriDisplayService: IUriDisplayService
 	) {
 		this.menuUpdater = new RunOnceScheduler(() => this.doUpdateMenu(), 0);
 
@@ -65,7 +67,7 @@ export class Menubar {
 		});
 
 		// // Listen to some events from window service to update menu
-		// this.historyMainService.onRecentlyOpenedChange(() => this.updateMenu());
+		this.historyMainService.onRecentlyOpenedChange(() => this.scheduleUpdateMenu());
 		this.windowsMainService.onWindowsCountChanged(e => this.onWindowsCountChanged(e));
 		// this.windowsMainService.onActiveWindowChanged(() => this.updateWorkspaceMenuItems());
 		// this.windowsMainService.onWindowReady(() => this.updateWorkspaceMenuItems());
@@ -360,6 +362,11 @@ export class Menubar {
 	}
 
 	private shouldDrawMenu(menuId: string): boolean {
+		// We need to draw an empty menu to override the electron default
+		if (!isMacintosh && this.configurationService.getValue('window.titleBarStyle') === 'custom') {
+			return false;
+		}
+
 		switch (menuId) {
 			case 'File':
 			case 'Help':
@@ -384,11 +391,16 @@ export class Menubar {
 
 				const openWorkspace = new MenuItem(this.likeAction('workbench.action.openWorkspace', { label: this.mnemonicLabel(nls.localize({ key: 'miOpenWorkspace', comment: ['&& denotes a mnemonic'] }, "Open Wor&&kspace...")), click: (menuItem, win, event) => this.windowsMainService.pickWorkspaceAndOpen({ forceNewWindow: this.isOptionClick(event), telemetryExtraData: { from: telemetryFrom } }) }));
 
+				const openRecentMenu = new Menu();
+				this.setFallbackMenuById(openRecentMenu, 'Recent');
+				const openRecent = new MenuItem({ label: this.mnemonicLabel(nls.localize({ key: 'miOpenRecent', comment: ['&& denotes a mnemonic'] }, "Open &&Recent")), submenu: openRecentMenu });
+
 				menu.append(newFile);
 				menu.append(newWindow);
 				menu.append(__separator__());
 				menu.append(open);
 				menu.append(openWorkspace);
+				menu.append(openRecent);
 
 				break;
 
@@ -482,6 +494,8 @@ export class Menubar {
 				// Store the keybinding
 				if (item.keybinding) {
 					this.keybindings[item.id] = item.keybinding;
+				} else if (this.keybindings[item.id]) {
+					this.keybindings[item.id] = undefined;
 				}
 
 				const menuItem = this.createMenuItem(item.label, item.id, item.enabled, item.checked);
@@ -522,14 +536,14 @@ export class Menubar {
 		let label: string;
 		let uri: URI;
 		if (isSingleFolderWorkspaceIdentifier(workspace)) {
-			label = unmnemonicLabel(getWorkspaceLabel(workspace, this.environmentService, { verbose: true }));
+			label = unmnemonicLabel(getWorkspaceLabel(workspace, this.environmentService, this.uriDisplayService, { verbose: true }));
 			uri = workspace;
 		} else if (isWorkspaceIdentifier(workspace)) {
-			label = getWorkspaceLabel(workspace, this.environmentService, { verbose: true });
+			label = getWorkspaceLabel(workspace, this.environmentService, this.uriDisplayService, { verbose: true });
 			uri = URI.file(workspace.configPath);
 		} else {
-			label = unmnemonicLabel(getPathLabel(workspace, this.environmentService, null));
 			uri = URI.file(workspace);
+			label = unmnemonicLabel(this.uriDisplayService.getLabel(uri));
 		}
 
 		return new MenuItem(this.likeAction(commandId, {
@@ -669,6 +683,17 @@ export class Menubar {
 			commandId = arg2;
 		} else if (Array.isArray(arg2)) {
 			commandId = arg2[0];
+		}
+
+		// Add role for special case menu items
+		if (isMacintosh) {
+			if (commandId === 'editor.action.clipboardCutAction') {
+				options['role'] = 'cut';
+			} else if (commandId === 'editor.action.clipboardCopyAction') {
+				options['role'] = 'copy';
+			} else if (commandId === 'editor.action.clipboardPasteAction') {
+				options['role'] = 'paste';
+			}
 		}
 
 		return new MenuItem(this.withKeybinding(commandId, options));
