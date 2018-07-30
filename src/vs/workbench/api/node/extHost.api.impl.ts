@@ -144,6 +144,12 @@ export function createApiFactory(
 	if (initData.remoteAuthority) {
 		const fileSystemProvider = new FileSystemProvider(extHostLogService, extHostFileSystemEvent);
 		extHostFileSystem.registerFileSystemProvider('vscode-remote', fileSystemProvider, { isCaseSensitive: platform.isLinux });
+		extHostFileSystem.setUriFormatter('vscode-remote', {
+			label: '${path}',
+			separator: paths.nativeSep,
+			tildify: !platform.isWindows,
+			normalizeDriveLetter: platform.isWindows
+		});
 		extHostTask.registerTaskSystem('vscode-remote', {
 			scheme: 'vscode-remote',
 			authority: initData.remoteAuthority,

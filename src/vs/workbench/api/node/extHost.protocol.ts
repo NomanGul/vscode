@@ -41,6 +41,7 @@ import { createExtHostContextProxyIdentifier as createExtId, createMainContextPr
 import { IProgressOptions, IProgressStep } from 'vs/workbench/services/progress/common/progress';
 import { SaveReason } from 'vs/workbench/services/textfile/common/textfiles';
 import * as vscode from 'vscode';
+import { UriDisplayRules } from 'vs/platform/uriDisplay/common/uriDisplay';
 
 export interface IEnvironment {
 	isExtensionDevelopmentDebug: boolean;
@@ -492,6 +493,7 @@ export interface IFileChangeDto {
 export interface MainThreadFileSystemShape extends IDisposable {
 	$registerFileSystemProvider(handle: number, scheme: string, capabilities: FileSystemProviderCapabilities): void;
 	$unregisterProvider(handle: number): void;
+	$setUriFormatter(scheme: string, formatter: UriDisplayRules): void;
 	$onFileSystemChange(handle: number, resource: IFileChangeDto[]): void;
 }
 
