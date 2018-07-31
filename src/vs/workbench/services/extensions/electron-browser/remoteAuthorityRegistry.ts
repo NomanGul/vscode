@@ -5,7 +5,7 @@
 
 'use strict';
 
-import { TPromise, TValueCallback } from 'vs/base/common/winjs.base';
+import { TPromise, TValueCallback, ErrorCallback } from 'vs/base/common/winjs.base';
 import { ipcRenderer as ipc } from 'electron';
 
 export class ResolvedAuthority {
@@ -17,18 +17,27 @@ export class ResolvedAuthority {
 	}
 }
 
+export type IResolveAuthorityReply = { type: 'ok'; authority: string; host: string; port: number; } | { type: 'err'; authority: string; error: any; };
+
 export class RemoteAuthorityRegistryImpl {
 
 	private _resolveAuthorityCache: { [authority: string]: TPromise<ResolvedAuthority>; };
-	private _awaitingResolveRequests: { [authority: string]: TValueCallback<ResolvedAuthority>; };
+	private _awaitingResolveRequestsOK: { [authority: string]: TValueCallback<ResolvedAuthority>; };
+	private _awaitingResolveRequestsErr: { [authority: string]: ErrorCallback; };
 
 	constructor() {
 		this._resolveAuthorityCache = Object.create(null);
-		this._awaitingResolveRequests = Object.create(null);
-		ipc.on('vscode:resolveAuthorityReply', (event: any, data: ResolvedAuthority) => {
-			const callback = this._awaitingResolveRequests[data.authority];
-			if (callback) {
-				callback(data);
+		this._awaitingResolveRequestsOK = Object.create(null);
+		this._awaitingResolveRequestsErr = Object.create(null);
+		ipc.on('vscode:resolveAuthorityReply', (event: any, data: IResolveAuthorityReply) => {
+			if (data.type === 'err') {
+				if (this._awaitingResolveRequestsErr[data.authority]) {
+					this._awaitingResolveRequestsErr[data.authority](data.error);
+				}
+			} else {
+				if (this._awaitingResolveRequestsOK[data.authority]) {
+					this._awaitingResolveRequestsOK[data.authority](new ResolvedAuthority(data.authority, data.host, data.port));
+				}
 			}
 		});
 	}
@@ -44,7 +53,8 @@ export class RemoteAuthorityRegistryImpl {
 		if (authority.indexOf('+') >= 0) {
 			// This is a special kind of authority that needs to be resolved by the main process
 			return new TPromise<ResolvedAuthority>((c, e) => {
-				this._awaitingResolveRequests[authority] = c;
+				this._awaitingResolveRequestsOK[authority] = c;
+				this._awaitingResolveRequestsErr[authority] = e;
 				ipc.send('vscode:resolveAuthorityRequest', authority);
 			});
 		} else {

@@ -126,7 +126,7 @@ export class ExtensionHostProcessManager extends Disposable {
 	/**
 	 * winjs believes a proxy is a promise because it has a `then` method, so wrap the result in an object.
 	 */
-	private readonly _extensionHostProcessProxy: TPromise<{ value: ExtHostExtensionServiceShape; }>;
+	private _extensionHostProcessProxy: TPromise<{ value: ExtHostExtensionServiceShape; }>;
 
 	constructor(
 		extensionHostProcessWorker: IExtensionHostStarter,
@@ -139,7 +139,6 @@ export class ExtensionHostProcessManager extends Disposable {
 		this._extensionHostProcessFinishedActivateEvents = Object.create(null);
 		this._extensionHostProcessRPCProtocol = null;
 		this._extensionHostProcessCustomers = [];
-		this._extensionHostProcessProxy = null;
 
 		this._extensionHostProcessWorker = extensionHostProcessWorker;
 		this.onDidCrash = this._extensionHostProcessWorker.onCrashed;
@@ -173,6 +172,7 @@ export class ExtensionHostProcessManager extends Disposable {
 				errors.onUnexpectedError(err);
 			}
 		}
+		this._extensionHostProcessProxy = null;
 
 		super.dispose();
 	}
@@ -224,6 +224,11 @@ export class ExtensionHostProcessManager extends Disposable {
 			return NO_OP_VOID_PROMISE;
 		}
 		return this._extensionHostProcessProxy.then((proxy) => {
+			if (!proxy) {
+				// this case is already covered above and logged.
+				// i.e. the extension host could not be started
+				return NO_OP_VOID_PROMISE;
+			}
 			return proxy.value.$activateByEvent(activationEvent);
 		}).then(() => {
 			this._extensionHostProcessFinishedActivateEvents[activationEvent] = true;
@@ -524,12 +529,17 @@ export class ExtensionService extends Disposable implements IExtensionService {
 	// --- impl
 
 	private _scanAndHandleExtensions(): void {
-		let remoteExtensionsPromiseArr: TPromise<IRemoteExtensionsEnvironmentData>[] = [];
+		let remoteExtensionsPromiseArr: TPromise<IRemoteExtensionsEnvironmentData | null>[] = [];
 		const remoteWorkspaceFolderConnections = this._remoteExtensionsService.getRemoteWorkspaceFolderConnections(this._workspaceContextService.getWorkspace().folders);
 		for (let i = 0; i < remoteWorkspaceFolderConnections.length; i++) {
 			const connection = remoteWorkspaceFolderConnections[i];
 			const client = new RemoteExtensionsEnvironmentChannelClient(connection.getChannel('remoteextensionsenvironment'));
-			remoteExtensionsPromiseArr.push(client.getRemoteExtensionInformation(connection.remoteAuthority));
+			// Let's cover the case where connecting to fetch the remote extension info fails
+			const remoteExtensionsResult = client.getRemoteExtensionInformation(connection.remoteAuthority).then(undefined, (err) => {
+				this._notificationService.error(nls.localize('connectionError', "Failed to connect to the remote extension host agent (Error: {0})", err ? err.message : ''));
+				return null;
+			});
+			remoteExtensionsPromiseArr.push(remoteExtensionsResult);
 		}
 		let remoteExtensionsPromise = TPromise.join(remoteExtensionsPromiseArr);
 
@@ -539,6 +549,10 @@ export class ExtensionService extends Disposable implements IExtensionService {
 
 			for (let i = 0, len = remoteExtensionsInfos.length; i < len; i++) {
 				const remoteExtensionInfo = remoteExtensionsInfos[i];
+				if (!remoteExtensionInfo) {
+					// Fetching these remote extensions failed
+					continue;
+				}
 
 				let actualExtensions: IExtensionDescription[] = [];
 				for (let j = 0, lenJ = remoteExtensionInfo.extensions.length; j < lenJ; j++) {

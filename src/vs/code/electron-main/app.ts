@@ -213,10 +213,15 @@ export class CodeApplication {
 			}
 		});
 
+		type IResolveAuthorityReply = { type: 'ok'; authority: string; host: string; port: number; } | { type: 'err'; authority: string; error: any; };
 		ipc.on('vscode:resolveAuthorityRequest', (event: any, authority: string) => {
 			const webContents = event.sender.webContents;
 			this.resolveAuthority(authority).then(({ host, port }) => {
-				webContents.send('vscode:resolveAuthorityReply', { authority, host, port });
+				let msg: IResolveAuthorityReply = { type: 'ok', authority, host, port };
+				webContents.send('vscode:resolveAuthorityReply', msg);
+			}, (error) => {
+				let msg: IResolveAuthorityReply = { type: 'err', authority, error: errors.transformErrorForSerialization(error) };
+				webContents.send('vscode:resolveAuthorityReply', msg);
 			});
 		});
 
@@ -661,8 +666,11 @@ export class CodeApplication {
 							console.log('Agent: Closed: ' + code);
 						});
 					});
-					// Wait max 3 seconds for the agent to start
-					TPromise.any([connectPromise, TPromise.timeout(3000)]).done(() => {
+					// Wait max 30 seconds for the agent to start
+					let rejectTimer = setTimeout(() => reject(new Error('Starting WSL extension host agent exceeded 30s')), 30000);
+					connectPromise.then(() => {
+						// success!
+						clearTimeout(rejectTimer);
 						resolve(undefined);
 					});
 				}
