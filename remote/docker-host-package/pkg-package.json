@@ -1,0 +1,24 @@
+{
+  "pkg": {
+    "assets": [
+      "out/vs/workbench/node/remoteExtensionHostAgent.js",
+      "out/**",
+      "remote/node_modules/**",
+      "node_modules/node-pty/build/Release/pty.node",
+      "node_modules/vscode-ripgrep/bin/rg",
+      "extensions/**",
+      "package.json",
+      "product.json"
+    ]
+  },
+  "dependencies": {
+    "node-pty": "0.7.6",
+    "iconv-lite": "0.4.23",
+    "minimist": "1.2.0",
+    "semver": "^5.5.0",
+    "yauzl": "^2.9.1",
+    "graceful-fs": "4.1.11",
+    "vscode-chokidar": "1.6.2",
+    "spdlog": "0.6.0"
+  }
+}
