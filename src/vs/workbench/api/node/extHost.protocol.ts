@@ -42,7 +42,6 @@ import { IProgressOptions, IProgressStep } from 'vs/workbench/services/progress/
 import { SaveReason } from 'vs/workbench/services/textfile/common/textfiles';
 import { UriDisplayRules } from 'vs/platform/uriDisplay/common/uriDisplay';
 import * as vscode from 'vscode';
-import { UriDisplayRules } from 'vs/platform/uriDisplay/common/uriDisplay';
 
 export interface IEnvironment {
 	isExtensionDevelopmentDebug: boolean;
@@ -57,11 +56,6 @@ export interface IWorkspaceData {
 	name: string;
 	folders: { uri: UriComponents, name: string, index: number }[];
 	configuration?: UriComponents;
-}
-
-export interface IRemoteOptions {
-	host: string;
-	port: number;
 }
 
 export interface IInitData {
