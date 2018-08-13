@@ -62,7 +62,6 @@ import * as errors from 'vs/base/common/errors';
 import { ElectronURLListener } from 'vs/platform/url/electron-main/electronUrlListener';
 import { serve as serveDriver } from 'vs/platform/driver/electron-main/driver';
 import { REMOTE_EXTENSIONS_FILE_SYSTEM_CHANNEL_NAME, RemoteExtensionsFileSystemChannelClient, connectToRemoteExtensionHostManagement } from 'vs/platform/remote/node/remoteFileSystemIpc';
-import { RunOnceScheduler } from 'vs/base/common/async';
 import { IMenubarService } from 'vs/platform/menubar/common/menubar';
 import { MenubarService } from 'vs/platform/menubar/electron-main/menubarService';
 import { MenubarChannel } from 'vs/platform/menubar/common/menubarIpc';
