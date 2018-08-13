@@ -848,12 +848,12 @@ export interface FoldingRangeProvider {
 export interface FoldingRange {
 
 	/**
-	 * The zero-based start line of the range to fold. The folded area starts after the line's last character.
+	 * The one-based start line of the range to fold. The folded area starts after the line's last character.
 	 */
 	start: number;
 
 	/**
-	 * The zero-based end line of the range to fold. The folded area ends with the line's last character.
+	 * The one-based end line of the range to fold. The folded area ends with the line's last character.
 	 */
 	end: number;
 
@@ -938,6 +938,9 @@ export interface Command {
 	arguments?: any[];
 }
 
+/**
+ * @internal
+ */
 export interface CommentInfo {
 	owner: number;
 	threads: CommentThread[];
@@ -945,6 +948,9 @@ export interface CommentInfo {
 	reply?: Command;
 }
 
+/**
+ * @internal
+ */
 export enum CommentThreadCollapsibleState {
 	/**
 	 * Determines an item is collapsed
@@ -956,6 +962,9 @@ export enum CommentThreadCollapsibleState {
 	Expanded = 1
 }
 
+/**
+ * @internal
+ */
 export interface CommentThread {
 	threadId: string;
 	resource: string;
@@ -965,11 +974,17 @@ export interface CommentThread {
 	reply?: Command;
 }
 
+/**
+ * @internal
+ */
 export interface NewCommentAction {
 	ranges: IRange[];
 	actions: Command[];
 }
 
+/**
+ * @internal
+ */
 export interface Comment {
 	readonly commentId: string;
 	readonly body: IMarkdownString;
@@ -978,6 +993,9 @@ export interface Comment {
 	readonly command?: Command;
 }
 
+/**
+ * @internal
+ */
 export interface CommentThreadChangedEvent {
 	readonly owner: number;
 	/**
@@ -996,7 +1014,9 @@ export interface CommentThreadChangedEvent {
 	readonly changed: CommentThread[];
 }
 
-
+/**
+ * @internal
+ */
 export interface DocumentCommentProvider {
 	provideDocumentComments(resource: URI, token: CancellationToken): Promise<CommentInfo>;
 	createNewCommentThread(resource: URI, range: Range, text: string, token: CancellationToken): Promise<CommentThread>;
@@ -1004,7 +1024,9 @@ export interface DocumentCommentProvider {
 	onDidChangeCommentThreads(): Event<CommentThreadChangedEvent>;
 }
 
-
+/**
+ * @internal
+ */
 export interface WorkspaceCommentProvider {
 	provideWorkspaceComments(token: CancellationToken): Promise<CommentThread[]>;
 	createNewCommentThread(resource: URI, range: Range, text: string, token: CancellationToken): Promise<CommentThread>;

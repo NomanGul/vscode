@@ -11,10 +11,11 @@ import { IConfigurationService } from 'vs/platform/configuration/common/configur
 import { IContextKeyService } from 'vs/platform/contextkey/common/contextkey';
 import { IInstantiationService } from 'vs/platform/instantiation/common/instantiation';
 import { IListService, WorkbenchTree, WorkbenchTreeController } from 'vs/platform/list/browser/listService';
-import { editorBackground, focusBorder, foreground } from 'vs/platform/theme/common/colorRegistry';
+import { editorBackground, focusBorder } from 'vs/platform/theme/common/colorRegistry';
 import { attachStyler } from 'vs/platform/theme/common/styler';
 import { ICssStyleCollector, ITheme, IThemeService, registerThemingParticipant } from 'vs/platform/theme/common/themeService';
-import { ISettingsEditorViewState, SearchResultModel, SettingsAccessibilityProvider, SettingsTreeElement, SettingsTreeFilter, SettingsTreeGroupElement, SettingsTreeSettingElement } from 'vs/workbench/parts/preferences/browser/settingsTree';
+import { SettingsAccessibilityProvider, SettingsTreeFilter } from 'vs/workbench/parts/preferences/browser/settingsTree';
+import { ISettingsEditorViewState, SearchResultModel, SettingsTreeElement, SettingsTreeGroupElement, SettingsTreeSettingElement } from 'vs/workbench/parts/preferences/browser/settingsTreeModels';
 import { settingsHeaderForeground } from 'vs/workbench/parts/preferences/browser/settingsWidgets';
 import { ISetting } from 'vs/workbench/services/preferences/common/preferences';
 
@@ -24,6 +25,10 @@ export class TOCTreeModel {
 
 	private _currentSearchModel: SearchResultModel;
 	private _settingsTreeRoot: SettingsTreeGroupElement;
+
+	constructor(private viewState: ISettingsEditorViewState) {
+
+	}
 
 	public set settingsTreeRoot(value: SettingsTreeGroupElement) {
 		this._settingsTreeRoot = value;
@@ -44,7 +49,7 @@ export class TOCTreeModel {
 	}
 
 	private updateGroupCount(group: SettingsTreeGroupElement): void {
-		(<any>group).count = this._currentSearchModel ?
+		group.count = this._currentSearchModel ?
 			this.getSearchResultChildrenCount(group) :
 			undefined;
 
@@ -56,7 +61,7 @@ export class TOCTreeModel {
 	}
 
 	private getSearchResultChildrenCount(group: SettingsTreeGroupElement): number {
-		return this._currentSearchModel.getChildren().filter(child => {
+		return this._currentSearchModel.root.children.filter(child => {
 			return child instanceof SettingsTreeSettingElement && this.groupContainsSetting(group, child.setting);
 		}).length;
 	}
@@ -64,7 +69,7 @@ export class TOCTreeModel {
 	private groupContainsSetting(group: SettingsTreeGroupElement, setting: ISetting): boolean {
 		return group.children.some(child => {
 			if (child instanceof SettingsTreeSettingElement) {
-				return child.setting.key === setting.key;
+				return child.setting.key === setting.key && child.matchesAllTags(this.viewState.tagFilters);
 			} else if (child instanceof SettingsTreeGroupElement) {
 				return this.groupContainsSetting(child, setting);
 			} else {
@@ -77,11 +82,6 @@ export class TOCTreeModel {
 export type TOCTreeElement = SettingsTreeGroupElement | TOCTreeModel;
 
 export class TOCDataSource implements IDataSource {
-	constructor(
-		@IConfigurationService private configService: IConfigurationService
-	) {
-	}
-
 	getId(tree: ITree, element: SettingsTreeGroupElement): string {
 		return element.id;
 	}
@@ -91,23 +91,15 @@ export class TOCDataSource implements IDataSource {
 			(element instanceof SettingsTreeGroupElement && element.children && element.children.every(child => child instanceof SettingsTreeGroupElement));
 	}
 
-	getChildren(tree: ITree, element: TOCTreeElement): TPromise<SettingsTreeElement[], any> {
+	getChildren(tree: ITree, element: TOCTreeElement): TPromise<SettingsTreeElement[]> {
 		return TPromise.as(this._getChildren(element));
 	}
 
 	private _getChildren(element: TOCTreeElement): SettingsTreeElement[] {
-		// TODO@roblou hack. Clean up or remove this option
-		if (this.configService.getValue('workbench.settings.settingsSearchTocBehavior') === 'filter') {
-			const children = element.children as SettingsTreeElement[]; // TS????
-			return children.filter(group => {
-				return (<any>group).count !== 0;
-			});
-		}
-
 		return element.children;
 	}
 
-	getParent(tree: ITree, element: TOCTreeElement): TPromise<any, any> {
+	getParent(tree: ITree, element: TOCTreeElement): TPromise<any> {
 		return TPromise.wrap(element instanceof SettingsTreeGroupElement && element.parent);
 	}
 }
@@ -115,7 +107,8 @@ export class TOCDataSource implements IDataSource {
 const TOC_ENTRY_TEMPLATE_ID = 'settings.toc.entry';
 
 interface ITOCEntryTemplate {
-	element: HTMLElement;
+	labelElement: HTMLElement;
+	countElement: HTMLElement;
 }
 
 export class TOCRenderer implements IRenderer {
@@ -129,17 +122,23 @@ export class TOCRenderer implements IRenderer {
 
 	renderTemplate(tree: ITree, templateId: string, container: HTMLElement): ITOCEntryTemplate {
 		return {
-			element: DOM.append(container, $('.settings-toc-entry'))
+			labelElement: DOM.append(container, $('.settings-toc-entry')),
+			countElement: DOM.append(container, $('.settings-toc-count'))
 		};
 	}
 
 	renderElement(tree: ITree, element: SettingsTreeGroupElement, templateId: string, template: ITOCEntryTemplate): void {
-		const label = (<any>element).count ?
-			`${element.label} (${(<any>element).count})` :
-			element.label;
+		const count = element.count;
+		const label = element.label;
 
-		DOM.toggleClass(template.element, 'no-results', (<any>element).count === 0);
-		template.element.textContent = label;
+		DOM.toggleClass(template.labelElement, 'no-results', count === 0);
+		template.labelElement.textContent = label;
+
+		if (count) {
+			template.countElement.textContent = ` (${count})`;
+		} else {
+			template.countElement.textContent = '';
+		}
 	}
 
 	disposeTemplate(tree: ITree, templateId: string, templateData: any): void {
@@ -162,7 +161,7 @@ export class TOCTree extends WorkbenchTree {
 		const fullConfiguration = <ITreeConfiguration>{
 			controller: instantiationService.createInstance(WorkbenchTreeController, { openMode: OpenMode.DOUBLE_CLICK }),
 			filter: instantiationService.createInstance(SettingsTreeFilter, viewState),
-			styler: new DefaultTreestyler(DOM.createStyleSheet(), treeClass),
+			styler: new DefaultTreestyler(DOM.createStyleSheet(container), treeClass),
 			dataSource: instantiationService.createInstance(TOCDataSource),
 			accessibilityProvider: instantiationService.createInstance(SettingsAccessibilityProvider),
 
@@ -199,7 +198,7 @@ export class TOCTree extends WorkbenchTree {
 			listFocusAndSelectionForeground: settingsHeaderForeground,
 			listFocusBackground: editorBackground,
 			listFocusForeground: settingsHeaderForeground,
-			listHoverForeground: foreground,
+			listHoverForeground: settingsHeaderForeground,
 			listHoverBackground: editorBackground,
 			listInactiveSelectionBackground: editorBackground,
 			listInactiveSelectionForeground: settingsHeaderForeground,

@@ -492,11 +492,6 @@ export function createApiFactory(
 			},
 		};
 
-		// namespace: QuickInputButtons
-		const QuickInputButtons: typeof vscode.QuickInputButtons = {
-			Back: extHostQuickOpen.backButton,
-		};
-
 		// namespace: workspace
 		const workspace: typeof vscode.workspace = {
 			get rootPath() {
@@ -761,7 +756,7 @@ export function createApiFactory(
 			OverviewRulerLane: OverviewRulerLane,
 			ParameterInformation: extHostTypes.ParameterInformation,
 			Position: extHostTypes.Position,
-			QuickInputButtons,
+			QuickInputButtons: extHostTypes.QuickInputButtons,
 			Range: extHostTypes.Range,
 			Selection: extHostTypes.Selection,
 			SignatureHelp: extHostTypes.SignatureHelp,

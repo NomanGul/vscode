@@ -98,8 +98,6 @@ export interface ITerminalConfiguration {
 		windows: { [key: string]: string };
 	};
 	showExitAlert: boolean;
-	experimentalRestore: boolean;
-	experimentalTextureCachingStrategy: 'static' | 'dynamic';
 }
 
 export interface ITerminalConfigHelper {

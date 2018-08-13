@@ -47,18 +47,19 @@ import { IRemoteExtensionsService, IRemoteExtensionsEnvironmentData, IRemoteWork
 import { RemoteExtensionsEnvironmentChannelClient } from 'vs/workbench/services/extensions/node/remoteExtensionsIpc';
 import { IInitDataProvider, RemoteExtensionHostClient } from 'vs/workbench/services/extensions/electron-browser/remoteExtensionHostClient';
 import { Schemas } from 'vs/base/common/network';
+import { getPathFromAmdModule } from 'vs/base/common/amd';
 
 let _SystemExtensionsRoot: string = null;
 function getSystemExtensionsRoot(): string {
 	if (!_SystemExtensionsRoot) {
-		_SystemExtensionsRoot = path.normalize(path.join(URI.parse(require.toUrl('')).fsPath, '..', 'extensions'));
+		_SystemExtensionsRoot = path.normalize(path.join(getPathFromAmdModule(require, ''), '..', 'extensions'));
 	}
 	return _SystemExtensionsRoot;
 }
 let _ExtraDevSystemExtensionsRoot: string = null;
 function getExtraDevSystemExtensionsRoot(): string {
 	if (!_ExtraDevSystemExtensionsRoot) {
-		_ExtraDevSystemExtensionsRoot = path.normalize(path.join(URI.parse(require.toUrl('')).fsPath, '..', '.build', 'builtInExtensions'));
+		_ExtraDevSystemExtensionsRoot = path.normalize(path.join(getPathFromAmdModule(require, ''), '..', '.build', 'builtInExtensions'));
 	}
 	return _ExtraDevSystemExtensionsRoot;
 }
@@ -890,7 +891,7 @@ export class ExtensionService extends Disposable implements IExtensionService {
 			let finalBuiltinExtensions: TPromise<IExtensionDescription[]> = TPromise.wrap(builtinExtensions);
 
 			if (devMode) {
-				const builtInExtensionsFilePath = path.normalize(path.join(URI.parse(require.toUrl('')).fsPath, '..', 'build', 'builtInExtensions.json'));
+				const builtInExtensionsFilePath = path.normalize(path.join(getPathFromAmdModule(require, ''), '..', 'build', 'builtInExtensions.json'));
 				const builtInExtensions = pfs.readFile(builtInExtensionsFilePath, 'utf8')
 					.then<IBuiltInExtension[]>(raw => JSON.parse(raw));
 

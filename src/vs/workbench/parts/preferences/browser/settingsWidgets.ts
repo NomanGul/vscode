@@ -15,14 +15,13 @@ import { Disposable, dispose, IDisposable } from 'vs/base/common/lifecycle';
 import 'vs/css!./media/settingsWidgets';
 import { localize } from 'vs/nls';
 import { IContextViewService } from 'vs/platform/contextview/browser/contextView';
-import { foreground, inputBackground, inputBorder, inputForeground, listHoverBackground, registerColor, selectBackground, selectBorder, selectForeground, textLinkForeground, listHoverForeground, listActiveSelectionBackground, listActiveSelectionForeground, listInactiveSelectionBackground, listInactiveSelectionForeground } from 'vs/platform/theme/common/colorRegistry';
+import { foreground, inputBackground, inputBorder, inputForeground, listActiveSelectionBackground, listActiveSelectionForeground, listHoverBackground, listHoverForeground, listInactiveSelectionBackground, listInactiveSelectionForeground, registerColor, selectBackground, selectBorder, selectForeground, textLinkForeground, textPreformatForeground } from 'vs/platform/theme/common/colorRegistry';
 import { attachButtonStyler, attachInputBoxStyler } from 'vs/platform/theme/common/styler';
 import { ICssStyleCollector, ITheme, IThemeService, registerThemingParticipant } from 'vs/platform/theme/common/themeService';
 
 const $ = DOM.$;
 export const settingsHeaderForeground = registerColor('settings.headerForeground', { light: '#444444', dark: '#e7e7e7', hc: '#ffffff' }, localize('headerForeground', "(For settings editor preview) The foreground color for a section header or active title."));
 export const modifiedItemForeground = registerColor('settings.modifiedItemForeground', { light: '#018101', dark: '#73C991', hc: '#73C991' }, localize('modifiedItemForeground', "(For settings editor preview) The foreground color for a the modified setting indicator."));
-export const settingItemInactiveSelectionBorder = registerColor('settings.inactiveSelectedItemBorder', { dark: '#3F3F46', light: '#CCCEDB', hc: null }, localize('settingItemInactiveSelectionBorder', "(For settings editor preview) The color of the selected setting row border, when the settings list does not have focus."));
 
 // Enum control colors
 export const settingsSelectBackground = registerColor('settings.dropdownBackground', { dark: selectBackground, light: selectBackground, hc: selectBackground }, localize('settingsDropdownBackground', "(For settings editor preview) Settings editor dropdown background."));
@@ -62,8 +61,8 @@ registerThemingParticipant((theme: ITheme, collector: ICssStyleCollector) => {
 
 	const link = theme.getColor(textLinkForeground);
 	if (link) {
-		collector.addRule(`.settings-editor > .settings-body > .settings-tree-container .setting-item .setting-item-description a { color: ${link}; }`);
-		collector.addRule(`.settings-editor > .settings-body > .settings-tree-container .setting-item .setting-item-description a > code { color: ${link}; }`);
+		collector.addRule(`.settings-editor > .settings-body > .settings-tree-container .setting-item .setting-item-description-markdown a { color: ${link}; }`);
+		collector.addRule(`.settings-editor > .settings-body > .settings-tree-container .setting-item .setting-item-description-markdown a > code { color: ${link}; }`);
 	}
 
 	const headerForegroundColor = theme.getColor(settingsHeaderForeground);
@@ -89,7 +88,7 @@ registerThemingParticipant((theme: ITheme, collector: ICssStyleCollector) => {
 
 	const listSelectBackgroundColor = theme.getColor(listActiveSelectionBackground);
 	if (listSelectBackgroundColor) {
-		collector.addRule(`.settings-editor > .settings-body > .settings-tree-container .setting-item.setting-item-exclude .setting-exclude-row:focus { background-color: ${listSelectBackgroundColor}; }`);
+		collector.addRule(`.settings-editor > .settings-body > .settings-tree-container .setting-item.setting-item-exclude .setting-exclude-row.selected:focus { background-color: ${listSelectBackgroundColor}; }`);
 	}
 
 	const listInactiveSelectionBackgroundColor = theme.getColor(listInactiveSelectionBackground);
@@ -104,7 +103,12 @@ registerThemingParticipant((theme: ITheme, collector: ICssStyleCollector) => {
 
 	const listSelectForegroundColor = theme.getColor(listActiveSelectionForeground);
 	if (listSelectForegroundColor) {
-		collector.addRule(`.settings-editor > .settings-body > .settings-tree-container .setting-item.setting-item-exclude .setting-exclude-row.selected { color: ${listSelectForegroundColor}; }`);
+		collector.addRule(`.settings-editor > .settings-body > .settings-tree-container .setting-item.setting-item-exclude .setting-exclude-row.selected:focus { color: ${listSelectForegroundColor}; }`);
+	}
+
+	const codeTextForegroundColor = theme.getColor(textPreformatForeground);
+	if (codeTextForegroundColor) {
+		collector.addRule(`.settings-editor > .settings-body > .settings-tree-container .setting-item .setting-item-description-markdown code { color: ${codeTextForegroundColor} }`);
 	}
 });
 
@@ -147,6 +151,10 @@ export class ExcludeSettingListModel {
 		this._selectedIdx = idx;
 	}
 
+	getSelected(): number {
+		return this._selectedIdx;
+	}
+
 	selectNext(): void {
 		if (typeof this._selectedIdx === 'number') {
 			this._selectedIdx = Math.min(this._selectedIdx + 1, this._dataItems.length - 1);
@@ -179,6 +187,10 @@ export class ExcludeSettingWidget extends Disposable {
 	private readonly _onDidChangeExclude: Emitter<IExcludeChangeEvent> = new Emitter<IExcludeChangeEvent>();
 	public readonly onDidChangeExclude: Event<IExcludeChangeEvent> = this._onDidChangeExclude.event;
 
+	get domNode(): HTMLElement {
+		return this.listElement;
+	}
+
 	constructor(
 		private container: HTMLElement,
 		@IThemeService private themeService: IThemeService,
@@ -201,12 +213,18 @@ export class ExcludeSettingWidget extends Disposable {
 				return;
 			}
 
-			const targetIdx = element.getAttribute('data-index');
-			if (!targetIdx) {
+			const targetIdxStr = element.getAttribute('data-index');
+			if (!targetIdxStr) {
 				return;
 			}
 
-			this.model.select(parseInt(targetIdx));
+			const targetIdx = parseInt(targetIdxStr);
+
+			if (this.model.getSelected() === targetIdx) {
+				return;
+			}
+
+			this.model.select(targetIdx);
 			this.renderList();
 			e.preventDefault();
 			e.stopPropagation();
@@ -334,11 +352,12 @@ export class ExcludeSettingWidget extends Disposable {
 
 		const onSubmit = edited => {
 			this.model.setEditKey(null);
-			if (edited) {
+			const pattern = patternInput.value.trim();
+			if (edited && pattern) {
 				this._onDidChangeExclude.fire({
 					originalPattern: item.pattern,
-					pattern: patternInput.value,
-					sibling: siblingInput && siblingInput.value
+					pattern,
+					sibling: siblingInput && siblingInput.value.trim()
 				});
 			} else {
 				this.renderList();
@@ -348,6 +367,9 @@ export class ExcludeSettingWidget extends Disposable {
 		const onKeydown = (e: StandardKeyboardEvent) => {
 			if (e.equals(KeyCode.Enter)) {
 				onSubmit(true);
+			} else if (e.equals(KeyCode.Escape)) {
+				onSubmit(false);
+				e.preventDefault();
 			}
 		};
 

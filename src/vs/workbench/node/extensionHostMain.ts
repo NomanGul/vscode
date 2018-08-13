@@ -26,6 +26,7 @@ import URI from 'vs/base/common/uri';
 import { ExtHostLogService } from 'vs/workbench/api/node/extHostLogService';
 import { createRemoteURITransformer } from 'vs/workbench/node/remoteUriTransformer';
 import { IURITransformer } from 'vs/base/common/uriIpc';
+import { timeout } from 'vs/base/common/async';
 
 const nativeExit = process.exit.bind(process);
 function patchProcess(allowExit: boolean) {
@@ -185,7 +186,7 @@ export class ExtensionHostMain {
 
 		// Give extensions 1 second to wrap up any async dispose, then exit
 		setTimeout(() => {
-			TPromise.any<void>([TPromise.timeout(4000), extensionsDeactivated]).then(() => exit(), () => exit());
+			TPromise.any<void>([timeout(4000), extensionsDeactivated]).then(() => exit(), () => exit());
 		}, 1000);
 	}
 
