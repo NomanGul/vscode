@@ -40,7 +40,6 @@ import { timeout } from 'vs/base/common/async';
 
 export interface IExtensionHostStarter {
 	readonly onCrashed: Event<[number, string]>;
-
 	start(): TPromise<IMessagePassingProtocol>;
 	getInspectPort(): number;
 	dispose(): void;

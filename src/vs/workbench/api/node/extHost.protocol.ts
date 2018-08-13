@@ -40,6 +40,7 @@ import { IExtensionDescription } from 'vs/workbench/services/extensions/common/e
 import { createExtHostContextProxyIdentifier as createExtId, createMainContextProxyIdentifier as createMainId, IRPCProtocol, ProxyIdentifier } from 'vs/workbench/services/extensions/node/proxyIdentifier';
 import { IProgressOptions, IProgressStep } from 'vs/workbench/services/progress/common/progress';
 import { SaveReason } from 'vs/workbench/services/textfile/common/textfiles';
+import { UriDisplayRules } from 'vs/platform/uriDisplay/common/uriDisplay';
 import * as vscode from 'vscode';
 import { UriDisplayRules } from 'vs/platform/uriDisplay/common/uriDisplay';
 
