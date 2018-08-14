@@ -51,6 +51,7 @@ const BUNDLED_FILE_HEADER = [
 const vscodeResources = [
 	'out-build/bootstrap.js',
 	'out-build/bootstrap-amd.js',
+	'out-build/paths.js',
 	'out-build/remoteExtensionHostAgent.js',
 	'out-build/vs/code/electron-main/wslAgent.sh',
 	'out-build/vs/code/electron-main/wslAgent-dev.sh',
@@ -124,11 +125,17 @@ function nodejs(arch) {
 					// => we must remove the `.tar.gz`
 					// Also, keep only bin/node
 					if (/\/bin\/node$/.test(data.path)) {
-						this.emit('data', new File({
+						//@ts-ignore
+						let f = new File({
 							path: data.path.replace(/bin\/node$/, 'node'),
 							base: data.base.replace(/\.tar\.gz$/, ''),
-							contents: data.contents
-						}));
+							contents: data.contents,
+							stat: {
+								isFile: true,
+								mode: /* 100755 */ 33261
+							}
+						});
+						this.emit('data', f);
 						this.emit('data', new File({
 							path: 'version',
 							contents: new Buffer(VERSION)
@@ -145,7 +152,7 @@ function getNode(arch) {
 	return () => {
 		return (
 			nodejs(arch)
-			.pipe(vfs.dest('.build/node'))
+				.pipe(vfs.dest('.build/node'))
 		);
 	};
 }
