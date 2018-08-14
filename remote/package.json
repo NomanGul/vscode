@@ -1,17 +1,19 @@
 {
-  "name": "vscode-remote",
-  "description": "Native agent dependencies",
-  "license": "MIT",
-  "repository": {},
-  "version": "1.0.0",
-  "devDependencies": {
-    "node-pty": "0.7.6",
-    "iconv-lite": "0.4.23",
-    "minimist": "1.2.0",
-    "semver": "^5.5.0",
-    "yauzl": "^2.9.1",
+  "name": "vscode-reh",
+  "version": "0.0.0",
+  "dependencies": {
     "graceful-fs": "4.1.11",
+    "http-proxy-agent": "^2.1.0",
+    "https-proxy-agent": "^2.2.1",
+    "iconv-lite": "0.4.23",
+    "jschardet": "1.6.0",
+    "keytar": "4.2.1",
+    "minimist": "1.2.0",
+    "native-watchdog": "0.3.0",
+    "node-pty": "0.7.6",
+    "semver": "^5.5.0",
+    "spdlog": "0.7.1",
     "vscode-chokidar": "1.6.2",
-    "spdlog": "0.6.0"
+    "yauzl": "^2.9.1"
   }
 }
