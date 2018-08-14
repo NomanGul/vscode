@@ -53,13 +53,11 @@ const vscodeResources = [
 	'out-build/bootstrap-amd.js',
 	'out-build/paths.js',
 	'out-build/remoteExtensionHostAgent.js',
-	'out-build/vs/code/electron-main/wslAgent.sh',
-	'out-build/vs/code/electron-main/wslAgent-dev.sh',
 	'!**/test/**'
 ];
 
 gulp.task('clean-optimized-vscode-reh', util.rimraf('out-vscode-reh'));
-gulp.task('optimize-vscode-reh', ['clean-optimized-vscode-reh'/* , 'compile-build', 'compile-extensions-build' */], common.optimizeTask({
+gulp.task('optimize-vscode-reh', ['clean-optimized-vscode-reh', 'compile-build', 'compile-extensions-build'], common.optimizeTask({
 	src: 'out-build',
 	entryPoints: [
 		{

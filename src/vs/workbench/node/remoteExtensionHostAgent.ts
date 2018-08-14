@@ -53,7 +53,7 @@ args['builtin-extensions-dir'] = BUILTIN_EXTENSIONS_FOLDER_PATH;
 if (typeof args['builtin-extensions'] === 'string') {
 	args['builtin-extensions'] = args['builtin-extensions'].split(',');
 } else {
-	args['builtin-extensions'] = [];
+	args['builtin-extensions'] = fs.readdirSync(BUILTIN_EXTENSIONS_FOLDER_PATH);
 }
 
 const EXTENSIONS_PATH = path.join(REMOTE_DATA_FOLDER, 'extensions');
