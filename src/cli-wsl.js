@@ -10,17 +10,18 @@ let _url = require('url');
 let _cp = require('child_process');
 
 const options = [
-	{ id: 'diff', type: 'boolean', cat: 'o', alias: 'd', unsupported: true, args: ['file', 'file'], description: localize('diff', "Compare two files with each other.") },
-	{ id: 'folder-uri', type: 'string', cat: 'o', args: 'uri', description: localize('folder uri', "Opens a window with given folder uri(s)") },
+	{ id: 'diff', type: 'boolean', cat: 'o', alias: 'd', args: ['file', 'file'], description: localize('diff', "Compare two files with each other.") },
 	{ id: 'add', type: 'boolean', cat: 'o', alias: 'a', args: 'folder', description: localize('add', "Add folder(s) to the last active window.") },
-	{ id: 'goto', type: 'boolean', cat: 'o', alias: 'g', unsupported: true, args: 'file:line[:character]', description: localize('goto', "Open a file at the path on the specified line and character position.") },
+	{ id: 'goto', type: 'boolean', cat: 'o', alias: 'g', args: 'file:line[:character]', description: localize('goto', "Open a file at the path on the specified line and character position.") },
 	{ id: 'new-window', type: 'boolean', cat: 'o', alias: 'n', description: localize('newWindow', "Force to open a new window.") },
 	{ id: 'reuse-window', type: 'boolean', cat: 'o', alias: 'r', description: localize('reuseWindow', "Force to open a file or folder in an already opened window.") },
-	{ id: 'wait', type: 'boolean', cat: 'o', alias: 'w', unsupported: true, description: localize('wait', "Wait for the files to be closed before returning.") },
+	{ id: 'wait', type: 'boolean', cat: 'o', alias: 'w', description: localize('wait', "Wait for the files to be closed before returning.") },
 	{ id: 'locale', type: 'string', cat: 'o', args: 'locale', description: localize('locale', "The locale to use (e.g. en-US or zh-TW).") },
 	{ id: 'user-data-dir', type: 'string', unsupported: true, cat: 'o', args: 'dir', description: localize('userDataDir', "Specifies the directory that user data is kept in. Can be used to open multiple distinct instances of Code.") },
 	{ id: 'version', type: 'boolean', cat: 'o', alias: 'v', description: localize('version', "Print version.") },
 	{ id: 'help', type: 'boolean', cat: 'o', alias: 'h', description: localize('help', "Print usage.") },
+	{ id: 'folder-uri', type: 'string', cat: 'o', args: 'uri', description: localize('folderUri', "Opens a window with given folder uri(s)") },
+	{ id: 'file-uri', type: 'string', cat: 'o', args: 'uri', description: localize('fileUri', "Opens a window with given file uri(s)") },
 
 	{ id: 'extensions-dir', type: 'string', cat: 'e', args: 'dir', unsupported: true, description: localize('extensionHomePath', "Set the root path for extensions.") },
 	{ id: 'list-extensions', type: 'boolean', cat: 'e', description: localize('listExtensions', "List the installed extensions.") },
@@ -94,15 +95,15 @@ function main(args, wslExecutable, vsCodeWinExecutable, vsCodeWinExecutableArg) 
 		return;
 	}
 
-	let folderURIS = toArray(parsedArgs['folder-uri']).map(mapFileUri);
-	parsedArgs['folder-uri'] = folderURIS;
+	let folderURIs = toArray(parsedArgs['folder-uri']).map(mapFileUri);
+	parsedArgs['folder-uri'] = folderURIs;
+
+	let fileURIs = toArray(parsedArgs['file-uri']).map(mapFileUri);
+	parsedArgs['file-uri'] = fileURIs;
 
 	let inputPaths = toArray(parsedArgs['_']);
 	for (let input of inputPaths) {
-		let folderUri = translatePath(input);
-		if (folderUri) {
-			folderURIS.push(folderUri);
-		}
+		translatePath(input, folderURIs, fileURIs);
 	}
 	let newCommandline = [];
 	for (let key in parsedArgs) {
@@ -147,22 +148,21 @@ function main(args, wslExecutable, vsCodeWinExecutable, vsCodeWinExecutableArg) 
 	}
 }
 
-function translatePath(input) {
+function translatePath(input, folderURIS, fileURIS) {
 	input = input.trim();
+	input = _path.resolve(input);
+	let url = new _url.URL('file:///' + input);
+	let mappedUri = mapFileUri(url.href);
 	try {
 		let stat = _fs.lstatSync(input);
 		if (stat.isFile()) {
-			// open a new file
-			console.log(`Ignoring ${input}. Opening a file is not yet supported`);
-			return null;
+			fileURIS.push(mappedUri);
 		} else {
-			input = _path.resolve(input);
-			let url = new _url.URL('file:///' + input);
-			return mapFileUri(url.href);
+			folderURIS.push(mappedUri);
 		}
 	} catch (e) {
 		if (e.code == 'ENOENT') {
-			console.log(`Ignoring ${input}. Opening a new file is not yet supported`);
+			fileURIS.push(mappedUri);
 		} else {
 			console.log(`Problem accessing file ${input}. Ignoring file`, e);
 		}
