@@ -241,7 +241,13 @@ gulp.task('node', ['clean-node'], getNode(process.arch));
 gulp.task('clean-vscode-reh-win32-ia32', util.rimraf(path.join(BUILD_ROOT, 'vscode-reh-win32-ia32')));
 gulp.task('clean-vscode-reh-win32-x64', util.rimraf(path.join(BUILD_ROOT, 'vscode-reh-win32-x64')));
 gulp.task('clean-vscode-reh-darwin', util.rimraf(path.join(BUILD_ROOT, 'vscode-reh-darwin')));
+gulp.task('clean-vscode-reh-linux-ia32', util.rimraf(path.join(BUILD_ROOT, 'vscode-reh-linux-ia32')));
+gulp.task('clean-vscode-reh-linux-x64', util.rimraf(path.join(BUILD_ROOT, 'vscode-reh-linux-x64')));
+gulp.task('clean-vscode-reh-linux-arm', util.rimraf(path.join(BUILD_ROOT, 'vscode-reh-linux-arm')));
 
 gulp.task('vscode-reh-win32-ia32', ['optimize-vscode-reh', 'clean-vscode-reh-win32-ia32'], packageTask('win32', 'ia32'));
 gulp.task('vscode-reh-win32-x64', ['optimize-vscode-reh', 'clean-vscode-reh-win32-x64'], packageTask('win32', 'x64'));
 gulp.task('vscode-reh-darwin', ['optimize-vscode-reh', 'clean-vscode-reh-darwin'], packageTask('darwin'));
+gulp.task('vscode-reh-linux-ia32', ['optimize-vscode-reh', 'clean-vscode-reh-linux-ia32'], packageTask('linux', 'ia32'));
+gulp.task('vscode-reh-linux-x64', ['optimize-vscode-reh', 'clean-vscode-reh-linux-x64'], packageTask('linux', 'x64'));
+gulp.task('vscode-reh-linux-arm', ['optimize-vscode-reh', 'clean-vscode-reh-linux-arm'], packageTask('linux', 'arm'));
