@@ -195,12 +195,12 @@ function packageTask(platform, arch, opts) {
 			.pipe(json({ commit, date }));
 
 		const depsSrc = [
-			..._.flatten(productionDependencies.map(d => path.relative(REMOTE_FOLDER, d.path)).map(d => [`${d}/**`, `!${d}/**/{test,tests}/**`])),
+			..._.flatten(productionDependencies.map(d => path.relative(REPO_ROOT, d.path)).map(d => [`${d}/**`, `!${d}/**/{test,tests}/**`])),
 			// @ts-ignore JSON checking: dependencies is optional
 			..._.flatten(Object.keys(product.dependencies || {}).map(d => [`node_modules/${d}/**`, `!node_modules/${d}/**/{test,tests}/**`]))
 		];
 
-		const deps = gulp.src(depsSrc, { base: '.', dot: true })
+		const deps = gulp.src(depsSrc, { base: 'remote', dot: true })
 			.pipe(filter(['**', '!**/package-lock.json']))
 			.pipe(util.cleanNodeModule('fsevents', ['binding.gyp', 'fsevents.cc', 'build/**', 'src/**', 'test/**'], ['**/*.node']))
 			.pipe(util.cleanNodeModule('oniguruma', ['binding.gyp', 'build/**', 'src/**', 'deps/**'], ['**/*.node', 'src/*.js']))
