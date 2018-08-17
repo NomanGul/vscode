@@ -12,6 +12,8 @@ import { Disposable } from 'vs/base/common/lifecycle';
 import { Schemas } from 'vs/base/common/network';
 import { IURITransformer } from 'vs/base/common/uriIpc';
 
+const localExtensionManagementServerAuthority: string = 'vscode-local';
+
 function createRemoteUriTransformer(authority: string): IURITransformer {
 	return <IURITransformer>{
 		transformIncoming: (uriComponents: UriComponents): UriComponents => {
@@ -46,7 +48,7 @@ export class ExtensionManagementServerService extends Disposable implements IExt
 		@IRemoteExtensionsService private remoteExtensionsService: IRemoteExtensionsService
 	) {
 		super();
-		this._localExtensionManagemetServer = { extensionManagementService: localExtensionManagementService, location: URI.from({ scheme: Schemas.file }) };
+		this._localExtensionManagemetServer = { extensionManagementService: localExtensionManagementService, authority: localExtensionManagementServerAuthority, label: 'local' };
 		this._register(this.workspaceService.onDidChangeWorkspaceFolders(() => this.updateServers()));
 		this.updateServers();
 	}
@@ -59,19 +61,18 @@ export class ExtensionManagementServerService extends Disposable implements IExt
 		if (location.scheme === Schemas.file) {
 			return this._localExtensionManagemetServer;
 		}
-		return this._extensionManagementServers.filter(server => location.authority === server.location.authority)[0];
+		return this._extensionManagementServers.filter(server => location.authority === server.authority)[0];
 	}
 
 	private updateServers(): void {
 		this._extensionManagementServers = [this._localExtensionManagemetServer];
 		for (const remoteWorkspaceFolderConnection of this.remoteExtensionsService.getRemoteWorkspaceFolderConnections(this.workspaceService.getWorkspace().folders)) {
-			const location = URI.from({ scheme: 'vscode-remote', authority: `${remoteWorkspaceFolderConnection.remoteAuthority}` });
-			const extensionManagementService = new ExtensionManagementChannelClient(remoteWorkspaceFolderConnection.getChannel<IExtensionManagementChannel>('extensions'), createRemoteUriTransformer(location.authority));
-			this._extensionManagementServers.push({ location, extensionManagementService });
+			const extensionManagementService = new ExtensionManagementChannelClient(remoteWorkspaceFolderConnection.getChannel<IExtensionManagementChannel>('extensions'), createRemoteUriTransformer(remoteWorkspaceFolderConnection.remoteAuthority));
+			this._extensionManagementServers.push({ authority: remoteWorkspaceFolderConnection.remoteAuthority, extensionManagementService, label: remoteWorkspaceFolderConnection.remoteAuthority });
 		}
 	}
 
-	getDefaultExtensionManagementServer(): IExtensionManagementServer {
+	getLocalExtensionManagementServer(): IExtensionManagementServer {
 		return this._localExtensionManagemetServer;
 	}
 }
@@ -89,11 +90,11 @@ export class SingleServerExtensionManagementServerService implements IExtensionM
 	}
 
 	getExtensionManagementServer(location: URI): IExtensionManagementServer {
-		location = location.scheme === Schemas.file ? URI.from({ scheme: Schemas.file }) : location;
-		return this.extensionManagementServers.filter(server => location.authority === server.location.authority)[0];
+		const authority = location.scheme === Schemas.file ? localExtensionManagementServerAuthority : location.authority;
+		return this.extensionManagementServers.filter(server => authority === server.authority)[0];
 	}
 
-	getDefaultExtensionManagementServer(): IExtensionManagementServer {
+	getLocalExtensionManagementServer(): IExtensionManagementServer {
 		return this.extensionManagementServers[0];
 	}
 }

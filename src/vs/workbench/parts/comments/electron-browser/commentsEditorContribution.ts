@@ -17,7 +17,7 @@ import { EmbeddedCodeEditorWidget } from 'vs/editor/browser/widget/embeddedCodeE
 import { IEditorContribution } from 'vs/editor/common/editorCommon';
 import { IRange } from 'vs/editor/common/core/range';
 import * as modes from 'vs/editor/common/modes';
-import { peekViewEditorBackground, peekViewResultsBackground, peekViewResultsSelectionBackground } from 'vs/editor/contrib/referenceSearch/referencesWidget';
+import { peekViewResultsBackground, peekViewResultsSelectionBackground, peekViewTitleBackground } from 'vs/editor/contrib/referenceSearch/referencesWidget';
 import { IContextKey, IContextKeyService, RawContextKey } from 'vs/platform/contextkey/common/contextkey';
 import { ServicesAccessor, IInstantiationService } from 'vs/platform/instantiation/common/instantiation';
 import { KeybindingsRegistry, KeybindingWeight } from 'vs/platform/keybinding/common/keybindingsRegistry';
@@ -63,6 +63,10 @@ export const overviewRulerCommentingRangeForeground = registerColor('editorGutte
 
 class CommentingRangeDecoration {
 	private _decorationId: string;
+
+	get id(): string {
+		return this._decorationId;
+	}
 
 	constructor(private _editor: ICodeEditor, private _ownerId: number, private _range: IRange, private _reply: modes.Command, commentingOptions: ModelDecorationOptions) {
 		const startLineNumber = _range.startLineNumber;
@@ -132,6 +136,9 @@ class CommentingRangeDecorator {
 				commentingRangeDecorations.push(new CommentingRangeDecoration(editor, info.owner, range, info.reply, this.commentingOptions));
 			});
 		}
+
+		let oldDecorations = this.commentingRangeDecorations.map(decoration => decoration.id);
+		editor.deltaDecorations(oldDecorations, []);
 
 		this.commentingRangeDecorations = commentingRangeDecorations;
 	}
@@ -496,6 +503,8 @@ export class ReviewController implements IEditorContribution {
 			zone.dispose();
 		});
 
+		this._commentWidgets = [];
+
 		this._commentInfos.forEach(info => {
 			info.threads.forEach(thread => {
 				let zoneWidget = new ReviewZoneWidget(this.instantiationService, this.modeService, this.modelService, this.themeService, this.commentService, this.openerService, this.editor, info.owner, thread, {});
@@ -593,7 +602,7 @@ registerThemingParticipant((theme, collector) => {
 			`}`);
 	}
 
-	let monacoEditorBackground = theme.getColor(peekViewEditorBackground);
+	let monacoEditorBackground = theme.getColor(peekViewTitleBackground);
 	if (monacoEditorBackground) {
 		collector.addRule(
 			`.monaco-editor .review-widget .body .comment-form .review-thread-reply-button {` +

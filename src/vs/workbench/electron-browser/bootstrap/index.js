@@ -18,20 +18,22 @@ const electron = require('electron');
 const remote = electron.remote;
 const ipc = electron.ipcRenderer;
 
+Error.stackTraceLimit = 100; // increase number of stack frames (from 10, https://github.com/v8/v8/wiki/Stack-Trace-API)
+
 process.lazyEnv = new Promise(function (resolve) {
 	const handle = setTimeout(function () {
 		resolve();
 		console.warn('renderer did not receive lazyEnv in time');
 	}, 10000);
+
 	ipc.once('vscode:acceptShellEnv', function (event, shellEnv) {
 		clearTimeout(handle);
 		assign(process.env, shellEnv);
 		resolve(process.env);
 	});
+
 	ipc.send('vscode:fetchShellEnv');
 });
-
-Error.stackTraceLimit = 100; // increase number of stack frames (from 10, https://github.com/v8/v8/wiki/Stack-Trace-API)
 
 function onError(error, enableDeveloperTools) {
 	if (enableDeveloperTools) {
@@ -46,8 +48,7 @@ function onError(error, enableDeveloperTools) {
 }
 
 function assign(destination, source) {
-	return Object.keys(source)
-		.reduce(function (r, key) { r[key] = source[key]; return r; }, destination);
+	return Object.keys(source).reduce(function (r, key) { r[key] = source[key]; return r; }, destination);
 }
 
 function parseURLQueryArgs() {
@@ -79,6 +80,10 @@ function readFile(file) {
 			resolve(data);
 		});
 	});
+}
+
+function writeFile(file, content) {
+	return new Promise((c, e) => fs.writeFile(file, content, 'utf8', err => err ? e(err) : c()));
 }
 
 function showPartsSplash(configuration) {
@@ -143,8 +148,6 @@ function showPartsSplash(configuration) {
 
 	perf.mark('didShowPartsSplash');
 }
-
-const writeFile = (file, content) => new Promise((c, e) => fs.writeFile(file, content, 'utf8', err => err ? e(err) : c()));
 
 function registerListeners(enableDeveloperTools) {
 
@@ -220,8 +223,15 @@ function main() {
 
 	// Correctly inherit the parent's environment
 	assign(process.env, configuration.userEnv);
-	perf.importEntries(configuration.perfEntries);
 
+	// disable pinch zoom & apply zoom level early to avoid glitches
+	const zoomLevel = configuration.zoomLevel;
+	webFrame.setVisualZoomLevelLimits(1, 1);
+	if (typeof zoomLevel === 'number' && zoomLevel !== 0) {
+		webFrame.setZoomLevel(zoomLevel);
+	}
+
+	// Parts splash
 	showPartsSplash(configuration);
 
 	// Get the nls configuration into the process.env as early as possible.
@@ -270,13 +280,6 @@ function main() {
 	const enableDeveloperTools = (process.env['VSCODE_DEV'] || !!configuration.extensionDevelopmentPath) && !configuration.extensionTestsPath;
 	const unbind = registerListeners(enableDeveloperTools);
 
-	// disable pinch zoom & apply zoom level early to avoid glitches
-	const zoomLevel = configuration.zoomLevel;
-	webFrame.setVisualZoomLevelLimits(1, 1);
-	if (typeof zoomLevel === 'number' && zoomLevel !== 0) {
-		webFrame.setZoomLevel(zoomLevel);
-	}
-
 	// Load the loader and start loading the workbench
 	const loaderFilename = configuration.appRoot + '/out/vs/loader.js';
 	const loaderSource = require('fs').readFileSync(loaderFilename);
@@ -306,14 +309,6 @@ function main() {
 		});
 	}
 
-	// Perf Counters
-	window.MonacoEnvironment.timers = {
-		isInitialStartup: !!configuration.isInitialStartup,
-		hasAccessibilitySupport: !!configuration.accessibilitySupport,
-		start: configuration.perfStartTime,
-		windowLoad: configuration.perfWindowLoadTime
-	};
-
 	perf.mark('willLoadWorkbenchMain');
 	require([
 		'vs/workbench/workbench.main',
@@ -333,7 +328,6 @@ function main() {
 				});
 		});
 	});
-
 }
 
 main();

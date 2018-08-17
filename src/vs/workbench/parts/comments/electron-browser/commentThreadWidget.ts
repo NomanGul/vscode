@@ -117,6 +117,7 @@ export class ReviewZoneWidget extends ZoneWidget {
 	private _commentGlyph: CommentGlyphWidget;
 	private _owner: number;
 	private _localToDispose: IDisposable[];
+	private _globalToDispose: IDisposable[];
 	private _markdownRenderer: MarkdownRenderer;
 	private _styleElement: HTMLStyleElement;
 	private _error: HTMLElement;
@@ -145,11 +146,17 @@ export class ReviewZoneWidget extends ZoneWidget {
 		this._owner = owner;
 		this._commentThread = commentThread;
 		this._isCollapsed = commentThread.collapsibleState !== modes.CommentThreadCollapsibleState.Expanded;
+		this._globalToDispose = [];
 		this._localToDispose = [];
 		this.create();
 
 		this._styleElement = dom.createStyleSheet(this.domNode);
-		this.themeService.onThemeChange(this._applyTheme, this);
+		this._globalToDispose.push(this.themeService.onThemeChange(this._applyTheme, this));
+		this._globalToDispose.push(this.editor.onDidChangeConfiguration(e => {
+			if (e.fontInfo) {
+				this._applyTheme(this.themeService.getTheme());
+			}
+		}));
 		this._applyTheme(this.themeService.getTheme());
 
 		this._markdownRenderer = new MarkdownRenderer(editor, this.modeService, this.openerService);
@@ -299,24 +306,6 @@ export class ReviewZoneWidget extends ZoneWidget {
 
 		this._localToDispose.push(this.editor.onMouseDown(e => this.onEditorMouseDown(e)));
 		this._localToDispose.push(this.editor.onMouseUp(e => this.onEditorMouseUp(e)));
-		this._localToDispose.push(this.editor.onDidChangeModelContent((e) => {
-			// If the widget has been opened, the position is set and can be relied on for updating the glyph position
-			if (this.position) {
-				if (this.position.lineNumber !== this._commentGlyph.getPosition().position.lineNumber) {
-					this._commentGlyph.setLineNumber(this.position.lineNumber);
-				}
-			} else {
-				// Otherwise manually calculate position change :(
-				const positionChange = e.changes.map(change => {
-					if (change.range.startLineNumber < change.range.endLineNumber) {
-						return change.range.startLineNumber - change.range.endLineNumber;
-					} else {
-						return change.text.split(e.eol).length - 1;
-					}
-				}).reduce((prev, curr) => prev + curr, 0);
-				this._commentGlyph.setLineNumber(this._commentGlyph.getPosition().position.lineNumber + positionChange);
-			}
-		}));
 		var headHeight = Math.ceil(this.editor.getConfiguration().lineHeight * 1.2);
 		this._headElement.style.height = `${headHeight}px`;
 		this._headElement.style.lineHeight = this._headElement.style.height;
@@ -367,7 +356,7 @@ export class ReviewZoneWidget extends ZoneWidget {
 				}
 			}
 
-			if (this._commentEditor.getModel().getValueLength() !== 0 && ev.keyCode === KeyCode.Enter && ev.ctrlKey) {
+			if (this._commentEditor.getModel().getValueLength() !== 0 && ev.keyCode === KeyCode.Enter && (ev.ctrlKey || ev.metaKey)) {
 				let lineNumber = this._commentGlyph.getPosition().position.lineNumber;
 				this.createComment(lineNumber);
 			}
@@ -645,6 +634,13 @@ export class ReviewZoneWidget extends ZoneWidget {
 			content.push(`.monaco-editor .review-widget .body .comment-form .validation-error { background: ${errorBackground}; }`);
 		}
 
+		const fontInfo = this.editor.getConfiguration().fontInfo;
+		content.push(`.monaco-editor .review-widget .body code {
+			font-family: ${fontInfo.fontFamily};
+			font-size: ${fontInfo.fontSize}px;
+			font-weight: ${fontInfo.fontWeight};
+		}`);
+
 		this._styleElement.innerHTML = content.join('\n');
 
 		// Editor decorations should also be responsive to theme changes
@@ -674,6 +670,7 @@ export class ReviewZoneWidget extends ZoneWidget {
 			this._commentGlyph = null;
 		}
 
+		this._globalToDispose.forEach(global => global.dispose());
 		this._localToDispose.forEach(local => local.dispose());
 		this._onDidClose.fire();
 	}

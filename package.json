@@ -22,8 +22,7 @@
     "update-localization-extension": "node build/npm/update-localization-extension.js",
     "smoketest": "cd test/smoke && node test/index.js",
     "monaco-compile-check": "tsc -p src/tsconfig.monaco.json --noEmit",
-    "download-builtin-extensions": "node build/lib/builtInExtensions.js",
-    "check-monaco-editor-compilation": "tsc -p src/tsconfig.monaco.json --noEmit"
+    "download-builtin-extensions": "node build/lib/builtInExtensions.js"
   },
   "dependencies": {
     "applicationinsights": "0.18.0",
@@ -48,7 +47,7 @@
     "vscode-chokidar": "1.6.2",
     "vscode-debugprotocol": "1.31.0",
     "vscode-nsfw": "1.0.17",
-    "vscode-ripgrep": "^1.0.1",
+    "vscode-ripgrep": "1.1.0",
     "vscode-textmate": "^4.0.1",
     "vscode-xterm": "3.7.0-beta4",
     "winreg": "^1.2.4",
