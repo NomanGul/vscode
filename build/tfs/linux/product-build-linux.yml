@@ -24,7 +24,7 @@ steps:
 
 - script: |
     set -e
-    VSCODE_MIXIN_PASSWORD="$(VSCODE_MIXIN_PASSWORD)" npm run gulp -- vscode-linux-$(VSCODE_ARCH)-min
+    VSCODE_MIXIN_PASSWORD="$(VSCODE_MIXIN_PASSWORD)" npm run gulp -- vscode-linux-$(VSCODE_ARCH)-min vscode-reh-linux-$(VSCODE_ARCH)-min
   name: build
 
 - script: |
@@ -59,6 +59,19 @@ steps:
     AZURE_STORAGE_ACCESS_KEY_2="$(AZURE_STORAGE_ACCESS_KEY_2)" \
     MOONCAKE_STORAGE_ACCESS_KEY="$(MOONCAKE_STORAGE_ACCESS_KEY)" \
     node build/tfs/common/publish.js "$VSCODE_QUALITY" "$PLATFORM_LINUX" archive-unsigned "$TARBALL_FILENAME" "$VERSION" true "$TARBALL_PATH"
+
+    # Publish Remote Extension Host
+    REHBUILDNAME="vscode-reh-$PLATFORM_LINUX"
+    REHTARBALL_FILENAME="vscode-reh-$BUILD_VERSION.tar.gz"
+    REHTARBALL_PATH="$ROOT/$REHTARBALL_FILENAME"
+
+    rm -rf $ROOT/vscode-reh-*.tar.*
+    (cd $ROOT && tar -czf REHTARBALL_PATH REHBUILDNAME)
+
+    AZURE_DOCUMENTDB_MASTERKEY="$(AZURE_DOCUMENTDB_MASTERKEY)" \
+    AZURE_STORAGE_ACCESS_KEY_2="$(AZURE_STORAGE_ACCESS_KEY_2)" \
+    MOONCAKE_STORAGE_ACCESS_KEY="$(MOONCAKE_STORAGE_ACCESS_KEY)" \
+    node build/tfs/common/publish.js "$VSCODE_QUALITY" "$PLATFORM_LINUX" reh-archive-unsigned "REHTARBALL_FILENAME" "$VERSION" true "REHTARBALL_PATH"
 
     # Publish hockeyapp symbols
     node build/tfs/common/symbols.js "$(VSCODE_MIXIN_PASSWORD)" "$(VSCODE_HOCKEYAPP_TOKEN)" "$(VSCODE_ARCH)" "$(VSCODE_HOCKEYAPP_ID_LINUX64)"
