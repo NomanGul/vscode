@@ -77,6 +77,10 @@ gulp.task('optimize-vscode-reh', ['clean-optimized-vscode-reh', 'compile-build',
 	bundleInfo: undefined
 }));
 
+const baseUrl = `https://ticino.blob.core.windows.net/sourcemaps/${commit}/core`;
+gulp.task('clean-minified-vscode-reh', util.rimraf('out-vscode-reh-min'));
+gulp.task('minify-vscode-reh', ['clean-minified-vscode-reh', 'optimize-vscode-reh'], common.minifyTask('out-vscode-reh', baseUrl));
+
 function nodejs(arch) {
 	const VERSION = `8.9.3`;
 	if (process.platform === 'win32') {
@@ -251,3 +255,10 @@ gulp.task('vscode-reh-darwin', ['optimize-vscode-reh', 'clean-vscode-reh-darwin'
 gulp.task('vscode-reh-linux-ia32', ['optimize-vscode-reh', 'clean-vscode-reh-linux-ia32'], packageTask('linux', 'ia32'));
 gulp.task('vscode-reh-linux-x64', ['optimize-vscode-reh', 'clean-vscode-reh-linux-x64'], packageTask('linux', 'x64'));
 gulp.task('vscode-reh-linux-arm', ['optimize-vscode-reh', 'clean-vscode-reh-linux-arm'], packageTask('linux', 'arm'));
+
+gulp.task('vscode-reh-win32-ia32-min', ['minify-vscode-reh', 'clean-vscode-reh-win32-ia32'], packageTask('win32', 'ia32', { minified: true }));
+gulp.task('vscode-reh-win32-x64-min', ['minify-vscode-reh', 'clean-vscode-reh-win32-x64'], packageTask('win32', 'x64', { minified: true }));
+gulp.task('vscode-reh-darwin-min', ['minify-vscode-reh', 'clean-vscode-reh-darwin'], packageTask('darwin', null, { minified: true }));
+gulp.task('vscode-reh-linux-ia32-min', ['minify-vscode-reh', 'clean-vscode-reh-linux-ia32'], packageTask('linux', 'ia32', { minified: true }));
+gulp.task('vscode-reh-linux-x64-min', ['minify-vscode-reh', 'clean-vscode-reh-linux-x64'], packageTask('linux', 'x64', { minified: true }));
+gulp.task('vscode-reh-linux-arm-min', ['minify-vscode-reh', 'clean-vscode-reh-linux-arm'], packageTask('linux', 'arm', { minified: true }));
