@@ -31,6 +31,9 @@ const commit = util.getVersion(REPO_ROOT);
 const BUILD_ROOT = path.dirname(REPO_ROOT);
 const REMOTE_FOLDER = path.join(REPO_ROOT, 'remote');
 
+console.log(REMOTE_FOLDER);
+console.log(require('fs').readdirSync(REMOTE_FOLDER));
+
 const productionDependencies = deps.getProductionDependencies(REMOTE_FOLDER);
 
 
