@@ -43,6 +43,7 @@ const indentationFilter = [
 	// except specific files
 	'!ThirdPartyNotices.txt',
 	'!LICENSE.txt',
+	'!remote/LICENSE',
 	'!src/vs/nls.js',
 	'!src/vs/css.js',
 	'!src/vs/loader.js',

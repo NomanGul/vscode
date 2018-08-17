@@ -198,6 +198,8 @@ function packageTask(platform, arch, opts) {
 		const productJsonStream = gulp.src(['product.json'], { base: '.' })
 			.pipe(json({ commit, date }));
 
+		const license = gulp.src(['remote/LICENSE'], { base: 'remote' });
+
 		const depsSrc = [
 			..._.flatten(productionDependencies.map(d => path.relative(REPO_ROOT, d.path)).map(d => [`${d}/**`, `!${d}/**/{test,tests}/**`])),
 			// @ts-ignore JSON checking: dependencies is optional
@@ -225,6 +227,7 @@ function packageTask(platform, arch, opts) {
 		let all = es.merge(
 			packageJsonStream,
 			productJsonStream,
+			license,
 			sources,
 			deps,
 			nodejs(arch)
