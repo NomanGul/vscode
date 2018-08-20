@@ -62,10 +62,10 @@ steps:
 
     # Publish Remote Extension Host
     REHBUILDNAME="vscode-reh-$PLATFORM_LINUX"
-    REHTARBALL_FILENAME="vscode-reh-$(VSCODE_ARCH).tar.gz"
+    REHTARBALL_FILENAME="vscode-headless-$(VSCODE_ARCH).tar.gz"
     REHTARBALL_PATH="$ROOT/$REHTARBALL_FILENAME"
 
-    rm -rf $ROOT/vscode-reh-*.tar.*
+    rm -rf $ROOT/vscode-headless-*.tar.*
     (cd $ROOT && tar -czf $REHTARBALL_PATH $REHBUILDNAME)
 
     AZURE_DOCUMENTDB_MASTERKEY="$(AZURE_DOCUMENTDB_MASTERKEY)" \

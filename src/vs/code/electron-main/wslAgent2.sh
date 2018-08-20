@@ -9,7 +9,7 @@ else
 fi
 
 VSCODE_REMOTE_BIN="$HOME/.vscode-remote/bin"
-DOWNLOAD_URL="https://az764295.vo.msecnd.net/wsl/$COMMIT/vscode-reh-x64.tar.gz"
+DOWNLOAD_URL="https://az764295.vo.msecnd.net/wsl/$COMMIT/vscode-headless-x64.tar.gz"
 
 # Check if this version is already installed
 if [ ! -d "$VSCODE_REMOTE_BIN/$COMMIT" ]; then
