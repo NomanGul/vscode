@@ -71,7 +71,7 @@ steps:
     AZURE_DOCUMENTDB_MASTERKEY="$(AZURE_DOCUMENTDB_MASTERKEY)" \
     AZURE_STORAGE_ACCESS_KEY_2="$(AZURE_STORAGE_ACCESS_KEY_2)" \
     MOONCAKE_STORAGE_ACCESS_KEY="$(MOONCAKE_STORAGE_ACCESS_KEY)" \
-    node build/tfs/common/publish.js "$VSCODE_QUALITY" "$PLATFORM_LINUX" reh-archive-unsigned "REHTARBALL_FILENAME" "$VERSION" true "REHTARBALL_PATH"
+    node build/tfs/common/publish.js "$VSCODE_QUALITY" "reh-$PLATFORM_LINUX" archive-unsigned "REHTARBALL_FILENAME" "$VERSION" true "REHTARBALL_PATH"
 
     # Publish hockeyapp symbols
     node build/tfs/common/symbols.js "$(VSCODE_MIXIN_PASSWORD)" "$(VSCODE_HOCKEYAPP_TOKEN)" "$(VSCODE_ARCH)" "$(VSCODE_HOCKEYAPP_ID_LINUX64)"
