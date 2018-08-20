@@ -642,7 +642,7 @@ export class CodeApplication {
 		this.logService.info('Starting remote extension agent inside WSL');
 		this.wslExtensionHost = new TPromise<void>((resolve, reject) => {
 			let script: string = environmentService.isBuilt
-				? URI.parse(require.toUrl('./wslAgent.sh')).fsPath
+				? URI.parse(require.toUrl('./wslAgent2.sh')).fsPath
 				: URI.parse(require.toUrl('./wslAgent-dev.sh')).fsPath;
 
 			cp.execFile('wsl', ['wslpath', '-a', script.replace(/\\/g, '\\\\')], { encoding: 'utf8' }, (error, stdout, stderr) => {
@@ -654,7 +654,7 @@ export class CodeApplication {
 				if (wslScript.indexOf(' ') >= 0) {
 					wslScript = `'${wslScript.replace(/ /g, '\\ ')}'`;
 				}
-				let extHostProcess = cp.spawn('C:\\Windows\\System32\\bash.exe', ['-i', '-c', wslScript], { cwd: process.cwd(), windowsVerbatimArguments: true });
+				let extHostProcess = cp.spawn('C:\\Windows\\System32\\bash.exe', ['-i', '-c', wslScript, product.commit || ''], { cwd: process.cwd(), windowsVerbatimArguments: true });
 				if (extHostProcess.pid === void 0) {
 					reject(new Error('WSL remote extension host agent couldn\'t be started'));
 				} else {
