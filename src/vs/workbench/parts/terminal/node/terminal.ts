@@ -24,7 +24,7 @@ export interface ITerminalChildProcess {
 	resize(cols: number, rows: number): void;
 }
 
-let _TERMINAL_DEFAULT_SHELL_UNIX_LIKE: string = '/bin/bash';
+let _TERMINAL_DEFAULT_SHELL_UNIX_LIKE: string | null = null;
 export function getTerminalDefaultShellUnixLike(): string {
 	if (!_TERMINAL_DEFAULT_SHELL_UNIX_LIKE) {
 		let unixLikeTerminal = 'sh';
