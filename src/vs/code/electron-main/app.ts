@@ -642,7 +642,7 @@ export class CodeApplication {
 		this.logService.info('Starting remote extension agent inside WSL');
 		this.wslExtensionHost = new TPromise<void>((resolve, reject) => {
 			let script: string = environmentService.isBuilt
-				? URI.parse(require.toUrl('./wslAgent.sh')).fsPath
+				? URI.parse(require.toUrl('./wslAgent2.sh')).fsPath
 				: URI.parse(require.toUrl('./wslAgent-dev.sh')).fsPath;
 
 			cp.execFile('wsl', ['wslpath', '-a', script.replace(/\\/g, '\\\\')], { encoding: 'utf8' }, (error, stdout, stderr) => {

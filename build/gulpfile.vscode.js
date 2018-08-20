@@ -77,6 +77,7 @@ const vscodeResources = [
 	'out-build/vs/code/electron-browser/issue/issueReporter.js',
 	'out-build/vs/code/electron-browser/processExplorer/processExplorer.js',
 	'out-build/vs/code/electron-main/wslAgent.sh',
+	'out-build/vs/code/electron-main/wslAgent2.sh',
 	'out-build/vs/code/electron-main/wslAgent-dev.sh',
 	'remote/package.json',
 	'!**/test/**'
