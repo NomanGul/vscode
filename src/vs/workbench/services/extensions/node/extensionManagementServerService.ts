@@ -30,6 +30,10 @@ function createRemoteUriTransformer(authority: string): IURITransformer {
 				const r = URI.file(uri.path);
 				return r;
 			}
+			if (uri.scheme === Schemas.file) {
+				const r = URI.from({ scheme: 'vscode-local', path: uri.path });
+				return r;
+			}
 			return uri;
 		}
 	};

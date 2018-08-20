@@ -24,6 +24,7 @@ import { ExtensionManagementChannel } from 'vs/platform/extensionManagement/comm
 import { RemoteExtensionsEnvironment } from 'vs/workbench/services/extensions/node/remoteExtensionsEnvironment';
 import { RemoteExtensionsEnvironmentChannel } from 'vs/workbench/services/extensions/node/remoteExtensionsIpc';
 import { REMOTE_EXTENSIONS_FILE_SYSTEM_CHANNEL_NAME, RemoteExtensionsFileSystemImpl, RemoteExtensionsFileSystemChannel } from 'vs/platform/remote/node/remoteFileSystemIpc';
+import { TPromise } from 'vs/base/common/winjs.base';
 import { Emitter } from 'vs/base/common/event';
 import { IPCServer, ClientConnectionEvent } from 'vs/base/parts/ipc/common/ipc';
 
@@ -74,10 +75,9 @@ export class RemoteExtensionManagementServer {
 		services.set(ITelemetryService, NullTelemetryService);
 		services.set(IExtensionGalleryService, new SyncDescriptor(ExtensionGalleryService));
 
-		const dialogChannel = server.getChannel('dialog', {
-			routeCall: () => { throw new Error('not supported'); },
-			routeEvent: () => { throw new Error('not supported'); }
-		});
+		const route = () => TPromise.as('renderer');
+
+		const dialogChannel = server.getChannel('dialog', { routeCall: route, routeEvent: route });
 		services.set(IDialogService, new DialogChannelClient(dialogChannel));
 
 		services.set(IExtensionManagementService, new SyncDescriptor(ExtensionManagementService));

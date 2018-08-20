@@ -378,8 +378,12 @@ export class WorkbenchShell extends Disposable {
 		serviceCollection.set(ILifecycleService, lifecycleService);
 		this.lifecycleService = lifecycleService;
 
-		const remoteExtensionsService = new RemoteExtensionsService(this.configuration.windowId);
+		const remoteExtensionsService = new RemoteExtensionsService();
 		serviceCollection.set(IRemoteExtensionsService, remoteExtensionsService);
+		const remoteWorkspaceFolderConnections = remoteExtensionsService.getRemoteWorkspaceFolderConnections(this.contextService.getWorkspace().folders);
+		remoteWorkspaceFolderConnections.forEach(remoteWorkspaceFolderConnection => {
+			remoteWorkspaceFolderConnection.registerChannel('dialog', instantiationService.createInstance(DialogChannel));
+		});
 
 		const extensionManagementChannel = getDelayedChannel<IExtensionManagementChannel>(sharedProcess.then(c => c.getChannel('extensions')));
 		const extensionManagementChannelClient = new ExtensionManagementChannelClient(extensionManagementChannel, DefaultURITransformer);
