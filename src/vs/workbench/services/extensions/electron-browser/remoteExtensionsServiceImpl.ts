@@ -19,7 +19,6 @@ export class RemoteExtensionsService implements IRemoteExtensionsService {
 	private readonly _channels: Map<string, TPromise<Client>>;
 
 	constructor(
-		private readonly _windowId: number // TODO@vs-remote: remove windowId
 	) {
 		this._channels = new Map<string, TPromise<Client>>();
 	}
@@ -52,10 +51,17 @@ export class RemoteExtensionsService implements IRemoteExtensionsService {
 		return <T>getDelayedChannel(this._channels.get(remoteAuthority).then(c => c.getChannel(channelName)));
 	}
 
-	private _getClient<T extends IChannel>(remoteAuthority: string): TPromise<Client> {
+	registerChannel<T extends IChannel>(remoteAuthority: string, channelName: string, channel: IChannel): void {
+		if (!this._channels.has(remoteAuthority)) {
+			this._channels.set(remoteAuthority, this._getClient(remoteAuthority));
+		}
+		this._channels.get(remoteAuthority).then(client => client.registerChannel(channelName, channel));
+	}
+
+	private _getClient(remoteAuthority: string): TPromise<Client> {
 		return RemoteAuthorityRegistry.resolveAuthority(remoteAuthority).then((resolvedAuthority) => {
 			// TODO@vs-remote: dispose this connection when all remote folders pointing to the same address have been removed.
-			return connectToRemoteExtensionHostManagement(resolvedAuthority.host, resolvedAuthority.port, `window:${this._windowId}`);
+			return connectToRemoteExtensionHostManagement(resolvedAuthority.host, resolvedAuthority.port, `renderer`);
 		});
 	}
 
@@ -79,5 +85,9 @@ class RemoteWorkspaceFolder extends Disposable implements IRemoteWorkspaceFolder
 
 	getChannel<T extends IChannel>(channelName: string): T {
 		return this._parent.getChannel(this.remoteAuthority, channelName);
+	}
+
+	registerChannel<T extends IChannel>(channelName: string, channel: T): void {
+		this._parent.registerChannel(this.remoteAuthority, channelName, channel);
 	}
 }

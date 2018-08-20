@@ -35,4 +35,5 @@ export interface IRemoteExtensionsService {
 export interface IRemoteWorkspaceFolderConnection {
 	readonly remoteAuthority: string;
 	getChannel<T extends IChannel>(channelName: string): T;
+	registerChannel<T extends IChannel>(channelName: string, channel: T);
 }
