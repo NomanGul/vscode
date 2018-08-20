@@ -62,7 +62,7 @@ steps:
 
     # Publish Remote Extension Host
     REHBUILDNAME="vscode-reh-$PLATFORM_LINUX"
-    REHTARBALL_FILENAME="vscode-reh-$BUILD_VERSION.tar.gz"
+    REHTARBALL_FILENAME="vscode-reh-$(VSCODE_ARCH).tar.gz"
     REHTARBALL_PATH="$ROOT/$REHTARBALL_FILENAME"
 
     rm -rf $ROOT/vscode-reh-*.tar.*
