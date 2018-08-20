@@ -30,6 +30,7 @@ import { TerminalInstance } from 'vs/workbench/parts/terminal/electron-browser/t
 import { IExtensionService } from 'vs/workbench/services/extensions/common/extensions';
 import URI from 'vs/base/common/uri';
 import { IQuickInputService, IQuickPickItem, IPickOptions } from 'vs/platform/quickinput/common/quickInput';
+import { IHistoryService } from 'vs/workbench/services/history/common/history';
 
 export class TerminalService extends AbstractTerminalService implements ITerminalService {
 	private _configHelper: TerminalConfigHelper;
@@ -51,7 +52,8 @@ export class TerminalService extends AbstractTerminalService implements ITermina
 		@IQuickInputService private readonly _quickInputService: IQuickInputService,
 		@INotificationService private readonly _notificationService: INotificationService,
 		@IDialogService private readonly _dialogService: IDialogService,
-		@IExtensionService private readonly _extensionService: IExtensionService
+		@IExtensionService private readonly _extensionService: IExtensionService,
+		@IHistoryService private readonly _historyService: IHistoryService
 	) {
 		super(contextKeyService, panelService, partService, lifecycleService, storageService);
 
@@ -132,6 +134,13 @@ export class TerminalService extends AbstractTerminalService implements ITermina
 	private _suggestShellChange(wasNewTerminalAction?: boolean): void {
 		// Only suggest on Windows since $SHELL works great for macOS/Linux
 		if (!platform.isWindows) {
+			return;
+		}
+
+		// Don't suggest if the opened workspace is remote
+		const activeWorkspaceRootUri = this._historyService.getLastActiveWorkspaceRoot();
+		const extensionHostOwned = activeWorkspaceRootUri.scheme === 'vscode-remote';
+		if (extensionHostOwned) {
 			return;
 		}
 
