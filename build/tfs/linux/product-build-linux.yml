@@ -62,16 +62,16 @@ steps:
 
     # Publish Remote Extension Host
     REHBUILDNAME="vscode-reh-$PLATFORM_LINUX"
-    REHTARBALL_FILENAME="vscode-reh-$(VSCODE_ARCH).tar.gz"
+    REHTARBALL_FILENAME="vscode-headless-$(VSCODE_ARCH).tar.gz"
     REHTARBALL_PATH="$ROOT/$REHTARBALL_FILENAME"
 
-    rm -rf $ROOT/vscode-reh-*.tar.*
+    rm -rf $ROOT/vscode-headless-*.tar.*
     (cd $ROOT && tar -czf $REHTARBALL_PATH $REHBUILDNAME)
 
     AZURE_DOCUMENTDB_MASTERKEY="$(AZURE_DOCUMENTDB_MASTERKEY)" \
     AZURE_STORAGE_ACCESS_KEY_2="$(AZURE_STORAGE_ACCESS_KEY_2)" \
     MOONCAKE_STORAGE_ACCESS_KEY="$(MOONCAKE_STORAGE_ACCESS_KEY)" \
-    node build/tfs/common/publish.js "$VSCODE_QUALITY" "reh-$PLATFORM_LINUX" archive-unsigned "$REHTARBALL_FILENAME" "$VERSION" true "$REHTARBALL_PATH"
+    node build/tfs/common/publish.js "$VSCODE_QUALITY" "headless-$PLATFORM_LINUX" archive-unsigned "$REHTARBALL_FILENAME" "$VERSION" true "$REHTARBALL_PATH"
 
     # Publish hockeyapp symbols
     node build/tfs/common/symbols.js "$(VSCODE_MIXIN_PASSWORD)" "$(VSCODE_HOCKEYAPP_TOKEN)" "$(VSCODE_ARCH)" "$(VSCODE_HOCKEYAPP_ID_LINUX64)"
