@@ -7,7 +7,6 @@ import { IExtensionDescription } from 'vs/workbench/services/extensions/common/e
 import { TPromise } from 'vs/base/common/winjs.base';
 import { createDecorator } from 'vs/platform/instantiation/common/instantiation';
 import { IChannel } from 'vs/base/parts/ipc/node/ipc';
-import { IWorkspaceFolder } from 'vs/platform/workspace/common/workspace';
 
 export const IRemoteExtensionsService = createDecorator<IRemoteExtensionsService>('remoteExtensionsService');
 
@@ -27,12 +26,10 @@ export interface IRemoteExtensionsEnvironment {
 export interface IRemoteExtensionsService {
 	_serviceBrand: any;
 
-	getRemoteWorkspaceFolderConnection(workspaceFolder: IWorkspaceFolder): IRemoteWorkspaceFolderConnection;
-	getRemoteWorkspaceFolderConnections(workspaceFolders: IWorkspaceFolder[]): IRemoteWorkspaceFolderConnection[];
-
+	getRemoteConnection(): IRemoteHostConnection;
 }
 
-export interface IRemoteWorkspaceFolderConnection {
+export interface IRemoteHostConnection {
 	readonly remoteAuthority: string;
 	getChannel<T extends IChannel>(channelName: string): T;
 	registerChannel<T extends IChannel>(channelName: string, channel: T);

@@ -40,10 +40,9 @@ import { ExtensionHostProfiler } from 'vs/workbench/services/extensions/electron
 import product from 'vs/platform/node/product';
 import * as strings from 'vs/base/common/strings';
 import { RPCProtocol } from 'vs/workbench/services/extensions/node/rpcProtocol';
-import { IWorkspaceContextService } from 'vs/platform/workspace/common/workspace';
 import { INotificationService, Severity } from 'vs/platform/notification/common/notification';
 import { isFalsyOrEmpty } from 'vs/base/common/arrays';
-import { IRemoteExtensionsService, IRemoteExtensionsEnvironmentData, IRemoteWorkspaceFolderConnection } from 'vs/workbench/services/extensions/node/remoteExtensionsService';
+import { IRemoteExtensionsService, IRemoteExtensionsEnvironmentData, IRemoteHostConnection } from 'vs/workbench/services/extensions/node/remoteExtensionsService';
 import { RemoteExtensionsEnvironmentChannelClient } from 'vs/workbench/services/extensions/node/remoteExtensionsIpc';
 import { IInitDataProvider, RemoteExtensionHostClient } from 'vs/workbench/services/extensions/electron-browser/remoteExtensionHostClient';
 import { Schemas } from 'vs/base/common/network';
@@ -278,7 +277,6 @@ export class ExtensionService extends Disposable implements IExtensionService {
 		@IStorageService private readonly _storageService: IStorageService,
 		@IWindowService private readonly _windowService: IWindowService,
 		@ILifecycleService lifecycleService: ILifecycleService,
-		@IWorkspaceContextService private readonly _workspaceContextService: IWorkspaceContextService,
 		@IExtensionManagementService private extensionManagementService: IExtensionManagementService,
 		@IRemoteExtensionsService private readonly _remoteExtensionsService: IRemoteExtensionsService
 	) {
@@ -375,7 +373,7 @@ export class ExtensionService extends Disposable implements IExtensionService {
 		}
 	}
 
-	private _createProvider(connection: IRemoteWorkspaceFolderConnection): IInitDataProvider {
+	private _createProvider(connection: IRemoteHostConnection): IInitDataProvider {
 		return {
 			remoteAuthority: connection.remoteAuthority,
 			getInitData: () => {
@@ -399,9 +397,8 @@ export class ExtensionService extends Disposable implements IExtensionService {
 		extHostProcessManager.onDidCrash(([code, signal]) => this._onExtensionHostCrashed(code, signal));
 		this._extensionHostProcessManagers.push(extHostProcessManager);
 
-		const remoteWorkspaceFolderConnections = this._remoteExtensionsService.getRemoteWorkspaceFolderConnections(this._workspaceContextService.getWorkspace().folders);
-		for (let i = 0; i < remoteWorkspaceFolderConnections.length; i++) {
-			const connection = remoteWorkspaceFolderConnections[i];
+		const connection = this._remoteExtensionsService.getRemoteConnection();
+		if (connection) {
 			const remoteExtHostProcessWorker = this._instantiationService.createInstance(RemoteExtensionHostClient, this._createProvider(connection));
 			const remoteExtHostProcessManager = this._instantiationService.createInstance(ExtensionHostProcessManager, remoteExtHostProcessWorker, connection.remoteAuthority, initialActivationEvents);
 			remoteExtHostProcessManager.onDidCrash(([code, signal]) => this._onExtensionHostCrashed(code, signal));
@@ -530,31 +527,21 @@ export class ExtensionService extends Disposable implements IExtensionService {
 	// --- impl
 
 	private _scanAndHandleExtensions(): void {
-		let remoteExtensionsPromiseArr: TPromise<IRemoteExtensionsEnvironmentData | null>[] = [];
-		const remoteWorkspaceFolderConnections = this._remoteExtensionsService.getRemoteWorkspaceFolderConnections(this._workspaceContextService.getWorkspace().folders);
-		for (let i = 0; i < remoteWorkspaceFolderConnections.length; i++) {
-			const connection = remoteWorkspaceFolderConnections[i];
+		let remoteExtensionsPromise: TPromise<IRemoteExtensionsEnvironmentData | null> = TPromise.as(null);
+		const connection = this._remoteExtensionsService.getRemoteConnection();
+		if (connection) {
 			const client = new RemoteExtensionsEnvironmentChannelClient(connection.getChannel('remoteextensionsenvironment'));
 			// Let's cover the case where connecting to fetch the remote extension info fails
-			const remoteExtensionsResult = client.getRemoteExtensionInformation(connection.remoteAuthority).then(undefined, (err) => {
+			remoteExtensionsPromise = client.getRemoteExtensionInformation(connection.remoteAuthority).then(undefined, (err) => {
 				this._notificationService.error(nls.localize('connectionError', "Failed to connect to the remote extension host agent (Error: {0})", err ? err.message : ''));
 				return null;
 			});
-			remoteExtensionsPromiseArr.push(remoteExtensionsResult);
 		}
-		let remoteExtensionsPromise = TPromise.join(remoteExtensionsPromiseArr);
 
-		TPromise.join([remoteExtensionsPromise, this._scanExtensions()]).then(([remoteExtensionsInfos, localExtensions]) => {
+		TPromise.join([remoteExtensionsPromise, this._scanExtensions()]).then(([remoteExtensionInfo, localExtensions]) => {
 			let seenExtension: { [extensionId: string]: boolean; } = Object.create(null);
 			let allExtensions: IExtensionDescription[] = [];
-
-			for (let i = 0, len = remoteExtensionsInfos.length; i < len; i++) {
-				const remoteExtensionInfo = remoteExtensionsInfos[i];
-				if (!remoteExtensionInfo) {
-					// Fetching these remote extensions failed
-					continue;
-				}
-
+			if (remoteExtensionInfo) {
 				let actualExtensions: IExtensionDescription[] = [];
 				for (let j = 0, lenJ = remoteExtensionInfo.extensions.length; j < lenJ; j++) {
 					const extension = remoteExtensionInfo.extensions[j];
@@ -569,7 +556,7 @@ export class ExtensionService extends Disposable implements IExtensionService {
 					seenExtension[extension.id] = true;
 				}
 
-				this._remoteExtensionsEnvironmentData.set(remoteWorkspaceFolderConnections[i].remoteAuthority, {
+				this._remoteExtensionsEnvironmentData.set(connection.remoteAuthority, {
 					agentPid: remoteExtensionInfo.agentPid,
 					agentAppRoot: remoteExtensionInfo.agentAppRoot,
 					agentAppSettingsHome: remoteExtensionInfo.agentAppSettingsHome,

@@ -5,7 +5,6 @@
 
 import { IRemoteExtensionsService } from 'vs/workbench/services/extensions/node/remoteExtensionsService';
 import { ExtensionManagementChannelClient, IExtensionManagementChannel } from 'vs/platform/extensionManagement/node/extensionManagementIpc';
-import { IWorkspaceContextService } from 'vs/platform/workspace/common/workspace';
 import { IExtensionManagementService, IExtensionManagementServerService, IExtensionManagementServer } from 'vs/platform/extensionManagement/common/extensionManagement';
 import URI, { UriComponents } from 'vs/base/common/uri';
 import { Disposable } from 'vs/base/common/lifecycle';
@@ -48,12 +47,10 @@ export class ExtensionManagementServerService extends Disposable implements IExt
 
 	constructor(
 		localExtensionManagementService: IExtensionManagementService,
-		@IWorkspaceContextService private workspaceService: IWorkspaceContextService,
 		@IRemoteExtensionsService private remoteExtensionsService: IRemoteExtensionsService
 	) {
 		super();
 		this._localExtensionManagemetServer = { extensionManagementService: localExtensionManagementService, authority: localExtensionManagementServerAuthority, label: 'local' };
-		this._register(this.workspaceService.onDidChangeWorkspaceFolders(() => this.updateServers()));
 		this.updateServers();
 	}
 
@@ -70,7 +67,8 @@ export class ExtensionManagementServerService extends Disposable implements IExt
 
 	private updateServers(): void {
 		this._extensionManagementServers = [this._localExtensionManagemetServer];
-		for (const remoteWorkspaceFolderConnection of this.remoteExtensionsService.getRemoteWorkspaceFolderConnections(this.workspaceService.getWorkspace().folders)) {
+		const remoteWorkspaceFolderConnection = this.remoteExtensionsService.getRemoteConnection();
+		if (remoteWorkspaceFolderConnection) {
 			const extensionManagementService = new ExtensionManagementChannelClient(remoteWorkspaceFolderConnection.getChannel<IExtensionManagementChannel>('extensions'), createRemoteUriTransformer(remoteWorkspaceFolderConnection.remoteAuthority));
 			this._extensionManagementServers.push({ authority: remoteWorkspaceFolderConnection.remoteAuthority, extensionManagementService, label: remoteWorkspaceFolderConnection.remoteAuthority });
 		}

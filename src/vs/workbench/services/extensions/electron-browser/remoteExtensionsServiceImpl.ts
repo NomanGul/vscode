@@ -4,44 +4,46 @@
  *--------------------------------------------------------------------------------------------*/
 
 import { TPromise } from 'vs/base/common/winjs.base';
-import { IRemoteExtensionsService, IRemoteWorkspaceFolderConnection } from 'vs/workbench/services/extensions/node/remoteExtensionsService';
-import { IWorkspaceFolder } from 'vs/platform/workspace/common/workspace';
+import { IRemoteExtensionsService, IRemoteHostConnection } from 'vs/workbench/services/extensions/node/remoteExtensionsService';
+import { IWorkspaceContextService } from 'vs/platform/workspace/common/workspace';
 import { Client } from 'vs/base/parts/ipc/node/ipc.net';
 import { getDelayedChannel, IChannel } from 'vs/base/parts/ipc/node/ipc';
 import { Disposable } from 'vs/base/common/lifecycle';
 import { connectToRemoteExtensionHostManagement } from 'vs/platform/remote/node/remoteFileSystemIpc';
 import { RemoteAuthorityRegistry } from 'vs/workbench/services/extensions/electron-browser/remoteAuthorityRegistry';
+import { IStorageService } from 'vs/platform/storage/common/storage';
+import { IWindowConfiguration } from 'vs/platform/windows/common/windows';
+
+const AUTHORITY_STORAGE_KEY = 'remoteHostAuthority';
 
 export class RemoteExtensionsService implements IRemoteExtensionsService {
 
 	_serviceBrand: any;
 
 	private readonly _channels: Map<string, TPromise<Client>>;
+	private readonly _authority: string;
 
 	constructor(
+		window: IWindowConfiguration,
+		@IWorkspaceContextService contextService: IWorkspaceContextService,
+		@IStorageService storageService: IStorageService
 	) {
 		this._channels = new Map<string, TPromise<Client>>();
-	}
 
-	getRemoteWorkspaceFolderConnection(workspaceFolder: IWorkspaceFolder): IRemoteWorkspaceFolderConnection {
-		const authority = this._getAuthority(workspaceFolder);
-		return (authority ? new RemoteWorkspaceFolder(authority, this) : null);
-	}
-
-	getRemoteWorkspaceFolderConnections(workspaceFolders: IWorkspaceFolder[]): IRemoteWorkspaceFolderConnection[] {
-		let resultMap = new Map<string, IRemoteWorkspaceFolderConnection>();
-		for (let i = 0; i < workspaceFolders.length; i++) {
-			const workspaceFolder = workspaceFolders[i];
-			const workspaceFolderConnection = this.getRemoteWorkspaceFolderConnection(workspaceFolder);
-			if (!workspaceFolderConnection) {
-				continue;
-			}
-			resultMap.set(workspaceFolderConnection.remoteAuthority, workspaceFolderConnection);
+		let authority = storageService.get(AUTHORITY_STORAGE_KEY);
+		if (typeof authority !== 'string') {
+			authority = this._getAuthority(window, contextService) || '';
+			storageService.store(AUTHORITY_STORAGE_KEY, authority);
 		}
 
-		let result: IRemoteWorkspaceFolderConnection[] = [];
-		resultMap.forEach((el) => result.push(el));
-		return result;
+		this._authority = authority;
+	}
+
+	getRemoteConnection(): IRemoteHostConnection {
+		if (this._authority) {
+			return new RemoteHostConnection(this._authority, this);
+		}
+		return null;
 	}
 
 	getChannel<T extends IChannel>(remoteAuthority: string, channelName: string): T {
@@ -65,15 +67,23 @@ export class RemoteExtensionsService implements IRemoteExtensionsService {
 		});
 	}
 
-	private _getAuthority(folder: IWorkspaceFolder): string {
-		if (folder.uri.scheme === 'vscode-remote') {
-			return folder.uri.authority;
+	private _getAuthority(window: IWindowConfiguration, contextService: IWorkspaceContextService) {
+		const folders = contextService.getWorkspace().folders;
+		if (folders.length) {
+			const folderUri = folders[0].uri;
+			return folderUri.scheme === 'vscode-remote' ? folderUri.authority : null;
+		}
+		for (const files of [window.filesToOpen, window.filesToCreate, window.filesToDiff]) {
+			if (Array.isArray(files) && files.length) {
+				const fileUri = files[0].fileUri;
+				return fileUri.scheme === 'vscode-remote' ? fileUri.authority : null;
+			}
 		}
 		return null;
 	}
 }
 
-class RemoteWorkspaceFolder extends Disposable implements IRemoteWorkspaceFolderConnection {
+class RemoteHostConnection extends Disposable implements IRemoteHostConnection {
 	readonly remoteAuthority: string;
 	private readonly _parent: RemoteExtensionsService;
 

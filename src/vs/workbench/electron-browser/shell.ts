@@ -91,7 +91,6 @@ import { DialogService } from 'vs/workbench/services/dialogs/electron-browser/di
 import { DialogChannel } from 'vs/platform/dialogs/node/dialogIpc';
 import { EventType, addDisposableListener, addClass } from 'vs/base/browser/dom';
 import { RemoteExtensionsService } from 'vs/workbench/services/extensions/electron-browser/remoteExtensionsServiceImpl';
-import { IRemoteExtensionsService } from 'vs/workbench/services/extensions/node/remoteExtensionsService';
 import { IOpenerService } from 'vs/platform/opener/common/opener';
 import { OpenerService } from 'vs/editor/browser/services/openerService';
 import { SearchHistoryService } from 'vs/workbench/services/search/node/searchHistoryService';
@@ -100,6 +99,7 @@ import { ExtensionManagementServerService } from 'vs/workbench/services/extensio
 import { DownloadServiceChannel } from 'vs/platform/download/node/downloadIpc';
 import { DefaultURITransformer } from 'vs/base/common/uriIpc';
 import { ExtensionGalleryService } from 'vs/platform/extensionManagement/node/extensionGalleryService';
+import { IRemoteExtensionsService } from 'vs/workbench/services/extensions/node/remoteExtensionsService';
 
 /**
  * Services that we require for the Shell
@@ -386,13 +386,14 @@ export class WorkbenchShell extends Disposable {
 		serviceCollection.set(IRequestService, new SyncDescriptor(RequestService));
 		serviceCollection.set(IExtensionGalleryService, new SyncDescriptor(ExtensionGalleryService));
 
-		const remoteExtensionsService = new RemoteExtensionsService();
+		const remoteExtensionsService = new RemoteExtensionsService(this.configuration, this.contextService, this.storageService);
 		serviceCollection.set(IRemoteExtensionsService, remoteExtensionsService);
-		const remoteWorkspaceFolderConnections = remoteExtensionsService.getRemoteWorkspaceFolderConnections(this.contextService.getWorkspace().folders);
-		remoteWorkspaceFolderConnections.forEach(remoteWorkspaceFolderConnection => {
+
+		const remoteWorkspaceFolderConnection = remoteExtensionsService.getRemoteConnection();
+		if (remoteWorkspaceFolderConnection) {
 			remoteWorkspaceFolderConnection.registerChannel('dialog', instantiationService.createInstance(DialogChannel));
 			remoteWorkspaceFolderConnection.registerChannel('download', new DownloadServiceChannel());
-		});
+		}
 
 		const extensionManagementChannel = getDelayedChannel<IExtensionManagementChannel>(sharedProcess.then(c => c.getChannel('extensions')));
 		const extensionManagementChannelClient = new ExtensionManagementChannelClient(extensionManagementChannel, DefaultURITransformer);

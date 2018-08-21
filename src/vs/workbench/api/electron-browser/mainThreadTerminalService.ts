@@ -9,14 +9,12 @@ import { ITerminalService, ITerminalInstance, IShellLaunchConfig, ITerminalProce
 import { TPromise } from 'vs/base/common/winjs.base';
 import { ExtHostContext, ExtHostTerminalServiceShape, MainThreadTerminalServiceShape, MainContext, IExtHostContext, ShellLaunchConfigDto } from 'vs/workbench/api/node/extHost.protocol';
 import { extHostNamedCustomer } from 'vs/workbench/api/electron-browser/extHostCustomers';
-import { IRemoteExtensionsService } from 'vs/workbench/services/extensions/node/remoteExtensionsService';
-import { IWorkspaceContextService, IWorkspaceFolder } from 'vs/platform/workspace/common/workspace';
+import { IWorkspaceContextService } from 'vs/platform/workspace/common/workspace';
 
 @extHostNamedCustomer(MainContext.MainThreadTerminalService)
 export class MainThreadTerminalService implements MainThreadTerminalServiceShape {
 
 	private _proxy: ExtHostTerminalServiceShape;
-	private _remoteAuthority: string;
 	private _toDispose: IDisposable[] = [];
 	private _terminalProcesses: { [id: number]: ITerminalProcessExtHostProxy } = {};
 	private _terminalOnDidWriteDataListeners: { [id: number]: IDisposable } = {};
@@ -25,10 +23,8 @@ export class MainThreadTerminalService implements MainThreadTerminalServiceShape
 	constructor(
 		extHostContext: IExtHostContext,
 		@ITerminalService private terminalService: ITerminalService,
-		@IRemoteExtensionsService private remoteExtensionsService: IRemoteExtensionsService,
 		@IWorkspaceContextService private readonly _contextService: IWorkspaceContextService
 	) {
-		this._remoteAuthority = extHostContext.remoteAuthority;
 		this._proxy = extHostContext.getProxy(ExtHostContext.ExtHostTerminalService);
 		this._toDispose.push(terminalService.onInstanceCreated((instance) => {
 			// Delay this message so the TerminalInstance constructor has a chance to finish and
@@ -193,23 +189,10 @@ export class MainThreadTerminalService implements MainThreadTerminalServiceShape
 		}
 	}
 
-	private _ownsWorkspace(workspaceFolder: IWorkspaceFolder): boolean {
-		const connection = this.remoteExtensionsService.getRemoteWorkspaceFolderConnection(workspaceFolder);
-		if (this._remoteAuthority === null && connection === null) {
-			// Both the extension host and workspace is local
-			return true;
-		} else if (connection && this._remoteAuthority && connection.remoteAuthority === this._remoteAuthority) {
-			// Both the extension host and workspace are remote
-			return true;
-		}
-		// The extension host does not own the workspace
-		return false;
-	}
-
 	private _onTerminalRequestExtHostProcess(request: ITerminalProcessExtHostRequest): void {
 		// Determine whether this is the correct MainThreadTerminalService to use.
 		const activeWorkspaceFolder = this._contextService.getWorkspaceFolder(request.activeWorkspaceRootUri);
-		if (!this._ownsWorkspace(activeWorkspaceFolder)) {
+		if (!activeWorkspaceFolder) {
 			return;
 		}
 
