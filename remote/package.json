@@ -2,6 +2,7 @@
   "name": "vscode-reh",
   "version": "0.0.0",
   "dependencies": {
+    "glob": "^5.0.13",
     "graceful-fs": "4.1.11",
     "http-proxy-agent": "^2.1.0",
     "https-proxy-agent": "^2.2.1",
@@ -14,6 +15,7 @@
     "semver": "^5.5.0",
     "spdlog": "0.7.1",
     "vscode-chokidar": "1.6.2",
-    "yauzl": "^2.9.1"
+    "yauzl": "^2.9.1",
+    "yazl": "^2.4.3"
   }
 }
