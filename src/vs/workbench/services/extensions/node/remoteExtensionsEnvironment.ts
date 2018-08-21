@@ -8,7 +8,7 @@ import { TPromise } from 'vs/base/common/winjs.base';
 import pkg from 'vs/platform/node/package';
 import * as path from 'path';
 import { IExtensionDescription } from 'vs/workbench/services/extensions/common/extensions';
-import { IRemoteExtensionsEnvironmentData, IRemoteExtensionsEnvironment } from 'vs/workbench/services/extensions/common/remoteExtensionsService';
+import { IRemoteExtensionsEnvironmentData, IRemoteExtensionsEnvironment } from 'vs/workbench/services/extensions/node/remoteExtensionsService';
 import { ExtensionScanner, ILog, ExtensionScannerInput } from 'vs/workbench/services/extensions/node/extensionPoints';
 import { IEnvironmentService } from 'vs/platform/environment/common/environment';
 import { createRemoteURITransformer } from 'vs/workbench/node/remoteUriTransformer';

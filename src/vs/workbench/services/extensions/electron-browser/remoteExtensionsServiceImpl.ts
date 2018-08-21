@@ -4,10 +4,10 @@
  *--------------------------------------------------------------------------------------------*/
 
 import { TPromise } from 'vs/base/common/winjs.base';
-import { IRemoteExtensionsService, IRemoteWorkspaceFolderConnection } from 'vs/workbench/services/extensions/common/remoteExtensionsService';
+import { IRemoteExtensionsService, IRemoteWorkspaceFolderConnection } from 'vs/workbench/services/extensions/node/remoteExtensionsService';
 import { IWorkspaceFolder } from 'vs/platform/workspace/common/workspace';
 import { Client } from 'vs/base/parts/ipc/node/ipc.net';
-import { getDelayedChannel, IChannel } from 'vs/base/parts/ipc/common/ipc';
+import { getDelayedChannel, IChannel } from 'vs/base/parts/ipc/node/ipc';
 import { Disposable } from 'vs/base/common/lifecycle';
 import { connectToRemoteExtensionHostManagement } from 'vs/platform/remote/node/remoteFileSystemIpc';
 import { RemoteAuthorityRegistry } from 'vs/workbench/services/extensions/electron-browser/remoteAuthorityRegistry';

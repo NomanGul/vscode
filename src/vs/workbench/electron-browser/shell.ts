@@ -91,7 +91,7 @@ import { DialogService } from 'vs/workbench/services/dialogs/electron-browser/di
 import { DialogChannel } from 'vs/platform/dialogs/node/dialogIpc';
 import { EventType, addDisposableListener, addClass } from 'vs/base/browser/dom';
 import { RemoteExtensionsService } from 'vs/workbench/services/extensions/electron-browser/remoteExtensionsServiceImpl';
-import { IRemoteExtensionsService } from 'vs/workbench/services/extensions/common/remoteExtensionsService';
+import { IRemoteExtensionsService } from 'vs/workbench/services/extensions/node/remoteExtensionsService';
 import { IOpenerService } from 'vs/platform/opener/common/opener';
 import { OpenerService } from 'vs/editor/browser/services/openerService';
 import { SearchHistoryService } from 'vs/workbench/services/search/node/searchHistoryService';

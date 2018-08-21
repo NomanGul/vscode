@@ -91,8 +91,8 @@ class ExtensionHostAgentServer {
 	private handleConnection(socket: net.Socket): void {
 		const protocol = new Protocol(socket);
 
-		const messageRegistration = protocol.onMessage(((msg: HandshakeMessage) => {
-
+		const messageRegistration = protocol.onMessage((raw => {
+			const msg = <HandshakeMessage>JSON.parse(raw.toString());
 			const SOME_TEXT = 'remote extension host is cool';
 
 			if (msg.type === 'auth') {
@@ -119,7 +119,7 @@ class ExtensionHostAgentServer {
 					type: 'sign',
 					data: someText
 				};
-				protocol.send(signRequest);
+				protocol.send(Buffer.from(JSON.stringify(signRequest)));
 
 			} else if (msg.type === 'connectionType') {
 

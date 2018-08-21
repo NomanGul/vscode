@@ -17,16 +17,16 @@ import { ITelemetryService } from 'vs/platform/telemetry/common/telemetry';
 import { IExtensionGalleryService, IExtensionManagementService } from 'vs/platform/extensionManagement/common/extensionManagement';
 import { ExtensionGalleryService } from 'vs/platform/extensionManagement/node/extensionGalleryService';
 import { IDialogService } from 'vs/platform/dialogs/common/dialogs';
-import { DialogChannelClient } from 'vs/platform/dialogs/common/dialogIpc';
+import { DialogChannelClient } from 'vs/platform/dialogs/node/dialogIpc';
 import { ExtensionManagementService } from 'vs/platform/extensionManagement/node/extensionManagementService';
 import { InstantiationService } from 'vs/platform/instantiation/common/instantiationService';
-import { ExtensionManagementChannel } from 'vs/platform/extensionManagement/common/extensionManagementIpc';
+import { ExtensionManagementChannel } from 'vs/platform/extensionManagement/node/extensionManagementIpc';
 import { RemoteExtensionsEnvironment } from 'vs/workbench/services/extensions/node/remoteExtensionsEnvironment';
 import { RemoteExtensionsEnvironmentChannel } from 'vs/workbench/services/extensions/node/remoteExtensionsIpc';
 import { REMOTE_EXTENSIONS_FILE_SYSTEM_CHANNEL_NAME, RemoteExtensionsFileSystemImpl, RemoteExtensionsFileSystemChannel } from 'vs/platform/remote/node/remoteFileSystemIpc';
 import { TPromise } from 'vs/base/common/winjs.base';
 import { Emitter } from 'vs/base/common/event';
-import { IPCServer, ClientConnectionEvent } from 'vs/base/parts/ipc/common/ipc';
+import { IPCServer, ClientConnectionEvent } from 'vs/base/parts/ipc/node/ipc';
 
 export interface IExtensionsManagementProcessInitData {
 	args: ParsedArgs;

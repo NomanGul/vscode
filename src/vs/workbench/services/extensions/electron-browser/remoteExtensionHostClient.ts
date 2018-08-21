@@ -10,7 +10,7 @@ import { IWindowService } from 'vs/platform/windows/common/windows';
 import { IWorkspaceContextService, WorkbenchState } from 'vs/platform/workspace/common/workspace';
 import { ITelemetryService } from 'vs/platform/telemetry/common/telemetry';
 import { IEnvironmentService } from 'vs/platform/environment/common/environment';
-import { IMessagePassingProtocol } from 'vs/base/parts/ipc/common/ipc';
+import { IMessagePassingProtocol } from 'vs/base/parts/ipc/node/ipc';
 import { connectToRemoteExtensionHostServer } from 'vs/platform/remote/node/remoteFileSystemIpc';
 import * as net from 'net';
 import { Event, Emitter } from 'vs/base/common/event';
@@ -18,9 +18,10 @@ import { IInitData, IWorkspaceData, IConfigurationInitData } from 'vs/workbench/
 import { IWorkspaceConfigurationService } from 'vs/workbench/services/configuration/common/configuration';
 import { getScopes } from 'vs/platform/configuration/common/configurationRegistry';
 import { ILogService } from 'vs/platform/log/common/log';
-import { IRemoteExtensionsEnvironmentData } from 'vs/workbench/services/extensions/common/remoteExtensionsService';
+import { IRemoteExtensionsEnvironmentData } from 'vs/workbench/services/extensions/node/remoteExtensionsService';
 import { IExtensionHostStarter } from 'vs/workbench/services/extensions/electron-browser/extensionHost';
 import { RemoteAuthorityRegistry } from 'vs/workbench/services/extensions/electron-browser/remoteAuthorityRegistry';
+import { MessageType, isMessageOfType, createMessageOfType } from 'vs/workbench/common/extensionHostProtocol';
 
 export interface IInitDataProvider {
 	readonly remoteAuthority: string;
@@ -64,13 +65,13 @@ export class RemoteExtensionHostClient implements IExtensionHostStarter {
 
 					const disposable = protocol.onMessage(msg => {
 
-						if (msg === 'ready') {
+						if (isMessageOfType(msg, MessageType.Ready)) {
 							// 1) Extension Host is ready to receive messages, initialize it
-							this._createExtHostInitData().then(data => protocol.send(JSON.stringify(data)));
+							this._createExtHostInitData().then(data => protocol.send(Buffer.from(JSON.stringify(data))));
 							return;
 						}
 
-						if (msg === 'initialized') {
+						if (isMessageOfType(msg, MessageType.Initialized)) {
 							// 2) Extension Host is initialized
 
 							clearTimeout(handle);
@@ -128,9 +129,7 @@ export class RemoteExtensionHostClient implements IExtensionHostStarter {
 
 		// Send the extension host a request to terminate itself
 		// (graceful termination)
-		this._protocol.send({
-			type: '__$terminate'
-		});
+		this._protocol.send(createMessageOfType(MessageType.Terminate));
 
 		// Give the extension host 60s, after which we will
 		// try to kill the process and release any resources

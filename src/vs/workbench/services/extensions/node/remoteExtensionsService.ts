@@ -6,7 +6,7 @@
 import { IExtensionDescription } from 'vs/workbench/services/extensions/common/extensions';
 import { TPromise } from 'vs/base/common/winjs.base';
 import { createDecorator } from 'vs/platform/instantiation/common/instantiation';
-import { IChannel } from 'vs/base/parts/ipc/common/ipc';
+import { IChannel } from 'vs/base/parts/ipc/node/ipc';
 import { IWorkspaceFolder } from 'vs/platform/workspace/common/workspace';
 
 export const IRemoteExtensionsService = createDecorator<IRemoteExtensionsService>('remoteExtensionsService');

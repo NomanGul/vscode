@@ -3,8 +3,8 @@
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
 
-import { IRemoteExtensionsService } from 'vs/workbench/services/extensions/common/remoteExtensionsService';
-import { ExtensionManagementChannelClient, IExtensionManagementChannel } from 'vs/platform/extensionManagement/common/extensionManagementIpc';
+import { IRemoteExtensionsService } from 'vs/workbench/services/extensions/node/remoteExtensionsService';
+import { ExtensionManagementChannelClient, IExtensionManagementChannel } from 'vs/platform/extensionManagement/node/extensionManagementIpc';
 import { IWorkspaceContextService } from 'vs/platform/workspace/common/workspace';
 import { IExtensionManagementService, IExtensionManagementServerService, IExtensionManagementServer } from 'vs/platform/extensionManagement/common/extensionManagement';
 import URI, { UriComponents } from 'vs/base/common/uri';

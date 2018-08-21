@@ -6,7 +6,7 @@
 'use strict';
 
 import { TPromise } from 'vs/base/common/winjs.base';
-import { IChannel, IMessagePassingProtocol } from 'vs/base/parts/ipc/common/ipc';
+import { IChannel, IMessagePassingProtocol } from 'vs/base/parts/ipc/node/ipc';
 import URI from 'vs/base/common/uri';
 import * as pfs from 'vs/base/node/pfs';
 import * as net from 'net';
@@ -106,8 +106,8 @@ function connectToRemoteExtensionHostAgent(host: string, port: number, connectio
 
 		return new TPromise<Protocol>((c, e) => {
 
-			const messageRegistration = protocol.onMessage((msg: HandshakeMessage) => {
-
+			const messageRegistration = protocol.onMessage(raw => {
+				const msg = <HandshakeMessage>JSON.parse(raw.toString());
 				// Stop listening for further events
 				messageRegistration.dispose();
 
@@ -131,7 +131,7 @@ function connectToRemoteExtensionHostAgent(host: string, port: number, connectio
 						signedData: signed,
 						desiredConnectionType: connectionType
 					};
-					protocol.send(connTypeRequest);
+					protocol.send(Buffer.from(JSON.stringify(connTypeRequest)));
 
 					c(protocol);
 				} else {
@@ -148,7 +148,7 @@ function connectToRemoteExtensionHostAgent(host: string, port: number, connectio
 				type: 'auth',
 				auth: '00000000000000000000'
 			};
-			protocol.send(authRequest);
+			protocol.send(Buffer.from(JSON.stringify(authRequest)));
 		});
 	});
 }

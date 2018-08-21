@@ -6,8 +6,8 @@
 'use strict';
 
 import { TPromise } from 'vs/base/common/winjs.base';
-import { IChannel } from 'vs/base/parts/ipc/common/ipc';
-import { IRemoteExtensionsEnvironmentData, IRemoteExtensionsEnvironment } from 'vs/workbench/services/extensions/common/remoteExtensionsService';
+import { IChannel } from 'vs/base/parts/ipc/node/ipc';
+import { IRemoteExtensionsEnvironmentData, IRemoteExtensionsEnvironment } from 'vs/workbench/services/extensions/node/remoteExtensionsService';
 import { Event } from 'vs/base/common/event';
 
 export interface IRemoteExtensionsEnvironmentChannel extends IChannel {
