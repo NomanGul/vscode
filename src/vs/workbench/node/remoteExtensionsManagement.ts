@@ -27,6 +27,10 @@ import { REMOTE_EXTENSIONS_FILE_SYSTEM_CHANNEL_NAME, RemoteExtensionsFileSystemI
 import { TPromise } from 'vs/base/common/winjs.base';
 import { Emitter } from 'vs/base/common/event';
 import { IPCServer, ClientConnectionEvent } from 'vs/base/parts/ipc/node/ipc';
+import { IDownloadService } from 'vs/platform/download/common/download';
+import { DownloadServiceChannelClient } from 'vs/platform/download/node/downloadIpc';
+import { IURITransformer } from 'vs/base/common/uriIpc';
+import URI, { UriComponents } from 'vs/base/common/uri';
 
 export interface IExtensionsManagementProcessInitData {
 	args: ParsedArgs;
@@ -48,6 +52,21 @@ class SocketServer extends IPCServer {
 			onDidClientDisconnect: protocol.onClose
 		});
 	}
+}
+
+function createRemoteUriTransformer(): IURITransformer {
+	return <IURITransformer>{
+		transformIncoming: (uriComponents: UriComponents): UriComponents => {
+			return uriComponents;
+		},
+		transformOutgoing: (uri: URI): URI => {
+			if (uri.scheme === 'vscode-local') {
+				const r = URI.file(uri.path);
+				return r;
+			}
+			return uri;
+		}
+	};
 }
 
 export class RemoteExtensionManagementServer {
@@ -79,6 +98,9 @@ export class RemoteExtensionManagementServer {
 
 		const dialogChannel = server.getChannel('dialog', { routeCall: route, routeEvent: route });
 		services.set(IDialogService, new DialogChannelClient(dialogChannel));
+
+		const downloadChannel = server.getChannel('download', { routeCall: route, routeEvent: route });
+		services.set(IDownloadService, new DownloadServiceChannelClient(downloadChannel, createRemoteUriTransformer()));
 
 		services.set(IExtensionManagementService, new SyncDescriptor(ExtensionManagementService));
 

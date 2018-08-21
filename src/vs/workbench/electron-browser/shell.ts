@@ -387,6 +387,7 @@ export class WorkbenchShell extends Disposable {
 		const remoteWorkspaceFolderConnections = remoteExtensionsService.getRemoteWorkspaceFolderConnections(this.contextService.getWorkspace().folders);
 		remoteWorkspaceFolderConnections.forEach(remoteWorkspaceFolderConnection => {
 			remoteWorkspaceFolderConnection.registerChannel('dialog', instantiationService.createInstance(DialogChannel));
+			remoteWorkspaceFolderConnection.registerChannel('download', new DownloadServiceChannel());
 		});
 
 		const extensionManagementChannel = getDelayedChannel<IExtensionManagementChannel>(sharedProcess.then(c => c.getChannel('extensions')));
