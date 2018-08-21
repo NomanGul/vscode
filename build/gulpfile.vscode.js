@@ -78,6 +78,7 @@ const vscodeResources = [
 	'out-build/vs/code/electron-browser/processExplorer/processExplorer.js',
 	'out-build/vs/code/electron-main/wslAgent.sh',
 	'out-build/vs/code/electron-main/wslAgent2.sh',
+	'out-build/vs/code/electron-main/wslDownload.sh',
 	'out-build/vs/code/electron-main/wslAgent-dev.sh',
 	'remote/package.json',
 	'!**/test/**'
@@ -325,6 +326,7 @@ function packageTask(platform, arch, opts) {
 			result = es.merge(result, gulp.src('resources/win32/bin/code.sh', { base: 'resources/win32' })
 				.pipe(replace('@@NAME@@', product.nameShort))
 				.pipe(replace('@@VERSION@@', `${version}-${commit.substr(0, 7)}`))
+				.pipe(replace('@@COMMIT@@', `${commit}`))
 				.pipe(rename(function (f) { f.basename = product.applicationName; f.extname = ''; })));
 
 			result = es.merge(result, gulp.src('resources/win32/VisualElementsManifest.xml', { base: 'resources/win32' })
