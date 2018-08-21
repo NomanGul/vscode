@@ -202,7 +202,6 @@ interface IPackageExtensionsOptions {
 	 * Set to undefined to package all of them.
 	 */
 	desiredExtensions?: string[];
-
 	sourceMappingURLBase?: string;
 }
 
@@ -212,6 +211,7 @@ const excludedExtensions = [
 	'ms-vscode.node-debug',
 	'ms-vscode.node-debug2',
 ];
+
 const builtInExtensions: { name: string, version: string, repo: string; }[] = require('../builtInExtensions.json');
 
 export function packageExtensionsStream(opts?: IPackageExtensionsOptions): NodeJS.ReadWriteStream {
