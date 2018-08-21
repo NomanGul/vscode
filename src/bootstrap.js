@@ -7,20 +7,15 @@
 (function () {
 	const path = require('path');
 	const Module = require('module');
-	const fs = require('fs');
-	const os = require('os');
 	const NODE_MODULES_PATH = path.join(__dirname, '../node_modules');
 	let ALTERNATIVE_NODE_MODULES_PATH = path.join(__dirname, '../remote/node_modules');
-	if (fs.existsSync(path.join(__dirname, '../node_modules.asar'))) {
-		ALTERNATIVE_NODE_MODULES_PATH = path.join(os.homedir(), '.vscode-remote', 'node_modules');
-	}
 	const isElectron = process.env['ELECTRON_RUN_AS_NODE'] || process.versions.electron;
 	const NODE_MODULES_ASAR_PATH = NODE_MODULES_PATH + '.asar';
 	const exception = !isElectron ? {
 		'node-pty': true,
-		'graceful-fs': true,
-		'vscode-chokidar': true,
-		'iconv-lite': true
+		'native-watchdog': true,
+		'spdlog': true,
+		'keytar': true
 	} : {};
 
 	const originalResolveLookupPaths = Module._resolveLookupPaths;

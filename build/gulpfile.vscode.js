@@ -58,7 +58,6 @@ const vscodeResources = [
 	'out-build/bootstrap.js',
 	'out-build/bootstrap-amd.js',
 	'out-build/paths.js',
-	'out-build/remoteExtensionHostAgent.js',
 	'out-build/vs/**/*.{svg,png,cur,html}',
 	'out-build/vs/base/common/performance.js',
 	'out-build/vs/base/node/{stdForkStart.js,terminateProcess.sh,cpuUsage.sh}',
@@ -76,10 +75,8 @@ const vscodeResources = [
 	'out-build/vs/code/electron-browser/sharedProcess/sharedProcess.js',
 	'out-build/vs/code/electron-browser/issue/issueReporter.js',
 	'out-build/vs/code/electron-browser/processExplorer/processExplorer.js',
-	'out-build/vs/code/electron-main/wslAgent.sh',
 	'out-build/vs/code/electron-main/wslAgent2.sh',
 	'out-build/vs/code/electron-main/wslDownload.sh',
-	'out-build/vs/code/electron-main/wslAgent-dev.sh',
 	'remote/package.json',
 	'!**/test/**'
 ];
@@ -246,8 +243,6 @@ function packageTask(platform, arch, opts) {
 		const packageJsonStream = gulp.src(['package.json'], { base: '.' })
 			.pipe(json({ name, version }));
 
-		const remotePackageJsonStream = gulp.src(['remote/package.json'], { base: '.' });
-
 		const date = new Date().toISOString();
 		const productJsonUpdate = { commit, date, checksums };
 
@@ -292,7 +287,6 @@ function packageTask(platform, arch, opts) {
 
 		let all = es.merge(
 			packageJsonStream,
-			remotePackageJsonStream,
 			productJsonStream,
 			license,
 			watermark,
