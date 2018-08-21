@@ -18,7 +18,6 @@ const _ = require('underscore');
 const deps = require('./dependencies');
 const ext = require('./lib/extensions');
 const vfs = require('vinyl-fs');
-const download = require('gulp-download');
 const packageJson = require('../package.json');
 const remote = require('gulp-remote-src');
 const flatmap = require('gulp-flatmap');
@@ -90,8 +89,17 @@ function nodejs(arch) {
 		} else {
 			url = `https://nodejs.org/dist/v${VERSION}/win-x86/node.exe`;
 		}
+
+		const options = {
+			base: url,
+			requestOptions: {
+				gzip: true,
+				headers: undefined
+			}
+		};
+
 		return (
-			download(url)
+			remote('', options)
 		);
 	}
 	if (process.platform === 'darwin' || process.platform === 'linux') {
