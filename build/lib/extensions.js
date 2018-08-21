@@ -11,7 +11,7 @@ var __assign = (this && this.__assign) || Object.assign || function(t) {
     }
     return t;
 };
-exports.__esModule = true;
+Object.defineProperty(exports, "__esModule", { value: true });
 var es = require("event-stream");
 var assign = require("object-assign");
 var remote = require("gulp-remote-src");
@@ -94,7 +94,7 @@ function fromLocal(extensionPath, sourceMappingURLBase) {
         else {
             filesStream.pipe(result);
         }
-    })["catch"](function (err) { return result.emit('error', err); });
+    }).catch(function (err) { return result.emit('error', err); });
     return result;
 }
 exports.fromLocal = fromLocal;
@@ -106,7 +106,7 @@ function error(err) {
 var baseHeaders = {
     'X-Market-Client-Id': 'VSCode Build',
     'User-Agent': 'VSCode Build',
-    'X-Market-User-Id': '291C1CD0-051A-4123-9B4B-30D60EF52EE2'
+    'X-Market-User-Id': '291C1CD0-051A-4123-9B4B-30D60EF52EE2',
 };
 function fromMarketplace(extensionName, version) {
     var filterType = 7;

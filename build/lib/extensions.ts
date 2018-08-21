@@ -202,6 +202,8 @@ interface IPackageExtensionsOptions {
 	 * Set to undefined to package all of them.
 	 */
 	desiredExtensions?: string[];
+
+	sourceMappingURLBase?: string;
 }
 
 const excludedExtensions = [
@@ -226,7 +228,7 @@ export function packageExtensionsStream(opts?: IPackageExtensionsOptions): NodeJ
 		.filter(({ name }) => builtInExtensions.every(b => b.name !== name));
 
 	const localExtensions = es.merge(...localExtensionDescriptions.map(extension => {
-		return fromLocal(extension.path)
+		return fromLocal(extension.path, opts.sourceMappingURLBase)
 			.pipe(rename(p => p.dirname = `extensions/${extension.name}/${p.dirname}`));
 	}));
 
