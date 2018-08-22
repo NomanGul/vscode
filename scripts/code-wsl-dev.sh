@@ -7,11 +7,16 @@ VSCODE_PATH="$(dirname "$(dirname "$(realpath "$0")")")"
 SCRIPT_NAME="$(basename "$(test -L "$0" && readlink "$0" || echo "$0")")"
 if grep -q Microsoft /proc/version; then
 	if [ -x /bin/wslpath ]; then
+		if [ $1 == '--init' ]; then
+			rm -r "$VSCODE_PATH/remote/node_modules"
+		fi
 		echo "Using $VSCODE_PATH as remote folder"
 		if [ ! -d "$VSCODE_PATH/remote/node_modules" ]; then
 			echo "Installing VSCode WSL components..."
 			cd "$VSCODE_PATH/remote"
-			npm install
+			yarn
+			cd "$VSCODE_PATH/extensions/search-rg"
+			yarn
 		fi
 		cp "$VSCODE_PATH/out/cli-wsl.js" "$VSCODE_PATH/remote"
 		node "$VSCODE_PATH/remote/cli-wsl.js" "$SCRIPT_NAME" "$(wslpath -m $VSCODE_PATH/scripts/code-cli.bat)" "--" "$@"
