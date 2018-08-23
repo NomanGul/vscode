@@ -14,7 +14,7 @@ import { IMessagePassingProtocol } from 'vs/base/parts/ipc/node/ipc';
 import { connectToRemoteExtensionHostServer } from 'vs/platform/remote/node/remoteFileSystemIpc';
 import * as net from 'net';
 import { Event, Emitter } from 'vs/base/common/event';
-import { IInitData, IWorkspaceData, IConfigurationInitData } from 'vs/workbench/api/node/extHost.protocol';
+import { IInitData, IConfigurationInitData } from 'vs/workbench/api/node/extHost.protocol';
 import { IWorkspaceConfigurationService } from 'vs/workbench/services/configuration/common/configuration';
 import { getScopes } from 'vs/platform/configuration/common/configurationRegistry';
 import { ILogService } from 'vs/platform/log/common/log';
@@ -24,6 +24,7 @@ import { RemoteAuthorityRegistry } from 'vs/workbench/services/extensions/electr
 import { MessageType, isMessageOfType, createMessageOfType } from 'vs/workbench/common/extensionHostProtocol';
 import { IBroadcastService } from 'vs/platform/broadcast/electron-browser/broadcastService';
 import { EXTENSION_ATTACH_BROADCAST_CHANNEL } from 'vs/platform/extensions/common/extensionHost';
+import { ILabelService } from 'vs/platform/label/common/label';
 
 export interface IInitDataProvider {
 	readonly remoteAuthority: string;
@@ -46,7 +47,8 @@ export class RemoteExtensionHostClient implements IExtensionHostStarter {
 		@IWorkspaceConfigurationService private readonly _configurationService: IWorkspaceConfigurationService,
 		@ITelemetryService private readonly _telemetryService: ITelemetryService,
 		@ILogService private readonly _logService: ILogService,
-		@IBroadcastService private readonly _broadcastService: IBroadcastService
+		@IBroadcastService private readonly _broadcastService: IBroadcastService,
+		@ILabelService private readonly _labelService: ILabelService
 	) {
 		this._connection = null;
 		this._protocol = null;
@@ -109,6 +111,7 @@ export class RemoteExtensionHostClient implements IExtensionHostStarter {
 	private _createExtHostInitData(isExtensionDevelopmentDebug: boolean): TPromise<IInitData> {
 		return TPromise.join([this._telemetryService.getTelemetryInfo(), this._initDataProvider.getInitData()]).then(([telemetryInfo, remoteExtensionHostData]) => {
 			const configurationData: IConfigurationInitData = { ...this._configurationService.getConfigurationData(), configurationScopes: {} };
+			const workspace = this._contextService.getWorkspace();
 			const r: IInitData = {
 				parentPid: remoteExtensionHostData.agentPid,
 				environment: {
@@ -118,7 +121,12 @@ export class RemoteExtensionHostClient implements IExtensionHostStarter {
 					extensionDevelopmentPath: this._environmentService.extensionDevelopmentPath,
 					extensionTestsPath: this._environmentService.extensionTestsPath,
 				},
-				workspace: this._contextService.getWorkbenchState() === WorkbenchState.EMPTY ? null : <IWorkspaceData>this._contextService.getWorkspace(),
+				workspace: this._contextService.getWorkbenchState() === WorkbenchState.EMPTY ? null : {
+					configuration: workspace.configuration,
+					folders: workspace.folders,
+					id: workspace.id,
+					name: this._labelService.getWorkspaceLabel(workspace)
+				},
 				extensions: remoteExtensionHostData.extensions,
 				// Send configurations scopes only in development mode.
 				configuration: !this._environmentService.isBuilt || this._environmentService.isExtensionDevelopment ? { ...configurationData, configurationScopes: getScopes() } : configurationData,

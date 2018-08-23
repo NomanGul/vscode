@@ -47,6 +47,7 @@ import { RemoteExtensionsEnvironmentChannelClient } from 'vs/workbench/services/
 import { IInitDataProvider, RemoteExtensionHostClient } from 'vs/workbench/services/extensions/electron-browser/remoteExtensionHostClient';
 import { Schemas } from 'vs/base/common/network';
 import { getPathFromAmdModule } from 'vs/base/common/amd';
+import { IConfigurationService } from 'vs/platform/configuration/common/configuration';
 
 let _SystemExtensionsRoot: string = null;
 function getSystemExtensionsRoot(): string {
@@ -278,7 +279,8 @@ export class ExtensionService extends Disposable implements IExtensionService {
 		@IWindowService private readonly _windowService: IWindowService,
 		@ILifecycleService lifecycleService: ILifecycleService,
 		@IExtensionManagementService private extensionManagementService: IExtensionManagementService,
-		@IRemoteExtensionsService private readonly _remoteExtensionsService: IRemoteExtensionsService
+		@IRemoteExtensionsService private readonly _remoteExtensionsService: IRemoteExtensionsService,
+		@IConfigurationService private readonly _configurationService: IConfigurationService
 	) {
 		super();
 
@@ -547,7 +549,7 @@ export class ExtensionService extends Disposable implements IExtensionService {
 					const extension = remoteExtensionInfo.extensions[j];
 					// ensure URIs are revived
 					(<any>extension).extensionLocation = URI.revive(extension.extensionLocation);
-					if (!isWorkspaceExtension(extension) || seenExtension[extension.id]) {
+					if (!isWorkspaceExtension(extension, this._configurationService) || seenExtension[extension.id]) {
 						continue;
 					}
 
