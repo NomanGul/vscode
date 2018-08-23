@@ -49,7 +49,9 @@ export class MulitExtensionManagementService extends Disposable implements IExte
 		this.onUninstallExtension = this._register(this.servers.reduce((emitter: EventMultiplexer<IExtensionIdentifier>, server) => { emitter.add(server.extensionManagementService.onUninstallExtension); return emitter; }, new EventMultiplexer<IExtensionIdentifier>())).event;
 		this.onDidUninstallExtension = this._register(this.servers.reduce((emitter: EventMultiplexer<DidUninstallExtensionEvent>, server) => { emitter.add(server.extensionManagementService.onDidUninstallExtension); return emitter; }, new EventMultiplexer<DidUninstallExtensionEvent>())).event;
 
-		this.syncExtensions();
+		if (this.otherServers.length) {
+			this.syncExtensions();
+		}
 	}
 
 	getInstalled(type?: LocalExtensionType): TPromise<ILocalExtension[]> {
