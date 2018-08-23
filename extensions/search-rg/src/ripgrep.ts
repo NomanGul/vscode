@@ -5,6 +5,9 @@
 
 'use strict';
 
-import { rgPath } from 'vscode-ripgrep';
+import { join, basename } from 'path';
+import { rgPath as rgPathModule } from 'vscode-ripgrep';
+
+const rgPath = (<any>process).pkg ? join(process.execPath, '..', basename(rgPathModule)) : rgPathModule;
 
 export { rgPath };

@@ -86,7 +86,7 @@ export class ExtensionHostConnection {
 		this._tryListenOnPipe().then(pipeName => {
 
 			let execArgv = process.execArgv;
-			if (debugParams) {
+			if (debugParams && !(<any>process).pkg) {
 				execArgv = [`--inspect${debugParams.break ? '-brk' : ''}=0.0.0.0:${debugParams.port}`].concat(execArgv);
 			}
 			const opts = {

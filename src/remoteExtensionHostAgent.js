@@ -3,4 +3,9 @@
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
 
-require('./bootstrap-amd').bootstrap('vs/workbench/node/remoteExtensionHostAgent');
+if (process.argv[2] === '--exec') {
+	process.argv.splice(1, 2);
+	require(process.argv[1]);
+} else {
+	require('./bootstrap-amd').bootstrap('vs/workbench/node/remoteExtensionHostAgent');
+}

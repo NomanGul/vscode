@@ -24,6 +24,7 @@ const flatmap = require('gulp-flatmap');
 const gunzip = require('gulp-gunzip');
 const untar = require('gulp-untar');
 const File = require('vinyl');
+const pkg = require('pkg');
 
 const REPO_ROOT = path.dirname(__dirname);
 const commit = util.getVersion(REPO_ROOT);
@@ -273,3 +274,84 @@ gulp.task('vscode-reh-darwin-min', ['minify-vscode-reh', 'clean-vscode-reh-darwi
 gulp.task('vscode-reh-linux-ia32-min', ['minify-vscode-reh', 'clean-vscode-reh-linux-ia32'], packageTask('linux', 'ia32', { minified: true }));
 gulp.task('vscode-reh-linux-x64-min', ['minify-vscode-reh', 'clean-vscode-reh-linux-x64'], packageTask('linux', 'x64', { minified: true }));
 gulp.task('vscode-reh-linux-arm-min', ['minify-vscode-reh', 'clean-vscode-reh-linux-arm'], packageTask('linux', 'arm', { minified: true }));
+
+
+function copyConfigTask(folder) {
+	const destination = path.join(BUILD_ROOT, folder);
+	return () => gulp.src(['remote/pkg-package.json'], { base: 'remote' })
+		.pipe(rename(path => path.basename += '.' + folder))
+		.pipe(json(obj => {
+			const pkg = obj.pkg;
+			pkg.scripts = pkg.scripts && pkg.scripts.map(p => path.join(destination, p));
+			pkg.assets = pkg.assets && pkg.assets.map(p => path.join(destination, p));
+			return obj;
+		}))
+		.pipe(vfs.dest('out-vscode-reh-pkg'));
+}
+
+function copyNativeTask(folder) {
+	const destination = path.join(BUILD_ROOT, folder);
+	return () => {
+		const nativeLibraries = gulp.src(['remote/node_modules/**/*.node']);
+		const rgExec = gulp.src(['extensions/search-rg/node_modules/vscode-ripgrep/bin/rg?(.exe)']);
+		const license = gulp.src(['remote/LICENSE']);
+
+		const result = es.merge(
+			nativeLibraries,
+			rgExec,
+			license
+		);
+
+		return result
+			.pipe(rename({dirname: ''}))
+			.pipe(vfs.dest(destination));
+	};
+}
+
+function packagePkgTask(platform, arch, pkgTarget) {
+	const folder = path.join(BUILD_ROOT, 'vscode-reh') + (platform ? '-' + platform : '') + (arch ? '-' + arch : '');
+	return () => {
+		const cwd = process.cwd();
+		const config = path.join(cwd, 'out-vscode-reh-pkg', 'pkg-package.vscode-reh-' + platform + '-' + arch + '.json');
+		process.chdir(folder);
+		return pkg.exec(['-t', pkgTarget, '-d', '-c', config, '-o', path.join(folder + '-pkg', platform === 'win32' ? 'vscode-reh.exe' : 'vscode-reh'), './out/remoteExtensionHostAgent.js'])
+			.then(() => process.chdir(cwd));
+	};
+}
+
+gulp.task('clean-out-vscode-reh-pkg', util.rimraf('out-vscode-reh-pkg'));
+
+gulp.task('copy-config-win32-ia32', ['clean-out-vscode-reh-pkg'], copyConfigTask('vscode-reh-win32-ia32'));
+gulp.task('copy-config-win32-x64', ['clean-out-vscode-reh-pkg'], copyConfigTask('vscode-reh-win32-x64'));
+gulp.task('copy-config-darwin', ['clean-out-vscode-reh-pkg'], copyConfigTask('vscode-reh-darwin'));
+gulp.task('copy-config-linux-ia32', ['clean-out-vscode-reh-pkg'], copyConfigTask('vscode-reh-linux-ia32'));
+gulp.task('copy-config-linux-x64', ['clean-out-vscode-reh-pkg'], copyConfigTask('vscode-reh-linux-x64'));
+gulp.task('copy-config-linux-arm', ['clean-out-vscode-reh-pkg'], copyConfigTask('vscode-reh-linux-arm'));
+
+gulp.task('clean-vscode-reh-win32-ia32-pkg', util.rimraf(path.join(BUILD_ROOT, 'vscode-reh-win32-ia32-pkg')));
+gulp.task('clean-vscode-reh-win32-x64-pkg', util.rimraf(path.join(BUILD_ROOT, 'vscode-reh-win32-x64-pkg')));
+gulp.task('clean-vscode-reh-darwin-pkg', util.rimraf(path.join(BUILD_ROOT, 'vscode-reh-darwin-pkg')));
+gulp.task('clean-vscode-reh-linux-ia32-pkg', util.rimraf(path.join(BUILD_ROOT, 'vscode-reh-linux-ia32-pkg')));
+gulp.task('clean-vscode-reh-linux-x64-pkg', util.rimraf(path.join(BUILD_ROOT, 'vscode-reh-linux-x64-pkg')));
+gulp.task('clean-vscode-reh-linux-arm-pkg', util.rimraf(path.join(BUILD_ROOT, 'vscode-reh-linux-arm-pkg')));
+
+gulp.task('copy-pkg-native-win32-ia32', ['clean-vscode-reh-win32-ia32-pkg'], copyNativeTask('vscode-reh-win32-ia32-pkg'));
+gulp.task('copy-pkg-native-win32-x64', ['clean-vscode-reh-win32-x64-pkg'], copyNativeTask('vscode-reh-win32-x64-pkg'));
+gulp.task('copy-pkg-native-darwin', ['clean-vscode-reh-darwin-pkg'], copyNativeTask('vscode-reh-darwin-pkg'));
+gulp.task('copy-pkg-native-linux-ia32', ['clean-vscode-reh-linux-ia32-pkg'], copyNativeTask('vscode-reh-linux-ia32-pkg'));
+gulp.task('copy-pkg-native-linux-x64', ['clean-vscode-reh-linux-x64-pkg'], copyNativeTask('vscode-reh-linux-x64-pkg'));
+gulp.task('copy-pkg-native-linux-arm', ['clean-vscode-reh-linux-arm-pkg'], copyNativeTask('vscode-reh-linux-arm-pkg'));
+
+gulp.task('vscode-reh-win32-ia32-pkg', ['vscode-reh-win32-ia32', 'copy-config-win32-ia32', 'copy-pkg-native-win32-ia32', 'clean-vscode-reh-win32-ia32-pkg'], packagePkgTask('win32', 'ia32', 'node8-win-x86'));
+gulp.task('vscode-reh-win32-x64-pkg', ['vscode-reh-win32-x64', 'copy-config-win32-x64', 'copy-pkg-native-win32-x64', 'clean-vscode-reh-win32-x64-pkg'], packagePkgTask('win32', 'x64', 'node8-win-x64'));
+gulp.task('vscode-reh-darwin-pkg', ['vscode-reh-darwin', 'copy-config-darwin', 'copy-pkg-native-darwin', 'clean-vscode-reh-darwin-pkg'], packagePkgTask('darwin', null, 'node8-macos-x64'));
+gulp.task('vscode-reh-linux-ia32-pkg', ['vscode-reh-linux-ia32', 'copy-config-linux-ia32', 'copy-pkg-native-linux-ia32', 'clean-vscode-reh-linux-ia32-pkg'], packagePkgTask('linux', 'ia32', 'node8-linux-x86'));
+gulp.task('vscode-reh-linux-x64-pkg', ['vscode-reh-linux-x64', 'copy-config-linux-x64', 'copy-pkg-native-linux-x64', 'clean-vscode-reh-linux-x64-pkg'], packagePkgTask('linux', 'x64', 'node8-linux-x64'));
+gulp.task('vscode-reh-linux-arm-pkg', ['vscode-reh-linux-arm', 'copy-config-linux-arm', 'copy-pkg-native-linux-arm', 'clean-vscode-reh-linux-arm-pkg'], packagePkgTask('linux', 'arm', 'node8-linux-armv7'));
+
+gulp.task('vscode-reh-win32-ia32-min-pkg', ['vscode-reh-win32-ia32-min', 'copy-config-win32-ia32', 'copy-pkg-native-win32-ia32', 'clean-vscode-reh-win32-ia32-pkg'], packagePkgTask('win32', 'ia32', 'node8-win-x86'));
+gulp.task('vscode-reh-win32-x64-min-pkg', ['vscode-reh-win32-x64-min', 'copy-config-win32-x64', 'copy-pkg-native-win32-x64', 'clean-vscode-reh-win32-x64-pkg'], packagePkgTask('win32', 'x64', 'node8-win-x64'));
+gulp.task('vscode-reh-darwin-min-pkg', ['vscode-reh-darwin-min', 'copy-config-darwin', 'copy-pkg-native-darwin', 'clean-vscode-reh-darwin-pkg'], packagePkgTask('darwin', null, 'node8-macos-x64'));
+gulp.task('vscode-reh-linux-ia32-min-pkg', ['vscode-reh-linux-ia32-min', 'copy-config-linux-ia32', 'copy-pkg-native-linux-ia32', 'clean-vscode-reh-linux-ia32-pkg'], packagePkgTask('linux', 'ia32', 'node8-linux-x86'));
+gulp.task('vscode-reh-linux-x64-min-pkg', ['vscode-reh-linux-x64-min', 'copy-config-linux-x64', 'copy-pkg-native-linux-x64', 'clean-vscode-reh-linux-x64-pkg'], packagePkgTask('linux', 'x64', 'node8-linux-x64'));
+gulp.task('vscode-reh-linux-arm-min-pkg', ['vscode-reh-linux-arm-min', 'copy-config-linux-arm', 'copy-pkg-native-linux-arm', 'clean-vscode-reh-linux-arm-pkg'], packagePkgTask('linux', 'arm', 'node8-linux-armv7'));
