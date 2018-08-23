@@ -11,7 +11,7 @@ import { getDelayedChannel, IChannel } from 'vs/base/parts/ipc/node/ipc';
 import { Disposable } from 'vs/base/common/lifecycle';
 import { connectToRemoteExtensionHostManagement } from 'vs/platform/remote/node/remoteFileSystemIpc';
 import { RemoteAuthorityRegistry } from 'vs/workbench/services/extensions/electron-browser/remoteAuthorityRegistry';
-import { IStorageService } from 'vs/platform/storage/common/storage';
+import { IStorageService, StorageScope } from 'vs/platform/storage/common/storage';
 import { IWindowConfiguration } from 'vs/platform/windows/common/windows';
 
 const AUTHORITY_STORAGE_KEY = 'remoteHostAuthority';
@@ -30,13 +30,8 @@ export class RemoteExtensionsService implements IRemoteExtensionsService {
 	) {
 		this._channels = new Map<string, TPromise<Client>>();
 
-		let authority = storageService.get(AUTHORITY_STORAGE_KEY);
-		if (typeof authority !== 'string') {
-			authority = this._getAuthority(window, contextService) || '';
-			storageService.store(AUTHORITY_STORAGE_KEY, authority);
-		}
-
-		this._authority = authority;
+		this._authority = this._getAuthority(window, contextService) || storageService.get(AUTHORITY_STORAGE_KEY, StorageScope.WORKSPACE, '');
+		storageService.store(AUTHORITY_STORAGE_KEY, this._authority, StorageScope.WORKSPACE);
 	}
 
 	getRemoteConnection(): IRemoteHostConnection {
