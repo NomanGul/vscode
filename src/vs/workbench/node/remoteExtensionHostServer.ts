@@ -12,10 +12,9 @@ import { TPromise } from 'vs/base/common/winjs.base';
 import URI from 'vs/base/common/uri';
 import { fromNodeEventEmitter } from 'vs/base/common/event';
 import { IRemoteConsoleLog } from 'vs/base/node/console';
+import { IExtensionHostDebugParams } from 'vs/platform/environment/common/environment';
 
 export class ExtensionHostConnection {
-
-	static debugPort = 5870; // bumped for every extension host
 
 	private _rendererConnection: net.Socket;
 	private _initialDataChunks: Buffer[];
@@ -83,8 +82,13 @@ export class ExtensionHostConnection {
 		}
 	}
 
-	public start(): void {
-		this._tryListenOnPipe().then((pipeName) => {
+	public start(debugParams: IExtensionHostDebugParams | undefined): void {
+		this._tryListenOnPipe().then(pipeName => {
+
+			let execArgv = process.execArgv;
+			if (debugParams) {
+				execArgv = [`--inspect${debugParams.break ? '-brk' : ''}=0.0.0.0:${debugParams.port}`].concat(execArgv);
+			}
 			const opts = {
 				env: objects.mixin(objects.deepClone(process.env), {
 					AMD_ENTRYPOINT: 'vs/workbench/node/extensionHostProcess',
@@ -94,7 +98,7 @@ export class ExtensionHostConnection {
 					VSCODE_HANDLES_UNCAUGHT_ERRORS: true,
 					VSCODE_LOG_STACK: false
 				}),
-				execArgv: [`--inspect=0.0.0.0:${ExtensionHostConnection.debugPort++}`],
+				execArgv,
 				silent: true
 			};
 

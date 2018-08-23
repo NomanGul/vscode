@@ -22,6 +22,8 @@ import { IRemoteExtensionsEnvironmentData } from 'vs/workbench/services/extensio
 import { IExtensionHostStarter } from 'vs/workbench/services/extensions/electron-browser/extensionHost';
 import { RemoteAuthorityRegistry } from 'vs/workbench/services/extensions/electron-browser/remoteAuthorityRegistry';
 import { MessageType, isMessageOfType, createMessageOfType } from 'vs/workbench/common/extensionHostProtocol';
+import { IBroadcastService } from 'vs/platform/broadcast/electron-browser/broadcastService';
+import { EXTENSION_ATTACH_BROADCAST_CHANNEL } from 'vs/platform/extensions/common/extensionHost';
 
 export interface IInitDataProvider {
 	readonly remoteAuthority: string;
@@ -43,7 +45,8 @@ export class RemoteExtensionHostClient implements IExtensionHostStarter {
 		@IEnvironmentService private readonly _environmentService: IEnvironmentService,
 		@IWorkspaceConfigurationService private readonly _configurationService: IWorkspaceConfigurationService,
 		@ITelemetryService private readonly _telemetryService: ITelemetryService,
-		@ILogService private readonly _logService: ILogService
+		@ILogService private readonly _logService: ILogService,
+		@IBroadcastService private readonly _broadcastService: IBroadcastService
 	) {
 		this._connection = null;
 		this._protocol = null;
@@ -52,8 +55,19 @@ export class RemoteExtensionHostClient implements IExtensionHostStarter {
 
 	public start(): TPromise<IMessagePassingProtocol> {
 		return RemoteAuthorityRegistry.resolveAuthority(this._initDataProvider.remoteAuthority).then((resolvedAuthority) => {
-
-			return connectToRemoteExtensionHostServer(resolvedAuthority.host, resolvedAuthority.port).then((protocol) => {
+			return connectToRemoteExtensionHostServer(resolvedAuthority.host, resolvedAuthority.port, this._environmentService.debugExtensionHost).then(result => {
+				const { protocol, debugPort } = result;
+				const isExtensionDevelopmentDebug = typeof debugPort === 'number';
+				if (this._environmentService.isExtensionDevelopment) {
+					this._broadcastService.broadcast({
+						channel: EXTENSION_ATTACH_BROADCAST_CHANNEL,
+						payload: {
+							debugId: this._environmentService.debugExtensionHost.debugId,
+							remoteAuthority: this._initDataProvider.remoteAuthority,
+							port: debugPort
+						}
+					});
+				}
 
 				// 1) wait for the incoming `ready` event and send the initialization data.
 				// 2) wait for the incoming `initialized` event.
@@ -67,7 +81,7 @@ export class RemoteExtensionHostClient implements IExtensionHostStarter {
 
 						if (isMessageOfType(msg, MessageType.Ready)) {
 							// 1) Extension Host is ready to receive messages, initialize it
-							this._createExtHostInitData().then(data => protocol.send(Buffer.from(JSON.stringify(data))));
+							this._createExtHostInitData(isExtensionDevelopmentDebug).then(data => protocol.send(Buffer.from(JSON.stringify(data))));
 							return;
 						}
 
@@ -92,13 +106,13 @@ export class RemoteExtensionHostClient implements IExtensionHostStarter {
 		});
 	}
 
-	private _createExtHostInitData(): TPromise<IInitData> {
+	private _createExtHostInitData(isExtensionDevelopmentDebug: boolean): TPromise<IInitData> {
 		return TPromise.join([this._telemetryService.getTelemetryInfo(), this._initDataProvider.getInitData()]).then(([telemetryInfo, remoteExtensionHostData]) => {
 			const configurationData: IConfigurationInitData = { ...this._configurationService.getConfigurationData(), configurationScopes: {} };
 			const r: IInitData = {
 				parentPid: remoteExtensionHostData.agentPid,
 				environment: {
-					isExtensionDevelopmentDebug: false,// TODO@vs-remote this._isExtensionDevDebug,
+					isExtensionDevelopmentDebug,
 					appRoot: remoteExtensionHostData.agentAppRoot,
 					appSettingsHome: remoteExtensionHostData.agentAppSettingsHome,
 					extensionDevelopmentPath: this._environmentService.extensionDevelopmentPath,

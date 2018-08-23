@@ -12,6 +12,7 @@ import * as pfs from 'vs/base/node/pfs';
 import * as net from 'net';
 import { Client, Protocol } from 'vs/base/parts/ipc/node/ipc.net';
 import { Event } from 'vs/base/common/event';
+import { IExtensionHostDebugParams } from 'vs/platform/environment/common/environment';
 
 export let USE_VSDA = false;
 
@@ -43,6 +44,7 @@ export interface ConnectionTypeRequest {
 	type: 'connectionType';
 	signedData?: string;
 	desiredConnectionType?: ConnectionType;
+	args?: any;
 }
 
 export type HandshakeMessage = AuthRequest | SignRequest | ConnectionTypeRequest;
@@ -95,7 +97,7 @@ export class RemoteExtensionsFileSystemChannelClient implements IRemoteExtension
 	}
 }
 
-function connectToRemoteExtensionHostAgent(host: string, port: number, connectionType: ConnectionType): TPromise<Protocol> {
+function connectToRemoteExtensionHostAgent(host: string, port: number, connectionType: ConnectionType, args?: any): TPromise<Protocol> {
 	return new TPromise<Protocol>((c, e) => {
 		const socket = net.createConnection({ host: host, port: port }, () => {
 			socket.removeListener('error', e);
@@ -131,6 +133,9 @@ function connectToRemoteExtensionHostAgent(host: string, port: number, connectio
 						signedData: signed,
 						desiredConnectionType: connectionType
 					};
+					if (args) {
+						connTypeRequest.args = args;
+					}
 					protocol.send(Buffer.from(JSON.stringify(connTypeRequest)));
 
 					c(protocol);
@@ -159,6 +164,20 @@ export function connectToRemoteExtensionHostManagement(host: string, port: numbe
 	});
 }
 
-export function connectToRemoteExtensionHostServer(host: string, port: number): TPromise<IMessagePassingProtocol> {
-	return connectToRemoteExtensionHostAgent(host, port, ConnectionType.ExtensionHost);
+export interface IRemoteExtensionHostConnectionResult {
+	protocol: IMessagePassingProtocol;
+	debugPort?: number;
+}
+
+export function connectToRemoteExtensionHostServer(host: string, port: number, debugArguments: IExtensionHostDebugParams): TPromise<IRemoteExtensionHostConnectionResult> {
+	return connectToRemoteExtensionHostAgent(host, port, ConnectionType.ExtensionHost, debugArguments).then(protocol => {
+		return new TPromise<IRemoteExtensionHostConnectionResult>((c, e) => {
+			const registration = protocol.onMessage(raw => {
+				registration.dispose();
+				const msg = JSON.parse(raw.toString());
+				const debugPort = msg && msg.debugPort;
+				c({ protocol, debugPort });
+			});
+		});
+	});
 }

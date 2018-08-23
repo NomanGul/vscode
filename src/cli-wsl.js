@@ -43,9 +43,9 @@ const options = [
 	{ id: 'upload-logs', type: 'string', cat: 't', description: localize('uploadLogs', "Uploads logs from current session to a secure endpoint.") },
 	{ id: 'max-memory', type: 'boolean', cat: 't', description: localize('maxMemory', "Max memory size for a window (in Mbytes).") },
 
-	{ id: 'extensionDevelopmentPath', type: 'string', unsupported: true },
-	{ id: 'extensionTestsPath', type: 'string', unsupported: true },
-	{ id: 'debugId', type: 'string', unsupported: true },
+	{ id: 'extensionDevelopmentPath', type: 'string' },
+	{ id: 'extensionTestsPath', type: 'string' },
+	{ id: 'debugId', type: 'string' },
 	{ id: 'inspect-search', type: 'string' },
 	{ id: 'inspect-brk-extensions', type: 'string' },
 	{ id: 'export-default-configuration', type: 'string', unsupported: true },

@@ -10,12 +10,13 @@ import * as minimist from 'minimist';
 import * as fs from 'fs';
 import * as net from 'net';
 import URI from 'vs/base/common/uri';
-import { ParsedArgs } from 'vs/platform/environment/common/environment';
+import { ParsedArgs, IExtensionHostDebugParams } from 'vs/platform/environment/common/environment';
 import { RemoteExtensionManagementServer } from 'vs/workbench/node/remoteExtensionsManagement';
 import { ExtensionHostConnection } from 'vs/workbench/node/remoteExtensionHostServer';
 import { EnvironmentService } from 'vs/platform/environment/node/environmentService';
 import { ConnectionType, HandshakeMessage, SignRequest, USE_VSDA } from 'vs/platform/remote/node/remoteFileSystemIpc';
 import { Protocol } from 'vs/base/parts/ipc/node/ipc.net';
+import { findFreePort } from 'vs/base/node/ports';
 
 let validator: any;
 if (USE_VSDA) {
@@ -157,9 +158,17 @@ class ExtensionHostAgentServer {
 
 					case ConnectionType.ExtensionHost:
 						// This should become an extension host connection
-						console.log(`==> Received an extension host connection from ${socket.address().address}`);
-						const con = new ExtensionHostConnection(socket, protocol);
-						con.start();
+						const debugParams = <IExtensionHostDebugParams>msg.args;
+						this._updateWithFreeDebugPort(debugParams).then(debugParams => {
+							protocol.send(Buffer.from(JSON.stringify(debugParams ? { debugPort: debugParams.port } : {})));
+
+							console.log(`==> Received an extension host connection from ${socket.address().address}`);
+							if (debugParams) {
+								console.log(`==> Debug port ${debugParams.port}`);
+							}
+							const con = new ExtensionHostConnection(socket, protocol);
+							con.start(debugParams);
+						});
 						break;
 
 					default:
@@ -168,6 +177,16 @@ class ExtensionHostAgentServer {
 				}
 			}
 		}));
+	}
+
+	private _updateWithFreeDebugPort(debugParams: IExtensionHostDebugParams): Thenable<IExtensionHostDebugParams> {
+		if (debugParams && typeof debugParams.port === 'number') {
+			return findFreePort(debugParams.port, 10 /* try 10 ports */, 5000 /* try up to 5 seconds */).then(freePort => {
+				debugParams.port = freePort;
+				return debugParams;
+			});
+		}
+		return Promise.resolve(void 0);
 	}
 }
 
