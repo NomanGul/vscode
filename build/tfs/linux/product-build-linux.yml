@@ -62,7 +62,7 @@ steps:
 
     # Publish Remote Extension Host
     REHBUILDNAME="vscode-reh-$PLATFORM_LINUX"
-    REHTARBALL_FILENAME="vscode-headless-$(VSCODE_ARCH).tar.gz"
+    REHTARBALL_FILENAME="vscode-headless-$PLATFORM_LINUX.tar.gz"
     REHTARBALL_PATH="$ROOT/$REHTARBALL_FILENAME"
 
     rm -rf $ROOT/vscode-headless-*.tar.*
@@ -75,7 +75,7 @@ steps:
 
     # Publish Remote Extension Host Pkg-packaged
     REHPKGBUILDNAME="vscode-reh-$PLATFORM_LINUX-pkg"
-    REHPKGTARBALL_FILENAME="vscode-headless-$(VSCODE_ARCH)-pkg.tar.gz"
+    REHPKGTARBALL_FILENAME="vscode-headless-$PLATFORM_LINUX-pkg.tar.gz"
     REHPKGTARBALL_PATH="$ROOT/$REHPKGTARBALL_FILENAME"
 
     rm -rf $ROOT/vscode-headless-*-pkg.tar.*
