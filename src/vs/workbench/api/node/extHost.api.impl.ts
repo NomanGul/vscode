@@ -150,6 +150,9 @@ export function createApiFactory(
 				separator: paths.nativeSep,
 				tildify: !platform.isWindows,
 				normalizeDriveLetter: platform.isWindows
+			},
+			workspace: {
+				suffix: 'WSL'
 			}
 		});
 		extHostTask.registerTaskSystem('vscode-remote', {
