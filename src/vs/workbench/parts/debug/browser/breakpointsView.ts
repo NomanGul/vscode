@@ -32,7 +32,7 @@ import { IConfigurationService } from 'vs/platform/configuration/common/configur
 import { ITextFileService } from 'vs/workbench/services/textfile/common/textfiles';
 import { IEditorService, SIDE_GROUP, ACTIVE_GROUP } from 'vs/workbench/services/editor/common/editorService';
 import { ViewletPanel, IViewletPanelOptions } from 'vs/workbench/browser/parts/views/panelViewlet';
-import { IUriLabelService } from 'vs/platform/uriLabel/common/uriLabel';
+import { ILabelService } from 'vs/platform/label/common/label';
 
 const $ = dom.$;
 
@@ -296,7 +296,7 @@ class BreakpointsRenderer implements IRenderer<IBreakpoint, IBreakpointTemplateD
 
 	constructor(
 		@IDebugService private debugService: IDebugService,
-		@IUriLabelService private uriLabelService: IUriLabelService,
+		@ILabelService private labelService: ILabelService,
 		@ITextFileService private textFileService: ITextFileService
 	) {
 		// noop
@@ -340,7 +340,7 @@ class BreakpointsRenderer implements IRenderer<IBreakpoint, IBreakpointTemplateD
 		if (breakpoint.column) {
 			data.lineNumber.textContent += `:${breakpoint.column}`;
 		}
-		data.filePath.textContent = this.uriLabelService.getLabel(resources.dirname(breakpoint.uri), true);
+		data.filePath.textContent = this.labelService.getUriLabel(resources.dirname(breakpoint.uri), true);
 		data.checkbox.checked = breakpoint.enabled;
 
 		const { message, className } = getBreakpointMessageAndClassName(this.debugService, this.textFileService, breakpoint);
@@ -518,9 +518,12 @@ class FunctionBreakpointInputRenderer implements IRenderer<IFunctionBreakpoint, 
 			}
 		}));
 		toDispose.push(dom.addDisposableListener(inputBox.inputElement, 'blur', () => {
-			if (!template.breakpoint.name) {
-				wrapUp(true);
-			}
+			// Need to react with a timeout on the blur event due to possible concurent splices #56443
+			setTimeout(() => {
+				if (!template.breakpoint.name) {
+					wrapUp(true);
+				}
+			});
 		}));
 
 		template.inputBox = inputBox;

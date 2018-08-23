@@ -145,7 +145,10 @@ export class DebugService implements IDebugService {
 			session.configuration.request = 'attach';
 			session.configuration.port = broadcast.payload.port;
 			const dbgr = this.configurationManager.getDebugger(session.configuration.type);
-			session.initialize(dbgr).then(() => (<RawDebugSession>session.raw).attach(session.configuration));
+			session.initialize(dbgr).then(() => {
+				(<RawDebugSession>session.raw).attach(session.configuration);
+				this.focusStackFrame(undefined, undefined, session);
+			});
 
 			return;
 		}
@@ -554,7 +557,7 @@ export class DebugService implements IDebugService {
 						}
 
 						if (launch && type) {
-							return launch.openConfigFile(false, type).done(undefined, errors.onUnexpectedError);
+							return launch.openConfigFile(false, true, type).done(undefined, errors.onUnexpectedError);
 						}
 					})
 				).then(() => undefined);
@@ -625,7 +628,7 @@ export class DebugService implements IDebugService {
 					return this.showError(nls.localize('noFolderWorkspaceDebugError', "The active file can not be debugged. Make sure it is saved on disk and that you have a debug extension installed for that file type."));
 				}
 
-				return launch && launch.openConfigFile(false).then(editor => void 0);
+				return launch && launch.openConfigFile(false, true).then(editor => void 0);
 			})
 		).then(() => {
 			this.initializing = false;
@@ -734,16 +737,14 @@ export class DebugService implements IDebugService {
 	}
 
 	private registerSessionListeners(session: Session): void {
-		const toDispose: IDisposable[] = [];
-
-		toDispose.push(session.onDidChangeState((state) => {
-			if (state === State.Running && this.viewModel.focusedSession.getId() === session.getId()) {
+		this.toDispose.push(session.onDidChangeState((state) => {
+			if (state === State.Running && this.viewModel.focusedSession && this.viewModel.focusedSession.getId() === session.getId()) {
 				this.focusStackFrame(undefined);
 			}
 			this.onStateChange();
 		}));
 
-		toDispose.push(session.onDidExitAdapter(() => {
+		this.toDispose.push(session.onDidExitAdapter(() => {
 			// 'Run without debugging' mode VSCode must terminate the extension host. More details: #3905
 			if (equalsIgnoreCase(session.configuration.type, 'extensionhost') && session.state === State.Running && session.configuration.noDebug) {
 				this.broadcastService.broadcast({
@@ -776,13 +777,12 @@ export class DebugService implements IDebugService {
 					this.notificationService.error(err)
 				);
 			}
-			toDispose.push(session);
-			dispose(toDispose);
+			session.dispose();
 			this._onDidEndSession.fire(session);
 
 			const focusedSession = this.viewModel.focusedSession;
 			if (focusedSession && focusedSession.getId() === session.getId()) {
-				this.focusStackFrame(null);
+				this.focusStackFrame(undefined);
 			}
 
 			if (this.model.getSessions().length === 0) {

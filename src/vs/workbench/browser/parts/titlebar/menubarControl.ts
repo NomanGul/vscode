@@ -25,12 +25,11 @@ import { Event, Emitter } from 'vs/base/common/event';
 import { IDisposable, Disposable, dispose } from 'vs/base/common/lifecycle';
 import { domEvent } from 'vs/base/browser/event';
 import { IRecentlyOpened } from 'vs/platform/history/common/history';
-import { IWorkspaceIdentifier, getWorkspaceLabel, ISingleFolderWorkspaceIdentifier, isSingleFolderWorkspaceIdentifier, isWorkspaceIdentifier } from 'vs/platform/workspaces/common/workspaces';
-import { IEnvironmentService } from 'vs/platform/environment/common/environment';
+import { IWorkspaceIdentifier, ISingleFolderWorkspaceIdentifier, isSingleFolderWorkspaceIdentifier, isWorkspaceIdentifier } from 'vs/platform/workspaces/common/workspaces';
 import { RunOnceScheduler } from 'vs/base/common/async';
 import { MENUBAR_SELECTION_FOREGROUND, MENUBAR_SELECTION_BACKGROUND, MENUBAR_SELECTION_BORDER, TITLE_BAR_ACTIVE_FOREGROUND, TITLE_BAR_INACTIVE_FOREGROUND, MENU_BACKGROUND, MENU_FOREGROUND, MENU_SELECTION_BACKGROUND, MENU_SELECTION_FOREGROUND, MENU_SELECTION_BORDER } from 'vs/workbench/common/theme';
 import URI from 'vs/base/common/uri';
-import { IUriLabelService } from 'vs/platform/uriLabel/common/uriLabel';
+import { ILabelService } from 'vs/platform/label/common/label';
 import { foreground } from 'vs/platform/theme/common/colorRegistry';
 import { IUpdateService, StateType } from 'vs/platform/update/common/update';
 
@@ -102,8 +101,11 @@ export class MenubarControl extends Disposable {
 	private recentlyOpened: IRecentlyOpened;
 	private updatePending: boolean;
 	private _focusState: MenubarState;
+
+	// Input-related
 	private _mnemonicsInUse: boolean;
 	private openedViaKeyboard: boolean;
+	private awaitingAltRelease: boolean;
 	private mnemonics: Map<KeyCode, number>;
 
 	private _onVisibilityChange: Emitter<boolean>;
@@ -119,8 +121,7 @@ export class MenubarControl extends Disposable {
 		@IContextKeyService private contextKeyService: IContextKeyService,
 		@IKeybindingService private keybindingService: IKeybindingService,
 		@IConfigurationService private configurationService: IConfigurationService,
-		@IEnvironmentService private environmentService: IEnvironmentService,
-		@IUriLabelService private uriLabelService: IUriLabelService,
+		@ILabelService private labelService: ILabelService,
 		@IUpdateService private updateService: IUpdateService
 	) {
 
@@ -379,18 +380,33 @@ export class MenubarControl extends Disposable {
 			return;
 		}
 
+		// Alt key pressed while menu is focused. This should return focus away from the menubar
+		if (this.isFocused && modifierKeyStatus.lastKeyPressed === 'alt' && modifierKeyStatus.altKey) {
+			this.setUnfocusedState();
+			this.mnemonicsInUse = false;
+			this.awaitingAltRelease = true;
+		}
+
+		// Clean alt key press and release
 		if (allModifiersReleased && modifierKeyStatus.lastKeyPressed === 'alt' && modifierKeyStatus.lastKeyReleased === 'alt') {
-			if (!this.isFocused) {
-				this.mnemonicsInUse = true;
-				this.focusedMenu = { index: 0 };
-				this.focusState = MenubarState.FOCUSED;
-			} else if (!this.isOpen) {
-				this.setUnfocusedState();
+			if (!this.awaitingAltRelease) {
+				if (!this.isFocused) {
+					this.mnemonicsInUse = true;
+					this.focusedMenu = { index: 0 };
+					this.focusState = MenubarState.FOCUSED;
+				} else if (!this.isOpen) {
+					this.setUnfocusedState();
+				}
 			}
 		}
 
+		// Alt key released
+		if (!modifierKeyStatus.altKey && modifierKeyStatus.lastKeyReleased === 'alt') {
+			this.awaitingAltRelease = false;
+		}
+
 		if (this.currentEnableMenuBarMnemonics && this.customMenus && !this.isOpen) {
-			this.updateMnemonicVisibility(modifierKeyStatus.altKey || this.mnemonicsInUse);
+			this.updateMnemonicVisibility((!this.awaitingAltRelease && modifierKeyStatus.altKey) || this.mnemonicsInUse);
 		}
 	}
 
@@ -515,14 +531,14 @@ export class MenubarControl extends Disposable {
 		let uri: URI;
 
 		if (isSingleFolderWorkspaceIdentifier(workspace) && !isFile) {
-			label = getWorkspaceLabel(workspace, this.environmentService, this.uriLabelService, { verbose: true });
+			label = this.labelService.getWorkspaceLabel(workspace, { verbose: true });
 			uri = workspace;
 		} else if (isWorkspaceIdentifier(workspace)) {
-			label = getWorkspaceLabel(workspace, this.environmentService, this.uriLabelService, { verbose: true });
+			label = this.labelService.getWorkspaceLabel(workspace, { verbose: true });
 			uri = URI.file(workspace.configPath);
 		} else {
 			uri = workspace;
-			label = this.uriLabelService.getLabel(uri);
+			label = this.labelService.getUriLabel(uri);
 		}
 
 		return new Action(commandId, label, undefined, undefined, (event) => {

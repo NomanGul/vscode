@@ -4,34 +4,35 @@
  *--------------------------------------------------------------------------------------------*/
 'use strict';
 
-import { ITree, ITreeConfiguration, ITreeOptions, IRenderer as ITreeRenderer } from 'vs/base/parts/tree/browser/tree';
-import { List, IListOptions, isSelectionRangeChangeEvent, isSelectionSingleChangeEvent, IMultipleSelectionController, IOpenController, DefaultStyleController } from 'vs/base/browser/ui/list/listWidget';
-import { createDecorator, IInstantiationService } from 'vs/platform/instantiation/common/instantiation';
-import { IDisposable, toDisposable, combinedDisposable, dispose, Disposable } from 'vs/base/common/lifecycle';
-import { IContextKeyService, IContextKey, RawContextKey, ContextKeyExpr } from 'vs/platform/contextkey/common/contextkey';
-import { PagedList, IPagedRenderer } from 'vs/base/browser/ui/list/listPaging';
-import { IVirtualDelegate, IRenderer, IListMouseEvent, IListTouchEvent } from 'vs/base/browser/ui/list/list';
+import { addClass, addStandardDisposableListener, createStyleSheet, getTotalHeight, removeClass } from 'vs/base/browser/dom';
+import { IKeyboardEvent } from 'vs/base/browser/keyboardEvent';
+import { IInputOptions, InputBox } from 'vs/base/browser/ui/inputbox/inputBox';
+import { IListMouseEvent, IListTouchEvent, IRenderer, IVirtualDelegate } from 'vs/base/browser/ui/list/list';
+import { IPagedRenderer, PagedList } from 'vs/base/browser/ui/list/listPaging';
+import { DefaultStyleController, IListOptions, IMultipleSelectionController, IOpenController, isSelectionRangeChangeEvent, isSelectionSingleChangeEvent, List } from 'vs/base/browser/ui/list/listWidget';
+import { canceled, onUnexpectedError } from 'vs/base/common/errors';
+import { Emitter, Event } from 'vs/base/common/event';
+import { FuzzyScore } from 'vs/base/common/filters';
+import { KeyCode } from 'vs/base/common/keyCodes';
+import { combinedDisposable, Disposable, dispose, IDisposable, toDisposable } from 'vs/base/common/lifecycle';
+import { ScrollbarVisibility } from 'vs/base/common/scrollable';
+import { isUndefinedOrNull } from 'vs/base/common/types';
+import { TPromise } from 'vs/base/common/winjs.base';
+import { ITree, ITreeConfiguration, ITreeOptions } from 'vs/base/parts/tree/browser/tree';
+import { ClickBehavior, DefaultController, DefaultTreestyler, IControllerOptions, OpenMode } from 'vs/base/parts/tree/browser/treeDefaults';
 import { Tree } from 'vs/base/parts/tree/browser/treeImpl';
-import { attachListStyler, defaultListStyles, computeStyles, attachInputBoxStyler } from 'vs/platform/theme/common/styler';
+import { localize } from 'vs/nls';
+import { IConfigurationService } from 'vs/platform/configuration/common/configuration';
+import { Extensions as ConfigurationExtensions, IConfigurationRegistry } from 'vs/platform/configuration/common/configurationRegistry';
+import { ContextKeyExpr, IContextKey, IContextKeyService, RawContextKey } from 'vs/platform/contextkey/common/contextkey';
+import { IContextViewService } from 'vs/platform/contextview/browser/contextView';
+import { IEditorOptions } from 'vs/platform/editor/common/editor';
+import { createDecorator, IInstantiationService } from 'vs/platform/instantiation/common/instantiation';
+import { IKeybindingService } from 'vs/platform/keybinding/common/keybinding';
+import { Registry } from 'vs/platform/registry/common/platform';
+import { attachInputBoxStyler, attachListStyler, computeStyles, defaultListStyles } from 'vs/platform/theme/common/styler';
 import { IThemeService } from 'vs/platform/theme/common/themeService';
 import { InputFocusedContextKey } from 'vs/platform/workbench/common/contextkeys';
-import { IConfigurationService } from 'vs/platform/configuration/common/configuration';
-import { localize } from 'vs/nls';
-import { Registry } from 'vs/platform/registry/common/platform';
-import { Extensions as ConfigurationExtensions, IConfigurationRegistry } from 'vs/platform/configuration/common/configurationRegistry';
-import { DefaultController, IControllerOptions, OpenMode, ClickBehavior, DefaultTreestyler } from 'vs/base/parts/tree/browser/treeDefaults';
-import { isUndefinedOrNull } from 'vs/base/common/types';
-import { IEditorOptions } from 'vs/platform/editor/common/editor';
-import { Event, Emitter } from 'vs/base/common/event';
-import { createStyleSheet, addStandardDisposableListener, getTotalHeight, removeClass, addClass } from 'vs/base/browser/dom';
-import { ScrollbarVisibility } from 'vs/base/common/scrollable';
-import { InputBox, IInputOptions } from 'vs/base/browser/ui/inputbox/inputBox';
-import { IContextViewService } from 'vs/platform/contextview/browser/contextView';
-import { TPromise } from 'vs/base/common/winjs.base';
-import { onUnexpectedError, canceled } from 'vs/base/common/errors';
-import { KeyCode } from 'vs/base/common/keyCodes';
-import { IKeyboardEvent } from 'vs/base/browser/keyboardEvent';
-import { IKeybindingService } from 'vs/platform/keybinding/common/keybinding';
 
 export type ListWidget = List<any> | PagedList<any> | ITree;
 
@@ -562,16 +563,13 @@ export class TreeResourceNavigator extends Disposable {
 	}
 }
 
-
-export interface IHighlightingRenderer extends ITreeRenderer {
-	/**
-	 * Update hightlights and return the best matching element
-	 */
-	updateHighlights(tree: ITree, pattern: string): any;
+export interface IHighlighter {
+	getHighlights(tree: ITree, element: any, pattern: string): FuzzyScore;
+	getHighlightsStorageKey?(element: any): any;
 }
 
 export interface IHighlightingTreeConfiguration extends ITreeConfiguration {
-	renderer: IHighlightingRenderer & ITreeRenderer;
+	highlighter: IHighlighter;
 }
 
 export class HighlightingTreeController extends WorkbenchTreeController {
@@ -607,7 +605,8 @@ export class HighlightingWorkbenchTree extends WorkbenchTree {
 	protected readonly inputContainer: HTMLElement;
 	protected readonly input: InputBox;
 
-	protected readonly renderer: IHighlightingRenderer;
+	protected readonly highlighter: IHighlighter;
+	protected readonly highlights: Map<any, FuzzyScore>;
 
 	constructor(
 		parent: HTMLElement,
@@ -635,7 +634,8 @@ export class HighlightingWorkbenchTree extends WorkbenchTree {
 		// create tree
 		treeConfiguration.controller = treeConfiguration.controller || instantiationService.createInstance(HighlightingTreeController, {}, () => this.onTypeInTree());
 		super(treeContainer, treeConfiguration, treeOptions, contextKeyService, listService, themeService, instantiationService, configurationService);
-		this.renderer = treeConfiguration.renderer;
+		this.highlighter = treeConfiguration.highlighter;
+		this.highlights = new Map<any, FuzzyScore>();
 
 		this.domNode = container;
 		addClass(this.domNode, 'inactive');
@@ -650,6 +650,7 @@ export class HighlightingWorkbenchTree extends WorkbenchTree {
 		this.disposables.push(addStandardDisposableListener(this.input.inputElement, 'keydown', event => {
 			//todo@joh make this command/context-key based
 			switch (event.keyCode) {
+				case KeyCode.UpArrow:
 				case KeyCode.DownArrow:
 				case KeyCode.Tab:
 					this.domFocus();
@@ -704,7 +705,19 @@ export class HighlightingWorkbenchTree extends WorkbenchTree {
 			this.lastSelection = [];
 		}
 
-		const topElement = this.renderer.updateHighlights(this, pattern);
+		let nav = this.getNavigator(undefined, false);
+		let topScore: FuzzyScore;
+		let topElement: any;
+		while (nav.next()) {
+			let element = nav.current();
+			let score = this.highlighter.getHighlights(this, element, pattern);
+			this.highlights.set(this._getHighlightsStorageKey(element), score);
+			element.foo = 1;
+			if (!topScore || score && topScore[0] < score[0]) {
+				topScore = score;
+				topElement = element;
+			}
+		}
 
 		this.refresh().then(() => {
 			if (topElement && pattern) {
@@ -714,8 +727,19 @@ export class HighlightingWorkbenchTree extends WorkbenchTree {
 				});
 			} else {
 				this.setSelection(defaultSelection, this);
+				this.highlights.clear();
 			}
 		}, onUnexpectedError);
+	}
+
+	getHighlights(element: any): FuzzyScore {
+		return this.highlights.get(this._getHighlightsStorageKey(element));
+	}
+
+	private _getHighlightsStorageKey(element: any): any {
+		return typeof this.highlighter.getHighlightsStorageKey === 'function'
+			? this.highlighter.getHighlightsStorageKey(element)
+			: element;
 	}
 }
 
