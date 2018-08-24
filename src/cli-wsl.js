@@ -95,6 +95,10 @@ function main(args, wslExecutable, vsCodeWinExecutable, vsCodeWinExecutableArg) 
 		return;
 	}
 
+	if (parsedArgs['extensionDevelopmentPath']) {
+		parsedArgs['extensionDevelopmentPath'] = mapFileUri(pathToURI(parsedArgs['extensionDevelopmentPath']).href);
+	}
+
 	let folderURIs = toArray(parsedArgs['folder-uri']).map(mapFileUri);
 	parsedArgs['folder-uri'] = folderURIs;
 
@@ -146,6 +150,12 @@ function main(args, wslExecutable, vsCodeWinExecutable, vsCodeWinExecutableArg) 
 			stdio: 'inherit'
 		});
 	}
+}
+
+function pathToURI(input) {
+	input = input.trim();
+	input = _path.resolve(input);
+	return new _url.URL('file:///' + input);
 }
 
 function translatePath(input, folderURIS, fileURIS) {
