@@ -20,7 +20,7 @@ export interface IRemoteExtensionsEnvironmentData {
 }
 
 export interface IRemoteExtensionsEnvironment {
-	getRemoteExtensionInformation(remoteAuthority: string): TPromise<IRemoteExtensionsEnvironmentData>;
+	getRemoteExtensionInformation(remoteAuthority: string, extensionDevelopmentPath?: string): TPromise<IRemoteExtensionsEnvironmentData>;
 }
 
 export interface IRemoteExtensionsService {

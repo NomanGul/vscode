@@ -22,9 +22,9 @@ export class RemoteExtensionsEnvironment implements IRemoteExtensionsEnvironment
 		private environmentService: IEnvironmentService
 	) { }
 
-	getRemoteExtensionInformation(remoteAuthority: string): TPromise<IRemoteExtensionsEnvironmentData> {
+	getRemoteExtensionInformation(remoteAuthority: string, extensionDevelopmentPath?: string): TPromise<IRemoteExtensionsEnvironmentData> {
 		const uriTransformer = createRemoteURITransformer(remoteAuthority);
-		return this.scanExtensions()
+		return this.scanExtensions(extensionDevelopmentPath)
 			.then(extensions => {
 				return <IRemoteExtensionsEnvironmentData>{
 					agentPid: process.pid,
@@ -37,11 +37,12 @@ export class RemoteExtensionsEnvironment implements IRemoteExtensionsEnvironment
 			});
 	}
 
-	private async scanExtensions(): TPromise<IExtensionDescription[]> {
+	private async scanExtensions(extensionDevelopmentPath?: string): TPromise<IExtensionDescription[]> {
 		return TPromise.join([
 			this.scanBuiltinExtensions(),
-			this.scanInstalledExtensions()
-		]).then(([builtinExtensions, installedExtensions]) => {
+			this.scanInstalledExtensions(),
+			this.scanDevelopedExtensions(extensionDevelopmentPath)
+		]).then(([builtinExtensions, installedExtensions, developedExtensions]) => {
 			let result: { [extensionId: string]: IExtensionDescription; } = {};
 
 			builtinExtensions.forEach((builtinExtension) => {
@@ -61,8 +62,33 @@ export class RemoteExtensionsEnvironment implements IRemoteExtensionsEnvironment
 				result[installedExtension.id] = installedExtension;
 			});
 
+			developedExtensions.forEach((developedExtension) => {
+				if (!developedExtension) {
+					return;
+				}
+				result[developedExtension.id] = developedExtension;
+			});
+
 			return Object.keys(result).map((extId) => result[extId]);
 		});
+	}
+
+	private scanDevelopedExtensions(extensionDevelopmentPath?: string): TPromise<IExtensionDescription[]> {
+		if (extensionDevelopmentPath) {
+			return ExtensionScanner.scanOneOrMultipleExtensions(
+				new ExtensionScannerInput(
+					pkg.version,
+					null, // commit
+					'en', // TODO@vs-remote
+					true, // dev mode
+					extensionDevelopmentPath,
+					false, // isBuiltin
+					true, // isUnderDevelopment
+					{} // translations
+				), consoleLogger
+			);
+		}
+		return TPromise.as([]);
 	}
 
 	private scanBuiltinExtensions(): TPromise<IExtensionDescription[]> {

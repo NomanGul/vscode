@@ -533,8 +533,9 @@ export class ExtensionService extends Disposable implements IExtensionService {
 		const connection = this._remoteExtensionsService.getRemoteConnection();
 		if (connection) {
 			const client = new RemoteExtensionsEnvironmentChannelClient(connection.getChannel('remoteextensionsenvironment'));
+			const extensionDevelopmentPath = this._environmentService.extensionDevelopmentPath;
 			// Let's cover the case where connecting to fetch the remote extension info fails
-			remoteExtensionsPromise = client.getRemoteExtensionInformation(connection.remoteAuthority).then(undefined, (err) => {
+			remoteExtensionsPromise = client.getRemoteExtensionInformation(connection.remoteAuthority, extensionDevelopmentPath).then(undefined, (err) => {
 				this._notificationService.error(nls.localize('connectionError', "Failed to connect to the remote extension host agent (Error: {0})", err ? err.message : ''));
 				return null;
 			});
