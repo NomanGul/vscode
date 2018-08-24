@@ -25,6 +25,7 @@ const gunzip = require('gulp-gunzip');
 const untar = require('gulp-untar');
 const File = require('vinyl');
 const pkg = require('pkg');
+const fs = require('fs');
 
 const REPO_ROOT = path.dirname(__dirname);
 const commit = util.getVersion(REPO_ROOT);
@@ -81,8 +82,14 @@ const baseUrl = `https://ticino.blob.core.windows.net/sourcemaps/${commit}/core`
 gulp.task('clean-minified-vscode-reh', util.rimraf('out-vscode-reh-min'));
 gulp.task('minify-vscode-reh', ['clean-minified-vscode-reh', 'optimize-vscode-reh'], common.minifyTask('out-vscode-reh', baseUrl));
 
+function getNodeVersion() {
+	const yarnrc = fs.readFileSync(path.join(REPO_ROOT, 'remote', '.yarnrc'), 'utf8');
+	const target = /^target "(.*)"$/m.exec(yarnrc)[1];
+	return target;
+}
+
 function nodejs(arch) {
-	const VERSION = `8.9.3`;
+	const VERSION = getNodeVersion();
 	if (process.platform === 'win32') {
 		let url;
 		if (arch === 'x64') {
