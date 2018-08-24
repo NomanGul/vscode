@@ -18,6 +18,7 @@ import 'vs/editor/editor.all';
 // Platform
 import 'vs/platform/widget/browser/contextScopedHistoryWidget';
 import 'vs/platform/label/electron-browser/label.contribution';
+import 'vs/platform/remote/node/remote.contribution';
 
 // Menus/Actions
 import 'vs/workbench/services/actions/electron-browser/menusExtensionPoint';
