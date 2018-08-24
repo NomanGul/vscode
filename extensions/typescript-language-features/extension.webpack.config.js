@@ -3,17 +3,21 @@
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
 
+//@ts-check
+
 'use strict';
 
-import * as path from 'path';
+const withDefaults = require('../shared.webpack.config');
 
-export function fixDriveC(_path: string): string {
-	const root = path.parse(_path).root;
-	return root.toLowerCase() === 'c:/' ?
-		_path.replace(/^c:[/\\]/i, '/') :
-		_path;
-}
-
-export function anchorGlob(glob: string): string {
-	return glob.startsWith('**') || glob.startsWith('/') ? glob : `/${glob}`;
-}
+module.exports = withDefaults({
+	context: __dirname,
+	node: {
+		__dirname: false,
+	},
+	resolve: {
+		mainFields: ['module', 'main']
+	},
+	entry: {
+		extension: './src/extension.ts',
+	}
+});
