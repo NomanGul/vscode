@@ -381,7 +381,7 @@ export class ExtensionHostProcessWorker implements IExtensionHostStarter {
 					isExtensionDevelopmentDebug: this._isExtensionDevDebug,
 					appRoot: this._environmentService.appRoot,
 					appSettingsHome: this._environmentService.appSettingsHome,
-					extensionDevelopmentPath: this._environmentService.extensionDevelopmentLocationURI,
+					extensionDevelopmentLocationURI: this._environmentService.extensionDevelopmentLocationURI,
 					extensionTestsPath: this._environmentService.extensionTestsPath
 				},
 				workspace: this._contextService.getWorkbenchState() === WorkbenchState.EMPTY ? null : {

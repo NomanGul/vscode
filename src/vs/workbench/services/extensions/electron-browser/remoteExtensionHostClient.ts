@@ -118,7 +118,7 @@ export class RemoteExtensionHostClient implements IExtensionHostStarter {
 					isExtensionDevelopmentDebug,
 					appRoot: remoteExtensionHostData.agentAppRoot,
 					appSettingsHome: remoteExtensionHostData.agentAppSettingsHome,
-					extensionDevelopmentPath: this._environmentService.extensionDevelopmentLocationURI,
+					extensionDevelopmentLocationURI: this._environmentService.extensionDevelopmentLocationURI,
 					extensionTestsPath: this._environmentService.extensionTestsPath,
 				},
 				workspace: this._contextService.getWorkbenchState() === WorkbenchState.EMPTY ? null : {
