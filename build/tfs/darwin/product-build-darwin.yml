@@ -21,7 +21,7 @@ steps:
     set -e
     VSCODE_MIXIN_PASSWORD="$(VSCODE_MIXIN_PASSWORD)" \
     AZURE_STORAGE_ACCESS_KEY="$(AZURE_STORAGE_ACCESS_KEY)" \
-    npm run gulp -- vscode-darwin-min upload-vscode-sourcemaps
+    npm run gulp -- vscode-darwin-min vscode-reh-darwin-min upload-vscode-sourcemaps
   name: build
 
 - script: |
@@ -50,6 +50,20 @@ steps:
       $VERSION \
       false \
       ../VSCode-darwin-unsigned.zip
+
+    # publish Remote Extension Host
+    pushd ../vscode-reh-darwin && zip -r -X -y ../vscode-headless-darwin.zip * && popd
+    AZURE_DOCUMENTDB_MASTERKEY="$(AZURE_DOCUMENTDB_MASTERKEY)" \
+    AZURE_STORAGE_ACCESS_KEY_2="$(AZURE_STORAGE_ACCESS_KEY_2)" \
+    MOONCAKE_STORAGE_ACCESS_KEY="$(MOONCAKE_STORAGE_ACCESS_KEY)" \
+    node build/tfs/common/publish.js \
+      "$(VSCODE_QUALITY)" \
+      headless-darwin \
+      archive-unsigned \
+      "vscode-headless-darwin.zip" \
+      $VERSION \
+      true \
+      ../vscode-headless-darwin.zip
 
     # publish hockeyapp symbols
     node build/tfs/common/symbols.js "$(VSCODE_MIXIN_PASSWORD)" "$(VSCODE_HOCKEYAPP_TOKEN)" "$(VSCODE_ARCH)" "$(VSCODE_HOCKEYAPP_ID_MACOS)"
