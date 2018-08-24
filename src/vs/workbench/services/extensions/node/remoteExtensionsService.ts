@@ -7,6 +7,7 @@ import { IExtensionDescription } from 'vs/workbench/services/extensions/common/e
 import { TPromise } from 'vs/base/common/winjs.base';
 import { createDecorator } from 'vs/platform/instantiation/common/instantiation';
 import { IChannel } from 'vs/base/parts/ipc/node/ipc';
+import URI from 'vs/base/common/uri';
 
 export const IRemoteExtensionsService = createDecorator<IRemoteExtensionsService>('remoteExtensionsService');
 
@@ -20,7 +21,7 @@ export interface IRemoteExtensionsEnvironmentData {
 }
 
 export interface IRemoteExtensionsEnvironment {
-	getRemoteExtensionInformation(remoteAuthority: string, extensionDevelopmentPath?: string): TPromise<IRemoteExtensionsEnvironmentData>;
+	getRemoteExtensionInformation(remoteAuthority: string, extensionDevelopmentPath?: URI): TPromise<IRemoteExtensionsEnvironmentData>;
 }
 
 export interface IRemoteExtensionsService {

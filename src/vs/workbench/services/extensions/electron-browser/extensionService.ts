@@ -48,6 +48,7 @@ import { IInitDataProvider, RemoteExtensionHostClient } from 'vs/workbench/servi
 import { Schemas } from 'vs/base/common/network';
 import { getPathFromAmdModule } from 'vs/base/common/amd';
 import { IConfigurationService } from 'vs/platform/configuration/common/configuration';
+import { isEqualOrParent } from 'vs/base/common/resources';
 
 let _SystemExtensionsRoot: string = null;
 function getSystemExtensionsRoot(): string {
@@ -533,7 +534,7 @@ export class ExtensionService extends Disposable implements IExtensionService {
 		const connection = this._remoteExtensionsService.getRemoteConnection();
 		if (connection) {
 			const client = new RemoteExtensionsEnvironmentChannelClient(connection.getChannel('remoteextensionsenvironment'));
-			const extensionDevelopmentPath = this._environmentService.extensionDevelopmentPath;
+			const extensionDevelopmentPath = this._environmentService.extensionDevelopmentLocationURI;
 			// Let's cover the case where connecting to fetch the remote extension info fails
 			remoteExtensionsPromise = client.getRemoteExtensionInformation(connection.remoteAuthority, extensionDevelopmentPath).then(undefined, (err) => {
 				this._notificationService.error(nls.localize('connectionError', "Failed to connect to the remote extension host agent (Error: {0})", err ? err.message : ''));
@@ -648,11 +649,11 @@ export class ExtensionService extends Disposable implements IExtensionService {
 				}
 
 				const enableProposedApiForAll = !this._environmentService.isBuilt ||
-					(!!this._environmentService.extensionDevelopmentPath && product.nameLong.indexOf('Insiders') >= 0) ||
+					(!!this._environmentService.extensionDevelopmentLocationURI && product.nameLong.indexOf('Insiders') >= 0) ||
 					(enableProposedApiFor.length === 0 && 'enable-proposed-api' in this._environmentService.args);
 
 				for (const extension of allExtensions) {
-					const isExtensionUnderDevelopment = this._environmentService.isExtensionDevelopment && extension.extensionLocation.scheme === Schemas.file && extension.extensionLocation.fsPath.indexOf(this._environmentService.extensionDevelopmentPath) === 0;
+					const isExtensionUnderDevelopment = this._environmentService.isExtensionDevelopment && isEqualOrParent(extension.extensionLocation, this._environmentService.extensionDevelopmentLocationURI);
 					// Do not disable extensions under development
 					if (!isExtensionUnderDevelopment) {
 						if (disabledExtensions.some(disabled => areSameExtensions(disabled, extension))) {
@@ -945,13 +946,12 @@ export class ExtensionService extends Disposable implements IExtensionService {
 			);
 
 			// Always load developed extensions while extensions development
-			const developedExtensions = (
-				environmentService.isExtensionDevelopment
-					? ExtensionScanner.scanOneOrMultipleExtensions(
-						new ExtensionScannerInput(version, commit, locale, devMode, environmentService.extensionDevelopmentPath, false, true, translations), log
-					)
-					: TPromise.as([])
-			);
+			let developedExtensions = TPromise.as([]);
+			if (environmentService.isExtensionDevelopment && environmentService.extensionDevelopmentLocationURI.scheme === Schemas.file) {
+				developedExtensions = ExtensionScanner.scanOneOrMultipleExtensions(
+					new ExtensionScannerInput(version, commit, locale, devMode, environmentService.extensionDevelopmentLocationURI.fsPath, false, true, translations), log
+				);
+			}
 
 			return TPromise.join([finalBuiltinExtensions, userExtensions, developedExtensions]).then((extensionDescriptions: IExtensionDescription[][]) => {
 				const system = extensionDescriptions[0];

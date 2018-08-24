@@ -13,6 +13,9 @@ import { ExtensionScanner, ILog, ExtensionScannerInput } from 'vs/workbench/serv
 import { IEnvironmentService } from 'vs/platform/environment/common/environment';
 import { createRemoteURITransformer } from 'vs/workbench/node/remoteUriTransformer';
 import { transformOutgoingURIs } from 'vs/workbench/services/extensions/node/rpcProtocol';
+import URI from 'vs/base/common/uri';
+import { Schemas } from 'vs/base/common/network';
+import { IURITransformer } from 'vs/base/common/uriIpc';
 
 export class RemoteExtensionsEnvironment implements IRemoteExtensionsEnvironment {
 
@@ -22,8 +25,9 @@ export class RemoteExtensionsEnvironment implements IRemoteExtensionsEnvironment
 		private environmentService: IEnvironmentService
 	) { }
 
-	getRemoteExtensionInformation(remoteAuthority: string, extensionDevelopmentPath?: string): TPromise<IRemoteExtensionsEnvironmentData> {
+	getRemoteExtensionInformation(remoteAuthority: string, extensionDevelopmentLocation?: URI): TPromise<IRemoteExtensionsEnvironmentData> {
 		const uriTransformer = createRemoteURITransformer(remoteAuthority);
+		const extensionDevelopmentPath = this.getExtensionDevelopmentPath(uriTransformer, extensionDevelopmentLocation);
 		return this.scanExtensions(extensionDevelopmentPath)
 			.then(extensions => {
 				return <IRemoteExtensionsEnvironmentData>{
@@ -35,6 +39,16 @@ export class RemoteExtensionsEnvironment implements IRemoteExtensionsEnvironment
 					extensions: transformOutgoingURIs(extensions, uriTransformer)
 				};
 			});
+	}
+
+	private getExtensionDevelopmentPath(uriTransformer: IURITransformer, extensionDevelopmentLocation?: URI) {
+		if (extensionDevelopmentLocation) {
+			extensionDevelopmentLocation = URI.revive(uriTransformer.transformIncoming(extensionDevelopmentLocation));
+			if (extensionDevelopmentLocation.scheme === Schemas.file) {
+				return extensionDevelopmentLocation.fsPath;
+			}
+		}
+		return void 0;
 	}
 
 	private async scanExtensions(extensionDevelopmentPath?: string): TPromise<IExtensionDescription[]> {
