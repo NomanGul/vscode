@@ -11,7 +11,7 @@ import { Repository, GitResourceGroup, Status } from './repository';
 import { Model } from './model';
 import { debounce } from './decorators';
 import { filterEvent, dispose, anyEvent, fireEvent } from './util';
-import { GitErrorCodes } from './api/git';
+import { GitErrorCodes } from './git';
 
 type Callback = { resolve: (status: boolean) => void, reject: (err: any) => void };
 
