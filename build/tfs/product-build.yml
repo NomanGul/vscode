@@ -7,12 +7,6 @@ phases:
   steps:
   - template: win32/product-build-win32.yml
 
-- phase: WindowsWSL
-  condition: eq(variables['VSCODE_BUILD_WIN32'], 'true')
-  queue: Hosted Linux Preview
-  steps:
-  - template: wsl/product-build-win32-wsl.yml
-
 - phase: Windows32
   condition: eq(variables['VSCODE_BUILD_WIN32_32BIT'], 'true')
   queue: Hosted VS2017
