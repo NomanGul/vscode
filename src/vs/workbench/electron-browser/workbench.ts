@@ -117,6 +117,7 @@ import { TelemetryService } from 'vs/platform/telemetry/common/telemetryService'
 import { WorkbenchThemeService } from 'vs/workbench/services/themes/electron-browser/workbenchThemeService';
 import { IWorkbenchThemeService } from 'vs/workbench/services/themes/common/workbenchThemeService';
 import { LabelService, ILabelService } from 'vs/platform/label/common/label';
+import { IRemoteExtensionsService } from 'vs/workbench/services/extensions/node/remoteExtensionsService';
 
 interface WorkbenchParams {
 	configuration: IWindowConfiguration;
@@ -247,7 +248,8 @@ export class Workbench extends Disposable implements IPartService {
 		@IEnvironmentService private environmentService: IEnvironmentService,
 		@IWindowService private windowService: IWindowService,
 		@INotificationService private notificationService: NotificationService,
-		@ITelemetryService private telemetryService: TelemetryService
+		@ITelemetryService private telemetryService: TelemetryService,
+		@IRemoteExtensionsService private remoteExtensionsService: IRemoteExtensionsService
 	) {
 		super();
 
@@ -616,7 +618,10 @@ export class Workbench extends Disposable implements IPartService {
 		IsMacContext.bindTo(this.contextKeyService);
 		IsLinuxContext.bindTo(this.contextKeyService);
 		IsWindowsContext.bindTo(this.contextKeyService);
-		FileDialogContext.bindTo(this.contextKeyService);
+		const fileDialogContextKey = FileDialogContext.bindTo(this.contextKeyService);
+		if (!!this.remoteExtensionsService.getRemoteConnection()) {
+			fileDialogContextKey.set('remote');
+		}
 
 		const sidebarVisibleContextRaw = new RawContextKey<boolean>('sidebarVisible', false);
 		this.sideBarVisibleContext = sidebarVisibleContextRaw.bindTo(this.contextKeyService);
