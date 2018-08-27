@@ -181,7 +181,6 @@ declare namespace monaco {
 		good.scheme === 'file';
 		good.path === '/coding/c#/project1';
 		good.fragment === '';
-	
 		const bad = Uri.parse('file://' + '/coding/c#/project1');
 		bad.scheme === 'file';
 		bad.path === '/coding/c'; // path is now broken
@@ -1666,14 +1665,12 @@ declare namespace monaco.editor {
 		/**
 		 * Get the word under or besides `position`.
 		 * @param position The position to look for a word.
-		 * @param skipSyntaxTokens Ignore syntax tokens, as identified by the mode.
 		 * @return The word under or besides `position`. Might be null.
 		 */
 		getWordAtPosition(position: IPosition): IWordAtPosition;
 		/**
 		 * Get the word under or besides `position` trimmed to `position`.column
 		 * @param position The position to look for a word.
-		 * @param skipSyntaxTokens Ignore syntax tokens, as identified by the mode.
 		 * @return The word under or besides `position`. Will never be null.
 		 */
 		getWordUntilPosition(position: IPosition): IWordAtPosition;
@@ -1684,14 +1681,12 @@ declare namespace monaco.editor {
 		/**
 		 * Get the word under or besides `position`.
 		 * @param position The position to look for a word.
-		 * @param skipSyntaxTokens Ignore syntax tokens, as identified by the mode.
 		 * @return The word under or besides `position`. Might be null.
 		 */
 		getWordAtPosition(position: IPosition): IWordAtPosition;
 		/**
 		 * Get the word under or besides `position` trimmed to `position`.column
 		 * @param position The position to look for a word.
-		 * @param skipSyntaxTokens Ignore syntax tokens, as identified by the mode.
 		 * @return The word under or besides `position`. Will never be null.
 		 */
 		getWordUntilPosition(position: IPosition): IWordAtPosition;
@@ -2498,7 +2493,7 @@ declare namespace monaco.editor {
 	export interface IEditorMinimapOptions {
 		/**
 		 * Enable the rendering of the minimap.
-		 * Defaults to false.
+		 * Defaults to true.
 		 */
 		enabled?: boolean;
 		/**

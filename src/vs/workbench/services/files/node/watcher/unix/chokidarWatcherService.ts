@@ -119,7 +119,8 @@ export class ChokidarWatcherService implements IWatcherService {
 		};
 
 		// if there's only one request, use the built-in ignore-filterering
-		if (requests.length === 1) {
+		const isSingleFolder = requests.length === 1;
+		if (isSingleFolder) {
 			watcherOpts.ignored = requests[0].ignored;
 		}
 
@@ -200,8 +201,12 @@ export class ChokidarWatcherService implements IWatcherService {
 					return;
 			}
 
-			if (isIgnored(path, watcher.requests)) {
-				return;
+			// if there's more than one request we need to do
+			// extra filtering due to potentially overlapping roots
+			if (!isSingleFolder) {
+				if (isIgnored(path, watcher.requests)) {
+					return;
+				}
 			}
 
 			let event = { type: eventType, path };

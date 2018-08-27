@@ -405,6 +405,7 @@ export interface IConfig extends IEnvConfig {
 	// internals
 	__sessionId?: string;
 	__restart?: any;
+	__autoAttach?: boolean;
 	port?: number; // TODO
 }
 
@@ -667,6 +668,12 @@ export interface IDebugService {
 	 * Notifies debug adapter of breakpoint changes.
 	 */
 	removeFunctionBreakpoints(id?: string): TPromise<void>;
+
+	/**
+	 * Sends all breakpoints to the passed session.
+	 * If session is not passed, sends all breakpoints to each session.
+	 */
+	sendAllBreakpoints(session?: ISession): TPromise<any>;
 
 	/**
 	 * Adds a new expression to the repl.

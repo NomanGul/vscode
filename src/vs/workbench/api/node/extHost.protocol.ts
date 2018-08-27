@@ -293,6 +293,7 @@ export interface MainThreadLanguageFeaturesShape extends IDisposable {
 
 export interface MainThreadLanguagesShape extends IDisposable {
 	$getLanguages(): TPromise<string[]>;
+	$changeLanguage(resource: UriComponents, languageId: string): TPromise<void>;
 }
 
 export interface MainThreadMessageOptions {

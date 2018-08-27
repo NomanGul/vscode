@@ -1,7 +1,7 @@
 {
   "name": "code-oss-dev",
   "version": "1.27.0",
-  "distro": "4bd49e564426e4719c8f9f522a4d67d89de3fb26",
+  "distro": "280911fc2dd6bc4d1fe8320e5b7d611c034b87fb",
   "author": {
     "name": "Microsoft Corporation"
   },
@@ -44,7 +44,7 @@
     "spdlog": "0.7.1",
     "sudo-prompt": "8.2.0",
     "v8-inspect-profiler": "^0.0.8",
-    "vscode-chokidar": "1.6.2",
+    "vscode-chokidar": "1.6.4",
     "vscode-debugprotocol": "1.31.0",
     "vscode-nsfw": "1.0.17",
     "vscode-ripgrep": "1.1.0",
