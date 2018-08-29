@@ -87,7 +87,7 @@ for (let o of options) {
 	}
 }
 
-function main(args, wslExecutable, vsCodeWinExecutable, vsCodeWinExecutableArg) {
+function main(args, wslExecutable, vsCodeWinExecutable) {
 	var parsedArgs = _minimist(args, minimistOptions);
 
 	if (parsedArgs['help']) {
@@ -144,9 +144,9 @@ function main(args, wslExecutable, vsCodeWinExecutable, vsCodeWinExecutableArg) 
 		});
 	} else {
 		if (parsedArgs['verbose']) {
-			console.log(`Invoking: ${vsCodeWinExecutable} ${vsCodeWinExecutableArg} ${newCommandline.join(' ')}`);
+			console.log(`Invoking: ${vsCodeWinExecutable} ${newCommandline.join(' ')}`);
 		}
-		_cp.spawn(vsCodeWinExecutable, [vsCodeWinExecutableArg, ...newCommandline], {
+		_cp.spawn(vsCodeWinExecutable, newCommandline, {
 			stdio: 'inherit'
 		});
 	}
@@ -268,5 +268,5 @@ ${formatOptions('t', columns)}`
 	);
 }
 
-let [, , wslExecutable, vsCodeWinExecutable, vsCodeWinExecutableArg, ...args] = process.argv;
-main(args, wslExecutable, vsCodeWinExecutable, vsCodeWinExecutableArg);
+let [, , wslExecutable, vsCodeWinExecutable, ...args] = process.argv;
+main(args, wslExecutable, vsCodeWinExecutable);

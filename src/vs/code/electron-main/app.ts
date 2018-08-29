@@ -682,56 +682,44 @@ export class CodeApplication {
 		}
 		this.logService.info('Starting remote extension agent inside WSL');
 		this.wslExtensionHost = new TPromise<void>((resolve, reject) => {
-			let script: string = environmentService.isBuilt
-				? URI.parse(require.toUrl('./wslAgent2.sh')).fsPath
-				: URI.parse(require.toUrl('./wslAgent-dev.sh')).fsPath;
+			let agentName = environmentService.isBuilt ? 'code-wsl' : 'code-wsl-dev.sh';
 
-			cp.execFile('wsl', ['wslpath', '-a', script.replace(/\\/g, '\\\\')], { encoding: 'utf8' }, (error, stdout, stderr) => {
-				if (error || (stderr && stderr.length > 0)) {
-					reject(error || new Error(stderr));
-				}
-				let wslScript = stdout.replace('\n', '').replace('\r', '');
-				// The script path contains a blank. We have to escape the blank and put single quotes around it.
-				if (wslScript.indexOf(' ') >= 0) {
-					wslScript = `'${wslScript.replace(/ /g, '\\ ')}'`;
-				}
-				let extHostProcess = cp.spawn('C:\\Windows\\System32\\bash.exe', ['-i', '-c', wslScript], { cwd: process.cwd(), windowsVerbatimArguments: true });
-				if (extHostProcess.pid === void 0) {
-					reject(new Error('WSL remote extension host agent couldn\'t be started'));
-				} else {
-					let connectPromise = new TPromise<void>((resolve, reject) => {
-						let stdout: string = '';
-						extHostProcess.stdout.on('data', (data) => {
-							process.stdout.write(data);
-							if (stdout !== void 0) {
-								stdout = stdout + data.toString();
-								if (stdout.indexOf('Extension host agent listening on') !== -1) {
-									this.logService.info('Extension host agent is ready');
-									stdout = undefined;
-									resolve(undefined);
-								}
+			let extHostProcess = cp.spawn('C:\\Windows\\System32\\bash.exe', ['-i', '-c', `"${agentName} --headless"`], { cwd: process.cwd(), windowsVerbatimArguments: true });
+			if (extHostProcess.pid === void 0) {
+				reject(new Error('WSL remote extension host agent couldn\'t be started'));
+			} else {
+				let connectPromise = new TPromise<void>((resolve, reject) => {
+					let stdout: string = '';
+					extHostProcess.stdout.on('data', (data) => {
+						process.stdout.write(data);
+						if (stdout !== void 0) {
+							stdout = stdout + data.toString();
+							if (stdout.indexOf('Extension host agent listening on') !== -1) {
+								this.logService.info('Extension host agent is ready');
+								stdout = undefined;
+								resolve(undefined);
 							}
-						});
-						extHostProcess.stderr.on('data', (data) => {
-							process.stderr.write(data);
-						});
-						extHostProcess.on('error', (error) => {
-							this.logService.info(`Starting WSL extension host agent failed with\n:${error.message}`);
-							console.log('Agent: Errored');
-						});
-						extHostProcess.on('close', (code) => {
-							console.log('Agent: Closed: ' + code);
-						});
+						}
 					});
-					// Wait max 30 seconds for the agent to start
-					let rejectTimer = setTimeout(() => reject(new Error('Starting WSL extension host agent exceeded 30s')), 30000);
-					connectPromise.then(() => {
-						// success!
-						clearTimeout(rejectTimer);
-						resolve(undefined);
+					extHostProcess.stderr.on('data', (data) => {
+						process.stderr.write(data);
 					});
-				}
-			});
+					extHostProcess.on('error', (error) => {
+						this.logService.info(`Starting WSL extension host agent failed with\n:${error.message}`);
+						console.log('Agent: Errored');
+					});
+					extHostProcess.on('close', (code) => {
+						console.log('Agent: Closed: ' + code);
+					});
+				});
+				// Wait max 30 seconds for the agent to start
+				let rejectTimer = setTimeout(() => reject(new Error('Starting WSL extension host agent exceeded 30s')), 30000);
+				connectPromise.then(() => {
+					// success!
+					clearTimeout(rejectTimer);
+					resolve(undefined);
+				});
+			}
 		});
 		return this.wslExtensionHost;
 	}

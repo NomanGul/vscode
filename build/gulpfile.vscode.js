@@ -32,7 +32,6 @@ const i18n = require('./lib/i18n');
 const deps = require('./dependencies');
 const getElectronVersion = require('./lib/electron').getElectronVersion;
 const createAsar = require('./lib/asar').createAsar;
-const File = require('vinyl');
 
 const productionDependencies = deps.getProductionDependencies(path.dirname(__dirname));
 // @ts-ignore
@@ -76,7 +75,6 @@ const vscodeResources = [
 	'out-build/vs/code/electron-browser/sharedProcess/sharedProcess.js',
 	'out-build/vs/code/electron-browser/issue/issueReporter.js',
 	'out-build/vs/code/electron-browser/processExplorer/processExplorer.js',
-	'out-build/vs/code/electron-main/wslAgent2.sh',
 	'out-build/vs/code/electron-main/wslDownload.sh',
 	'remote/package.json',
 	'!**/test/**'
@@ -307,20 +305,7 @@ function packageTask(platform, arch, opts) {
 			all = es.merge(all, shortcut);
 		}
 
-		const substituteCommitInWSLAgent = es.through(function (data) {
-			if (/wslAgent2\.sh$/.test(data.path)) {
-				this.emit('data', new File({
-					path: data.path,
-					base: data.base,
-					contents: new Buffer(data.contents.toString().replace(/@@COMMIT@@/g, commit))
-				}));
-			} else {
-				this.emit('data', data);
-			}
-		});
-
 		let result = all
-			.pipe(substituteCommitInWSLAgent)
 			.pipe(util.skipDirectories())
 			.pipe(util.fixWin32DirectoryPermissions())
 			.pipe(electron(_.extend({}, config, { platform, arch, ffmpegChromium: true })))
@@ -335,8 +320,8 @@ function packageTask(platform, arch, opts) {
 
 			result = es.merge(result, gulp.src('resources/win32/bin/code.sh', { base: 'resources/win32' })
 				.pipe(replace('@@NAME@@', product.nameShort))
-				.pipe(replace('@@VERSION@@', `${version}-${commit.substr(0, 7)}`))
-				.pipe(replace('@@COMMIT@@', `${commit}`))
+				.pipe(replace('@@COMMIT@@', commit))
+				.pipe(replace('@@APPNAME@@', product.applicationName))
 				.pipe(rename(function (f) { f.basename = product.applicationName; f.extname = ''; })));
 
 			result = es.merge(result, gulp.src('resources/win32/VisualElementsManifest.xml', { base: 'resources/win32' })
