@@ -307,7 +307,7 @@ function packageTask(platform, arch, opts) {
 			all = es.merge(all, shortcut);
 		}
 
-		const substituteCommitInWSLAgent = es.through((data) => {
+		const substituteCommitInWSLAgent = es.through(function (data) {
 			if (/wslAgent2\.sh$/.test(data.path)) {
 				this.emit('data', new File({
 					path: data.path,
