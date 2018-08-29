@@ -7,7 +7,7 @@ VSCODE_PATH="$(dirname "$(dirname "$(realpath "$0")")")"
 SCRIPT_NAME="$(basename "$(test -L "$0" && readlink "$0" || echo "$0")")"
 if grep -q Microsoft /proc/version; then
 	if [ -x /bin/wslpath ]; then
-		if [ $1 == '--init' ]; then
+		if [ $1 == '--init' ] || [ -e "$VSCODE_PATH/remote/node_modules/node-pty/build/binding.sln" ] ; then
 			rm -r "$VSCODE_PATH/remote/node_modules"
 		fi
 		echo "Using $VSCODE_PATH as remote folder"
