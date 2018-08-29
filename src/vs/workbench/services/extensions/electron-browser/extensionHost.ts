@@ -40,6 +40,7 @@ import { timeout } from 'vs/base/common/async';
 import { isMessageOfType, MessageType, createMessageOfType } from 'vs/workbench/common/extensionHostProtocol';
 import { ILabelService } from 'vs/platform/label/common/label';
 import URI from 'vs/base/common/uri';
+import { Schemas } from 'vs/base/common/network';
 
 export interface IExtensionHostStarter {
 	readonly onCrashed: Event<[number, string]>;
@@ -88,8 +89,10 @@ export class ExtensionHostProcessWorker implements IExtensionHostStarter {
 	) {
 		// handle extension host lifecycle a bit special when we know we are developing an extension that runs inside
 		this._isExtensionDevHost = this._environmentService.isExtensionDevelopment;
-		this._isExtensionDevDebug = (typeof this._environmentService.debugExtensionHost.port === 'number');
-		this._isExtensionDevDebugBrk = !!this._environmentService.debugExtensionHost.break;
+		const extDevLoc = this._environmentService.extensionDevelopmentLocationURI;
+		const debugOk = extDevLoc && extDevLoc.scheme === Schemas.file;
+		this._isExtensionDevDebug = debugOk && typeof this._environmentService.debugExtensionHost.port === 'number';
+		this._isExtensionDevDebugBrk = debugOk && !!this._environmentService.debugExtensionHost.break;
 		this._isExtensionDevTestFromCli = this._isExtensionDevHost && !!this._environmentService.extensionTestsPath && !this._environmentService.debugExtensionHost.break;
 
 		this._lastExtensionHostError = null;
@@ -227,7 +230,7 @@ export class ExtensionHostProcessWorker implements IExtensionHostStarter {
 				this._extensionHostProcess.on('exit', (code: number, signal: string) => this._onExtHostProcessExit(code, signal));
 
 				// Notify debugger that we are ready to attach to the process if we run a development extension
-				if (this._isExtensionDevHost && portData.actual) {
+				if (this._isExtensionDevHost && portData.actual && this._isExtensionDevDebug) {
 					this._broadcastService.broadcast({
 						channel: EXTENSION_ATTACH_BROADCAST_CHANNEL,
 						payload: {

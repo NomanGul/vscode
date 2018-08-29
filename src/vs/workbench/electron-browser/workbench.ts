@@ -798,7 +798,8 @@ export class Workbench extends Disposable implements IPartService {
 				return TPromise.as([<IResourceDiffInput>{
 					leftResource: filesToDiff[0].resource,
 					rightResource: filesToDiff[1].resource,
-					options: { pinned: true }
+					options: { pinned: true },
+					isFile: true
 				}]);
 			}
 
@@ -839,7 +840,7 @@ export class Workbench extends Disposable implements IPartService {
 			if (isNew) {
 				input = { filePath: resource.fsPath, options: { pinned: true } } as IUntitledResourceInput;
 			} else {
-				input = { resource, options: { pinned: true } } as IResourceInput;
+				input = { resource, options: { pinned: true }, isFile: true } as IResourceInput;
 			}
 
 			if (!isNew && p.lineNumber) {

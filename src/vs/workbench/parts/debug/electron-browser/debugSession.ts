@@ -67,6 +67,10 @@ export class Session implements ISession {
 		return this._configuration.unresolved;
 	}
 
+	get capabilities(): DebugProtocol.Capabilities {
+		return this._raw ? this._raw.capabilities : Object.create(null);
+	}
+
 	getName(includeRoot: boolean): string {
 		return includeRoot && this.root ? `${this.configuration.name} (${resources.basenameOrAuthority(this.root.uri)})` : this.configuration.name;
 	}
@@ -230,7 +234,7 @@ export class Session implements ISession {
 		}
 
 		return dbgr.getCustomTelemetryService().then(customTelemetryService => {
-			this._raw = this.instantiationService.createInstance(RawDebugSession, this.id, this._configuration.resolved.debugServer, dbgr, customTelemetryService, this.root);
+			this._raw = this.instantiationService.createInstance(RawDebugSession, this.id, this._configuration.resolved, dbgr, customTelemetryService, this.root);
 			this.registerListeners();
 
 			return this._raw.initialize({
@@ -428,7 +432,9 @@ export class Session implements ISession {
 
 	dispose(): void {
 		dispose(this.rawListeners);
+		this.model.clearThreads(this.getId(), true);
 		this.model.removeSession(this.getId());
+		this.fetchThreadsScheduler = undefined;
 		if (!this._raw.disconnected) {
 			this._raw.disconnect().done(undefined, errors.onUnexpectedError);
 		}

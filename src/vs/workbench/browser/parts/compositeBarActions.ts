@@ -181,7 +181,7 @@ export class ActivityActionItem extends BaseActionItem {
 
 		// Make the container tab-able for keyboard navigation
 		this.container.tabIndex = 0;
-		this.container.setAttribute('role', 'button');
+		this.container.setAttribute('role', this.options.icon ? 'button' : 'tab');
 
 		// Try hard to prevent keyboard only focus feedback when using mouse
 		this._register(dom.addDisposableListener(this.container, dom.EventType.MOUSE_DOWN, () => {
@@ -428,6 +428,7 @@ export class CompositeActionItem extends ActivityActionItem {
 	constructor(
 		private compositeActivityAction: ActivityAction,
 		private toggleCompositePinnedAction: Action,
+		private contextMenuActionsProvider: () => Action[],
 		colors: ICompositeBarColors,
 		icon: boolean,
 		private compositeBar: ICompositeBar,
@@ -568,6 +569,12 @@ export class CompositeActionItem extends ActivityActionItem {
 			this.toggleCompositePinnedAction.checked = false;
 		} else {
 			this.toggleCompositePinnedAction.label = nls.localize('keep', "Keep");
+		}
+
+		const otherActions = this.contextMenuActionsProvider();
+		if (otherActions.length) {
+			actions.push(new Separator());
+			actions.push(...otherActions);
 		}
 
 		this.contextMenuService.showContextMenu({

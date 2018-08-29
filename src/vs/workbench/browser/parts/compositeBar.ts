@@ -67,6 +67,10 @@ export class CompositeBar extends Widget implements ICompositeBar {
 		this.compositeTransfer = LocalSelectionTransfer.getInstance<DraggedCompositeIdentifier>();
 	}
 
+	getComposites(): ICompositeBarItem[] {
+		return this.model.items;
+	}
+
 	create(parent: HTMLElement): HTMLElement {
 		const actionBarDiv = parent.appendChild($('.composite-bar'));
 		this.compositeSwitcherBar = this._register(new ActionBar(actionBarDiv, {
@@ -75,7 +79,7 @@ export class CompositeBar extends Widget implements ICompositeBar {
 					return this.compositeOverflowActionItem;
 				}
 				const item = this.model.findItem(action.id);
-				return item && this.instantiationService.createInstance(CompositeActionItem, action, item.pinnedAction, this.options.colors, this.options.icon, this);
+				return item && this.instantiationService.createInstance(CompositeActionItem, action, item.pinnedAction, () => this.getContextMenuActions(), this.options.colors, this.options.icon, this);
 			},
 			orientation: this.options.orientation,
 			ariaLabel: nls.localize('activityBarAriaLabel', "Active View Switcher"),
@@ -142,6 +146,7 @@ export class CompositeBar extends Widget implements ICompositeBar {
 
 	hideComposite(id: string): void {
 		if (this.model.hide(id)) {
+			this.resetActiveComposite(id);
 			this.updateCompositeSwitcher();
 		}
 	}
@@ -196,34 +201,38 @@ export class CompositeBar extends Widget implements ICompositeBar {
 
 			this.updateCompositeSwitcher();
 
-			const defaultCompositeId = this.options.getDefaultCompositeId();
+			this.resetActiveComposite(compositeId);
+		}
+	}
 
-			// Case: composite is not the active one or the active one is a different one
-			// Solv: we do nothing
-			if (!this.model.activeItem || this.model.activeItem.id !== compositeId) {
-				return;
-			}
+	private resetActiveComposite(compositeId: string) {
+		const defaultCompositeId = this.options.getDefaultCompositeId();
 
-			// Deactivate itself
-			this.deactivateComposite(compositeId);
+		// Case: composite is not the active one or the active one is a different one
+		// Solv: we do nothing
+		if (!this.model.activeItem || this.model.activeItem.id !== compositeId) {
+			return;
+		}
 
-			// Case: composite is not the default composite and default composite is still showing
-			// Solv: we open the default composite
-			if (defaultCompositeId !== compositeId && this.isPinned(defaultCompositeId)) {
-				this.options.openComposite(defaultCompositeId);
-			}
+		// Deactivate itself
+		this.deactivateComposite(compositeId);
 
-			// Case: we closed the last visible composite
-			// Solv: we hide the part
-			else if (this.visibleComposites.length === 1) {
-				this.options.hidePart();
-			}
+		// Case: composite is not the default composite and default composite is still showing
+		// Solv: we open the default composite
+		if (defaultCompositeId !== compositeId && this.isPinned(defaultCompositeId)) {
+			this.options.openComposite(defaultCompositeId);
+		}
 
-			// Case: we closed the default composite
-			// Solv: we open the next visible composite from top
-			else {
-				this.options.openComposite(this.visibleComposites.filter(cid => cid !== compositeId)[0]);
-			}
+		// Case: we closed the last visible composite
+		// Solv: we hide the part
+		else if (this.visibleComposites.length === 1) {
+			this.options.hidePart();
+		}
+
+		// Case: we closed the default composite
+		// Solv: we open the next visible composite from top
+		else {
+			this.options.openComposite(this.visibleComposites.filter(cid => cid !== compositeId)[0]);
 		}
 	}
 
@@ -388,10 +397,17 @@ export class CompositeBar extends Widget implements ICompositeBar {
 	private showContextMenu(e: MouseEvent): void {
 		EventHelper.stop(e, true);
 		const event = new StandardMouseEvent(e);
+		this.contextMenuService.showContextMenu({
+			getAnchor: () => { return { x: event.posx, y: event.posy }; },
+			getActions: () => TPromise.as(this.getContextMenuActions())
+		});
+	}
+
+	private getContextMenuActions(): IAction[] {
 		const actions: IAction[] = this.model.visibleItems
 			.map(({ id, name, activityAction }) => (<IAction>{
 				id,
-				label: name,
+				label: name || id,
 				checked: this.isPinned(id),
 				enabled: activityAction.enabled,
 				run: () => {
@@ -407,10 +423,7 @@ export class CompositeBar extends Widget implements ICompositeBar {
 			actions.push(new Separator());
 			actions.push(...otherActions);
 		}
-		this.contextMenuService.showContextMenu({
-			getAnchor: () => { return { x: event.posx, y: event.posy }; },
-			getActions: () => TPromise.as(actions),
-		});
+		return actions;
 	}
 }
 

@@ -436,7 +436,7 @@ const editorConfiguration: IConfigurationNode = {
 		'editor.multiCursorModifier': {
 			'type': 'string',
 			'enum': ['ctrlCmd', 'alt'],
-			'enumDescriptions': [
+			'markdownEnumDescriptions': [
 				nls.localize('multiCursorModifier.ctrlCmd', "Maps to `Control` on Windows and Linux and to `Command` on macOS."),
 				nls.localize('multiCursorModifier.alt', "Maps to `Alt` on Windows and Linux and to `Option` on macOS.")
 			],
@@ -560,7 +560,7 @@ const editorConfiguration: IConfigurationNode = {
 			'type': 'string',
 			'enum': ['on', 'smart', 'off'],
 			'default': EDITOR_DEFAULTS.contribInfo.acceptSuggestionOnEnter,
-			'enumDescriptions': [
+			'markdownEnumDescriptions': [
 				'',
 				nls.localize('acceptSuggestionOnEnterSmart', "Only accept a suggestion with `Enter` when it makes a textual change."),
 				''
@@ -597,7 +597,7 @@ const editorConfiguration: IConfigurationNode = {
 		'editor.suggestSelection': {
 			'type': 'string',
 			'enum': ['first', 'recentlyUsed', 'recentlyUsedByPrefix'],
-			'enumDescriptions': [
+			'markdownEnumDescriptions': [
 				nls.localize('suggestSelection.first', "Always select the first suggestion."),
 				nls.localize('suggestSelection.recentlyUsed', "Select recent suggestions unless further typing selects one, e.g. `console.| -> console.log` because `log` has been completed recently."),
 				nls.localize('suggestSelection.recentlyUsedByPrefix', "Select suggestions based on previous prefixes that have completed those suggestions, e.g. `co -> console` and `con -> const`."),

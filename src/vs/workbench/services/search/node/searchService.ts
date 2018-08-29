@@ -122,10 +122,13 @@ export class SearchService extends Disposable implements ISearchService {
 				}
 			};
 
-			const schemesInQuery = query.folderQueries.map(fq => fq.folder.scheme);
-			const providerActivations = schemesInQuery.map(scheme => this.extensionService.activateByEvent(`onSearch:${scheme}`));
+			const schemesInQuery = this.getSchemesInQuery(query);
+
+			const providerActivations: TPromise<any>[] = [TPromise.wrap(null)];
+			schemesInQuery.forEach(scheme => providerActivations.push(this.extensionService.activateByEvent(`onSearch:${scheme}`)));
 
 			const providerPromise = TPromise.join(providerActivations)
+				.then(() => this.extensionService.whenInstalledExtensionsRegistered())
 				.then(() => this.searchWithProviders(query, onProviderProgress))
 				.then(completes => {
 					completes = completes.filter(c => !!c);
@@ -178,6 +181,19 @@ export class SearchService extends Disposable implements ISearchService {
 			}).then(onComplete, onError);
 
 		}, () => combinedPromise && combinedPromise.cancel());
+	}
+
+	private getSchemesInQuery(query: ISearchQuery): Set<string> {
+		const schemes = new Set<string>();
+		if (query.folderQueries) {
+			query.folderQueries.forEach(fq => schemes.add(fq.folder.scheme));
+		}
+
+		if (query.extraFileResources) {
+			query.extraFileResources.forEach(extraFile => schemes.add(extraFile.scheme));
+		}
+
+		return schemes;
 	}
 
 	private searchWithProviders(query: ISearchQuery, onProviderProgress: (progress: ISearchProgressItem) => void) {
@@ -349,7 +365,7 @@ export class SearchService extends Disposable implements ISearchService {
 					matches.forEach((match) => {
 						fileMatch.matches.push(new TextSearchResult(
 							model.getLineContent(match.range.startLineNumber),
-							new Range(match.range.startLineNumber - 1, match.range.startColumn - 1, match.range.startLineNumber - 1, match.range.endColumn),
+							new Range(match.range.startLineNumber - 1, match.range.startColumn - 1, match.range.startLineNumber - 1, match.range.endColumn - 1),
 							query.previewOptions));
 					});
 				} else {
