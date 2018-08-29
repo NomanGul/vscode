@@ -883,7 +883,7 @@ export interface ExtHostTerminalServiceShape {
 	$createProcess(id: number, shellLaunchConfig: ShellLaunchConfigDto, activeWorkspaceRootUri: URI, cols: number, rows: number): void;
 	$acceptProcessInput(id: number, data: string): void;
 	$acceptProcessResize(id: number, cols: number, rows: number): void;
-	$acceptProcessShutdown(id: number): void;
+	$acceptProcessShutdown(id: number, immediate: boolean): void;
 }
 
 export interface ExtHostSCMShape {

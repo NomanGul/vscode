@@ -799,7 +799,7 @@ export class Workbench extends Disposable implements IPartService {
 					leftResource: filesToDiff[0].resource,
 					rightResource: filesToDiff[1].resource,
 					options: { pinned: true },
-					isFile: true
+					forceFile: true
 				}]);
 			}
 
@@ -840,7 +840,7 @@ export class Workbench extends Disposable implements IPartService {
 			if (isNew) {
 				input = { filePath: resource.fsPath, options: { pinned: true } } as IUntitledResourceInput;
 			} else {
-				input = { resource, options: { pinned: true }, isFile: true } as IResourceInput;
+				input = { resource, options: { pinned: true }, forceFile: true } as IResourceInput;
 			}
 
 			if (!isNew && p.lineNumber) {
