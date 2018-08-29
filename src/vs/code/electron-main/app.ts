@@ -695,7 +695,7 @@ export class CodeApplication {
 				if (wslScript.indexOf(' ') >= 0) {
 					wslScript = `'${wslScript.replace(/ /g, '\\ ')}'`;
 				}
-				let extHostProcess = cp.spawn('C:\\Windows\\System32\\bash.exe', ['-i', '-c', `"${wslScript} ${product.commit || ''}"`], { cwd: process.cwd(), windowsVerbatimArguments: true });
+				let extHostProcess = cp.spawn('C:\\Windows\\System32\\bash.exe', ['-i', '-c', wslScript], { cwd: process.cwd(), windowsVerbatimArguments: true });
 				if (extHostProcess.pid === void 0) {
 					reject(new Error('WSL remote extension host agent couldn\'t be started'));
 				} else {

@@ -32,6 +32,7 @@ const i18n = require('./lib/i18n');
 const deps = require('./dependencies');
 const getElectronVersion = require('./lib/electron').getElectronVersion;
 const createAsar = require('./lib/asar').createAsar;
+const File = require('vinyl');
 
 const productionDependencies = deps.getProductionDependencies(path.dirname(__dirname));
 // @ts-ignore
@@ -306,7 +307,20 @@ function packageTask(platform, arch, opts) {
 			all = es.merge(all, shortcut);
 		}
 
+		const substituteCommitInWSLAgent = es.through((data) => {
+			if (/wslAgent2\.sh$/.test(data.path)) {
+				this.emit('data', new File({
+					path: data.path,
+					base: data.base,
+					contents: new Buffer(data.contents.toString().replace(/@@COMMIT@@/g, commit))
+				}));
+			} else {
+				this.emit('data', data);
+			}
+		});
+
 		let result = all
+			.pipe(substituteCommitInWSLAgent)
 			.pipe(util.skipDirectories())
 			.pipe(util.fixWin32DirectoryPermissions())
 			.pipe(electron(_.extend({}, config, { platform, arch, ffmpegChromium: true })))
