@@ -97,6 +97,7 @@ import 'vs/workbench/electron-browser/workbench';
 import 'vs/workbench/parts/relauncher/electron-browser/relauncher.contribution';
 
 import 'vs/workbench/parts/tasks/electron-browser/task.contribution';
+import 'vs/workbench/parts/remotehost/electron-browser/remotehost.contribution';
 
 import 'vs/workbench/parts/emmet/browser/emmet.browser.contribution';
 import 'vs/workbench/parts/emmet/electron-browser/emmet.contribution';
