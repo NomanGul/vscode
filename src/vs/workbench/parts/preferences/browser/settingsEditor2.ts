@@ -160,8 +160,22 @@ export class SettingsEditor2 extends BaseEditor {
 				// Init TOC selection
 				this.updateTreeScrollSync();
 
+				this.settingsTargetsWidget.settingsTarget = this.getSettingsTarget(input);
+
 				this.onSearchInputChanged();
 			});
+	}
+
+	private getSettingsTarget(input: SettingsEditor2Input): SettingsTarget {
+		if (input.folderUri) {
+			return input.folderUri;
+		}
+
+		if (input.configurationTarget === ConfigurationTarget.USER || input.configurationTarget === ConfigurationTarget.WORKSPACE) {
+			return input.configurationTarget;
+		}
+
+		return ConfigurationTarget.USER;
 	}
 
 	clearInput(): void {
@@ -197,7 +211,7 @@ export class SettingsEditor2 extends BaseEditor {
 	}
 
 	showContextMenu(): void {
-		const settingDOMElement = this.settingsTreeRenderer.getSettingDOMElementForDOMElement(<HTMLElement>document.activeElement);
+		const settingDOMElement = this.settingsTreeRenderer.getSettingDOMElementForDOMElement(this.getActiveElementInSettingsTree());
 		if (!settingDOMElement) {
 			return;
 		}
@@ -632,6 +646,29 @@ export class SettingsEditor2 extends BaseEditor {
 			}
 		*/
 		this.telemetryService.publicLog('settingsEditor.settingModified', data);
+
+		const data2 = {
+			key: props.key,
+			groupId,
+			nlpIndex,
+			displayIndex,
+			showConfiguredOnly: props.showConfiguredOnly,
+			isReset: props.isReset,
+			target: reportedTarget
+		};
+
+		/* __GDPR__
+			"settingsEditor.settingModified2" : {
+				"key" : { "classification": "SystemMetaData", "purpose": "FeatureInsight" },
+				"groupId" : { "classification": "SystemMetaData", "purpose": "FeatureInsight" },
+				"nlpIndex" : { "classification": "SystemMetaData", "purpose": "FeatureInsight", "isMeasurement": true },
+				"displayIndex" : { "classification": "SystemMetaData", "purpose": "FeatureInsight", "isMeasurement": true },
+				"showConfiguredOnly" : { "classification": "SystemMetaData", "purpose": "FeatureInsight" },
+				"isReset" : { "classification": "SystemMetaData", "purpose": "FeatureInsight" },
+				"target" : { "classification": "SystemMetaData", "purpose": "FeatureInsight" }
+			}
+		*/
+		this.telemetryService.publicLog('settingsEditor.settingModified2', data2);
 	}
 
 	private render(token: CancellationToken): TPromise<any> {
@@ -740,14 +777,27 @@ export class SettingsEditor2 extends BaseEditor {
 	}
 
 	private updateElementsByKey(keys: string[]): TPromise<void> {
-		if (keys.length && this.currentSettingsModel) {
-			keys.forEach(key => this.currentSettingsModel.updateElementsByName(key));
+		if (keys.length) {
+			if (this.searchResultModel) {
+				keys.forEach(key => this.searchResultModel.updateElementsByName(key));
+			}
+
+			if (this.settingsTreeModel) {
+				keys.forEach(key => this.settingsTreeModel.updateElementsByName(key));
+			}
+
 			return TPromise.join(
 				keys.map(key => this.renderTree(key)))
 				.then(() => { });
 		} else {
 			return this.renderTree();
 		}
+	}
+
+	private getActiveElementInSettingsTree(): HTMLElement | null {
+		return (document.activeElement && DOM.isAncestor(document.activeElement, this.settingsTree.getHTMLElement())) ?
+			<HTMLElement>document.activeElement :
+			null;
 	}
 
 	private renderTree(key?: string, force = false): TPromise<void> {
@@ -757,7 +807,7 @@ export class SettingsEditor2 extends BaseEditor {
 		}
 
 		// If a setting control is currently focused, schedule a refresh for later
-		const focusedSetting = this.settingsTreeRenderer.getSettingDOMElementForDOMElement(<HTMLElement>document.activeElement);
+		const focusedSetting = this.settingsTreeRenderer.getSettingDOMElementForDOMElement(this.getActiveElementInSettingsTree());
 		if (focusedSetting && !force) {
 			// If a single setting is being refreshed, it's ok to refresh now if that is not the focused setting
 			if (key) {
@@ -779,7 +829,9 @@ export class SettingsEditor2 extends BaseEditor {
 		if (key) {
 			const elements = this.currentSettingsModel.getElementsByName(key);
 			if (elements && elements.length) {
-				refreshP = TPromise.join(elements.map(e => this.settingsTree.refresh(e)));
+				// TODO https://github.com/Microsoft/vscode/issues/57360
+				// refreshP = TPromise.join(elements.map(e => this.settingsTree.refresh(e)));
+				refreshP = this.settingsTree.refresh();
 			} else {
 				// Refresh requested for a key that we don't know about
 				return TPromise.wrap(null);
@@ -858,6 +910,7 @@ export class SettingsEditor2 extends BaseEditor {
 			if (this.searchResultModel) {
 				// Added a filter model
 				this.tocTree.setSelection([]);
+				this.tocTree.setFocus(null);
 				expandAll(this.tocTree);
 				return this.settingsTree.setInput(this.searchResultModel.root).then(() => this.renderResultCountMessages());
 			} else {
@@ -927,6 +980,22 @@ export class SettingsEditor2 extends BaseEditor {
 			}
 		*/
 		this.telemetryService.publicLog('settingsEditor.filter', data);
+
+		const data2 = {
+			durations,
+			counts,
+			requestCount
+		};
+
+		/* __GDPR__
+			"settingsEditor.filter2" : {
+				"durations.nlpResult" : { "classification": "SystemMetaData", "purpose": "FeatureInsight", "isMeasurement": true },
+				"counts.nlpResult" : { "classification": "SystemMetaData", "purpose": "FeatureInsight", "isMeasurement": true },
+				"counts.filterResult" : { "classification": "SystemMetaData", "purpose": "FeatureInsight", "isMeasurement": true },
+				"requestCount" : { "classification": "SystemMetaData", "purpose": "FeatureInsight", "isMeasurement": true }
+			}
+		*/
+		this.telemetryService.publicLog('settingsEditor.filter2', data2);
 	}
 
 	private triggerFilterPreferences(query: string): TPromise<void> {
@@ -983,11 +1052,12 @@ export class SettingsEditor2 extends BaseEditor {
 				this.onSearchModeToggled();
 				this.settingsTree.setInput(this.searchResultModel.root);
 			} else {
-				this.tocTreeModel.update();
 				this.searchResultModel.setResult(type, result);
+				this.tocTreeModel.update();
 			}
 
 			this.tocTree.setSelection([]);
+			this.tocTree.setFocus(null);
 			expandAll(this.tocTree);
 
 			return this.renderTree().then(() => result);

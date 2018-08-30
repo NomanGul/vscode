@@ -790,16 +790,7 @@ export class SettingsRenderer implements ITreeRenderer {
 		const common = this.renderCommonTemplate(tree, container, 'enum');
 
 		const selectBox = new SelectBox([], undefined, this.contextViewService, undefined, {
-			hasDetails: true, markdownActionHandler: {
-				callback: (content: string) => {
-					if (startsWith(content, '#')) {
-						this._onDidClickSettingLink.fire(content.substr(1));
-					} else {
-						this.openerService.open(URI.parse(content)).then(void 0, onUnexpectedError);
-					}
-				},
-				disposeables: common.toDispose
-			}
+			hasDetails: true
 		});
 
 		common.toDispose.push(selectBox);
@@ -932,7 +923,7 @@ export class SettingsRenderer implements ITreeRenderer {
 				this.commandService.executeCommand('workbench.extensions.action.showExtensionsWithIds', template.context.extensionIds);
 			}
 		}));
-		button.label = localize('newExtensionsButtonLabel', "Show other matching extensions");
+		button.label = localize('newExtensionsButtonLabel', "Show matching extensions");
 		button.element.classList.add('settings-new-extensions-button');
 		toDispose.push(attachButtonStyler(button, this.themeService));
 
@@ -1485,6 +1476,11 @@ export class SettingsTree extends NonExpandableOrSelectableTree {
 			if (headerForegroundColor) {
 				collector.addRule(`.settings-editor > .settings-body > .settings-tree-container .settings-group-title-label { color: ${headerForegroundColor}; }`);
 				collector.addRule(`.settings-editor > .settings-body > .settings-tree-container .setting-item-label { color: ${headerForegroundColor}; }`);
+			}
+
+			const focusBorderColor = theme.getColor(focusBorder);
+			if (focusBorderColor) {
+				collector.addRule(`.settings-editor > .settings-body > .settings-tree-container .setting-item .setting-item-description-markdown a:focus { outline-color: ${focusBorderColor} }`);
 			}
 		}));
 
