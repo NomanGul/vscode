@@ -37,8 +37,9 @@ const options = [
 	{ id: 'prof-startup', type: 'boolean', cat: 't', description: localize('prof-startup', "Run CPU profiler during startup") },
 	{ id: 'disable-extensions', type: 'boolean', cat: 't', description: localize('disableExtensions', "Disable all installed extensions.") },
 	{ id: 'disable-extension', type: 'string', cat: 't', args: 'extension-id', description: localize('disableExtension', "Disable an extension.") },
-	{ id: 'inspect-extensions', type: 'string', cat: 't', description: localize('inspect-extensions', "Allow debugging and profiling of extensions. Check the developer tools for the connection URI.") },
-	{ id: 'inspect-brk-search', type: 'string', cat: 't', description: localize('inspect-brk-extensions', "Allow debugging and profiling of extensions with the extension host being paused after start. Check the developer tools for the connection URI.") },
+
+	{ id: 'inspect-extensions', type: 'string', args: 'port', cat: 't', description: localize('inspect-extensions', "Allow debugging and profiling of extensions. Check the developer tools for the connection URI.") },
+	{ id: 'inspect-brk-search', type: 'string', args: 'port', cat: 't', description: localize('inspect-brk-extensions', "Allow debugging and profiling of extensions with the extension host being paused after start. Check the developer tools for the connection URI.") },
 	{ id: 'disable-gpu', type: 'boolean', cat: 't', description: localize('disableGPU', "Disable GPU hardware acceleration.") },
 	{ id: 'upload-logs', type: 'string', cat: 't', description: localize('uploadLogs', "Uploads logs from current session to a secure endpoint.") },
 	{ id: 'max-memory', type: 'boolean', cat: 't', description: localize('maxMemory', "Max memory size for a window (in Mbytes).") },
@@ -67,6 +68,9 @@ const options = [
 	{ id: 'file-write', type: 'boolean' },
 	{ id: 'file-chmod', type: 'boolean' },
 	{ id: 'driver-verbose', type: 'boolean' },
+
+	{ id: 'debugPluginHost', type: 'string', alias: 'inspect-extensions' },
+	{ id: 'debugBrkPluginHost', type: 'string', alias: 'inspect-brk-extensions' }
 ];
 
 const minimistOptions = {
@@ -79,7 +83,7 @@ const aliases = {};
 const unsupported = {};
 for (let o of options) {
 	if (o.alias) {
-		minimistOptions[o.id] = o.alias;
+		minimistOptions.alias[o.id] = o.alias;
 		aliases[o.alias] = true;
 	}
 	if (o.unsupported) {
