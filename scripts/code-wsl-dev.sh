@@ -16,7 +16,7 @@ if grep -q Microsoft /proc/version; then
 		cd "$VSCODE_PATH/extensions/search-rg"
 		yarn
 	fi
-	if [ $1 == '--headless' ]; then
+	if [ "$1" == "--headless" ]; then
 		NODE_ENV=development \
 		VSCODE_DEV=1 \
 		node "$VSCODE_PATH/out/remoteExtensionHostAgent.js" --builtin-extensions=extension-editing,configuration-editing,search-rg,css-language-features,git,grunt,gulp,html-language-features,json-language-features,markdown-language-features,npm,php-language-features,typescript-language-features,../.build/builtInExtensions/ms-vscode.node-debug,../.build/builtInExtensions/ms-vscode.node-debug2 "$@"

@@ -10,7 +10,7 @@ VSCODE_PATH="$(dirname "$(dirname "$(realpath "$0")")")"
 if grep -q Microsoft /proc/version; then
 	VSCODE_REMOTE_BIN="$HOME/.vscode-remote/bin"
 	"$VSCODE_PATH/resources/app/out/vs/code/electron-main/wslDownload.sh" $COMMIT
-	if [ $1 == '--headless' ]; then
+	if [ "$1" == "--headless" ]; then
 		"$VSCODE_REMOTE_BIN/$COMMIT/node" "$VSCODE_REMOTE_BIN/$COMMIT/out/remoteExtensionHostAgent.js"
 	else
 		VSCODE_WIN_CMD="$SCRIPT_NAME.cmd"
