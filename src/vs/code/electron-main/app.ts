@@ -691,7 +691,7 @@ export class CodeApplication {
 			}
 			debugPortPromise.then(debugPort => {
 				let agentName = environmentService.isBuilt ? 'code-wsl' : 'code-wsl-dev.sh';
-				let inspect = debugPort ? `--inspect${debugParams.break ? '-brk' : ''}=0.0.0.0:${debugPort}` : '';
+				let inspect = debugPort ? `--inspect=0.0.0.0:${debugPort}` : '';
 
 				let extHostProcess = cp.spawn('C:\\Windows\\System32\\bash.exe', ['-i', '-c', `"${agentName} --headless ${inspect}"`], { cwd: process.cwd(), windowsVerbatimArguments: true });
 				if (extHostProcess.pid === void 0) {
