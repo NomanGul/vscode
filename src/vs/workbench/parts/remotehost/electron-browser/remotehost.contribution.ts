@@ -32,8 +32,8 @@ class RemoteHostStatusBarItem extends Themable implements IStatusbarItem {
 		const element = document.createElement('div');
 
 		let label = new OcticonLabel(element);
-		label.title = nls.localize('remoteTotle', "Connected to remote host");
-		label.text = `$(file-symlink-directory) WSL`;
+		label.title = nls.localize('remoteHost.title', "Editing in Window Subsystem for Linux");
+		label.text = `$(file-symlink-directory) ${nls.localize('remoteHost.label', 'WSL')}`;
 
 		if (!this.remoteHostService.getRemoteConnection()) {
 			Dom.hide(element);
