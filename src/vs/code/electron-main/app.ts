@@ -713,7 +713,7 @@ export class CodeApplication {
 					});
 				});
 				// Wait max 30 seconds for the agent to start
-				let rejectTimer = setTimeout(() => reject(new Error('Starting WSL extension host agent exceeded 30s')), 30000);
+				let rejectTimer = setTimeout(() => reject(new Error('Starting WSL extension host agent exceeded 90s')), 90000);
 				connectPromise.then(() => {
 					// success!
 					clearTimeout(rejectTimer);
