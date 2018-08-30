@@ -101,6 +101,7 @@ import { DefaultURITransformer } from 'vs/base/common/uriIpc';
 import { ExtensionGalleryService } from 'vs/platform/extensionManagement/node/extensionGalleryService';
 import { IRemoteExtensionsService } from 'vs/workbench/services/extensions/node/remoteExtensionsService';
 import { ILabelService } from 'vs/platform/label/common/label';
+import { LogLevelSetterChannel } from 'vs/platform/log/node/logIpc';
 
 /**
  * Services that we require for the Shell
@@ -396,6 +397,7 @@ export class WorkbenchShell extends Disposable {
 		if (remoteWorkspaceFolderConnection) {
 			remoteWorkspaceFolderConnection.registerChannel('dialog', instantiationService.createInstance(DialogChannel));
 			remoteWorkspaceFolderConnection.registerChannel('download', new DownloadServiceChannel());
+			remoteWorkspaceFolderConnection.registerChannel('loglevel', new LogLevelSetterChannel(this.logService));
 		}
 
 		const extensionManagementChannel = getDelayedChannel<IExtensionManagementChannel>(sharedProcess.then(c => c.getChannel('extensions')));

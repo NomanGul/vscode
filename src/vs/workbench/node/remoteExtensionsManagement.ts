@@ -6,7 +6,7 @@
 import { ParsedArgs, IEnvironmentService } from 'vs/platform/environment/common/environment';
 import { Protocol } from 'vs/base/parts/ipc/node/ipc.net';
 import { ServiceCollection } from 'vs/platform/instantiation/common/serviceCollection';
-import { ILogService, NullLogService } from 'vs/platform/log/common/log';
+import { ILogService, LogLevel } from 'vs/platform/log/common/log';
 import { SyncDescriptor } from 'vs/platform/instantiation/common/descriptors';
 import { ConfigurationService } from 'vs/platform/configuration/node/configurationService';
 import { IConfigurationService } from 'vs/platform/configuration/common/configuration';
@@ -31,6 +31,8 @@ import { IDownloadService } from 'vs/platform/download/common/download';
 import { DownloadServiceChannelClient } from 'vs/platform/download/node/downloadIpc';
 import { IURITransformer } from 'vs/base/common/uriIpc';
 import URI, { UriComponents } from 'vs/base/common/uri';
+import { FollowerLogService, LogLevelSetterChannelClient } from 'vs/platform/log/node/logIpc';
+import { createSpdLogService } from 'vs/platform/log/node/spdlogService';
 
 export interface IExtensionsManagementProcessInitData {
 	args: ParsedArgs;
@@ -87,14 +89,16 @@ export class RemoteExtensionManagementServer {
 	private _createServices(server: SocketServer): void {
 		const services = new ServiceCollection();
 
+		const route = () => TPromise.as('renderer');
+		const logLevelClient = new LogLevelSetterChannelClient(server.getChannel('loglevel', { routeCall: route, routeEvent: route }));
+		const logService = new FollowerLogService(logLevelClient, createSpdLogService('sharedprocess', LogLevel.Info, this._environmentService.logsPath));
+
 		services.set(IEnvironmentService, this._environmentService);
-		services.set(ILogService, new NullLogService());
+		services.set(ILogService, logService);
 		services.set(IConfigurationService, new SyncDescriptor(ConfigurationService));
 		services.set(IRequestService, new SyncDescriptor(RequestService));
 		services.set(ITelemetryService, NullTelemetryService);
 		services.set(IExtensionGalleryService, new SyncDescriptor(ExtensionGalleryService));
-
-		const route = () => TPromise.as('renderer');
 
 		const dialogChannel = server.getChannel('dialog', { routeCall: route, routeEvent: route });
 		services.set(IDialogService, new DialogChannelClient(dialogChannel));
