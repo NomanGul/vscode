@@ -22,6 +22,14 @@ download()
 	echo "100%"
 }
 
+pushd () {
+	command pushd "$@" > /dev/null
+}
+
+popd () {
+	command popd "$@" > /dev/null
+}
+
 # Check if this version is already installed
 if [ ! -d "$VSCODE_REMOTE_BIN/$COMMIT" ]; then
 	# This version does not exist
@@ -32,6 +40,12 @@ if [ ! -d "$VSCODE_REMOTE_BIN/$COMMIT" ]; then
 	fi
 
 	mkdir -p "$VSCODE_REMOTE_BIN"
+
+	# Remove the previous installations
+	pushd "$VSCODE_REMOTE_BIN";
+	echo "Removing previous installation...";
+	rm -rf ????????????????????????????????????????
+	popd;
 
 	# Download the .tar.gz file
 	TMP_NAME="$COMMIT-$(date +%s)"
@@ -53,6 +67,5 @@ if [ ! -d "$VSCODE_REMOTE_BIN/$COMMIT" ]; then
 	mv "$VSCODE_REMOTE_BIN/$TMP_NAME" "$VSCODE_REMOTE_BIN/$COMMIT"
 
 	# Remove the .tar.gz file
-	echo "Cleaning up...";
 	rm "$VSCODE_REMOTE_BIN/$TMP_NAME.tar.gz"
 fi
