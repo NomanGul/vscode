@@ -452,7 +452,7 @@ export class ExtensionsViewlet extends ViewContainerViewlet implements IExtensio
 				servicesCollection.set(IExtensionManagementService, extensionManagementServer.extensionManagementService);
 				servicesCollection.set(IExtensionsWorkbenchService, new SyncDescriptor(ExtensionsWorkbenchService));
 				const instantiationService = this.instantiationService.createChild(servicesCollection);
-				return instantiationService.createInstance(viewDescriptor.ctor, options, [extensionManagementServer]) as ViewletPanel;
+				return instantiationService.createInstance(viewDescriptor.ctor, options) as ViewletPanel;
 			}
 		}
 		return this.instantiationService.createInstance(viewDescriptor.ctor, options) as ViewletPanel;
