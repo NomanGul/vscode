@@ -5,7 +5,7 @@
 
 'use strict';
 
-// import * as assert from 'assert';
+import * as assert from 'assert';
 // import { TPromise } from 'vs/base/common/winjs.base';
 // import * as paths from 'vs/base/common/paths';
 // import { IEditorModel } from 'vs/platform/editor/common/editor';
@@ -59,6 +59,8 @@
 // }
 
 suite('Editor service', () => {
+
+	assert.ok(true);
 
 	// function registerTestEditorInput(): void {
 	// 	Registry.as<IEditorRegistry>(Extensions.Editors).registerEditor(new EditorDescriptor(TestEditorControl, 'MyTestEditorForEditorService', 'My Test Editor For Next Editor Service'), new SyncDescriptor(TestEditorInput));
