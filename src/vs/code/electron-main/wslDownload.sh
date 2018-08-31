@@ -19,7 +19,7 @@ download()
 	wget -O $name --progress=dot $url 2>&1 | grep --line-buffered "%" | \
 		sed -u -e "s,\.,,g" | awk '{printf("\b\b\b\b%4s", $2)}'
 	echo -ne "\b\b\b\b"
-	echo " DONE"
+	echo "100%"
 }
 
 # Check if this version is already installed
@@ -35,18 +35,16 @@ if [ ! -d "$VSCODE_REMOTE_BIN/$COMMIT" ]; then
 
 	# Download the .tar.gz file
 	TMP_NAME="$COMMIT-$(date +%s)"
-	echo "Downloading...";
+	echo -n "Downloading: ";
 	download $DOWNLOAD_URL "$VSCODE_REMOTE_BIN/$TMP_NAME.tar.gz"
 
 	# Unpack the .tar.gz file to a temporary folder name
-	echo "Unpacking...";
+	echo -n "Unpacking: ";
 	mkdir "$VSCODE_REMOTE_BIN/$TMP_NAME"
 
-	# https://www.unix.com/shell-programming-and-scripting/125877-file-count-tar.html
 	FILE_COUNT=`tar -tf "$VSCODE_REMOTE_BIN/$TMP_NAME.tar.gz" | wc -l`
-
-	# https://unix.stackexchange.com/a/93833
-	tar -xf "$VSCODE_REMOTE_BIN/$TMP_NAME.tar.gz" -C "$VSCODE_REMOTE_BIN/$TMP_NAME" --strip-components 1 --verbose | { I=1; while read; do I=$((I+1)); printf "$I of $FILE_COUNT\r"; done; echo ""; }
+	P=0;
+	tar -xf "$VSCODE_REMOTE_BIN/$TMP_NAME.tar.gz" -C "$VSCODE_REMOTE_BIN/$TMP_NAME" --strip-components 1 --verbose | { I=1; echo -n "    "; while read; do I=$((I+1)); PREV_P=$P; P=$((100 * I / FILE_COUNT)); if [ "$PREV_P" -ne "$P" ]; then PRETTY_P="$P%"; printf "\b\b\b\b%4s" $PRETTY_P; fi; done; echo ""; }
 
 	# Copy cli script
 	cp "$CLI_JS_PATH" "$VSCODE_REMOTE_BIN/$TMP_NAME"
