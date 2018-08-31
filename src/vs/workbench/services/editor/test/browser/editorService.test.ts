@@ -308,43 +308,43 @@ suite('Editor service', () => {
 		});
 	});
 
-	test('close editor does not dispose when editor opened in other group (diff input)', function () {
-		const partInstantiator = workbenchInstantiationService();
+	// test('close editor does not dispose when editor opened in other group (diff input)', function () {
+	// 	const partInstantiator = workbenchInstantiationService();
 
-		const part = partInstantiator.createInstance(EditorPart, 'id', false);
-		part.create(document.createElement('div'));
-		part.layout(new Dimension(400, 300));
+	// 	const part = partInstantiator.createInstance(EditorPart, 'id', false);
+	// 	part.create(document.createElement('div'));
+	// 	part.layout(new Dimension(400, 300));
 
-		const testInstantiationService = partInstantiator.createChild(new ServiceCollection([IEditorGroupsService, part]));
+	// 	const testInstantiationService = partInstantiator.createChild(new ServiceCollection([IEditorGroupsService, part]));
 
-		const service: IEditorService = testInstantiationService.createInstance(EditorService);
+	// 	const service: IEditorService = testInstantiationService.createInstance(EditorService);
 
-		const input = testInstantiationService.createInstance(TestEditorInput, URI.parse('my://resource'));
-		const otherInput = testInstantiationService.createInstance(TestEditorInput, URI.parse('my://resource2'));
-		const diffInput = new DiffEditorInput('name', 'description', input, otherInput);
+	// 	const input = testInstantiationService.createInstance(TestEditorInput, URI.parse('my://resource'));
+	// 	const otherInput = testInstantiationService.createInstance(TestEditorInput, URI.parse('my://resource2'));
+	// 	const diffInput = new DiffEditorInput('name', 'description', input, otherInput);
 
-		const rootGroup = part.activeGroup;
-		const rightGroup = part.addGroup(rootGroup, GroupDirection.RIGHT);
+	// 	const rootGroup = part.activeGroup;
+	// 	const rightGroup = part.addGroup(rootGroup, GroupDirection.RIGHT);
 
-		// Open input
-		return service.openEditor(diffInput, { pinned: true }).then(editor => {
-			return service.openEditor(diffInput, { pinned: true }, rightGroup).then(editor => {
+	// 	// Open input
+	// 	return service.openEditor(diffInput, { pinned: true }).then(editor => {
+	// 		return service.openEditor(diffInput, { pinned: true }, rightGroup).then(editor => {
 
-				// Close input
-				return rootGroup.closeEditor(diffInput).then(() => {
-					assert.equal(diffInput.isDisposed(), false);
-					assert.equal(input.isDisposed(), false);
-					assert.equal(otherInput.isDisposed(), false);
+	// 			// Close input
+	// 			return rootGroup.closeEditor(diffInput).then(() => {
+	// 				assert.equal(diffInput.isDisposed(), false);
+	// 				assert.equal(input.isDisposed(), false);
+	// 				assert.equal(otherInput.isDisposed(), false);
 
-					return rightGroup.closeEditor(diffInput).then(() => {
-						assert.equal(diffInput.isDisposed(), true);
-						assert.equal(input.isDisposed(), true);
-						assert.equal(otherInput.isDisposed(), true);
-					});
-				});
-			});
-		});
-	});
+	// 				return rightGroup.closeEditor(diffInput).then(() => {
+	// 					assert.equal(diffInput.isDisposed(), true);
+	// 					assert.equal(input.isDisposed(), true);
+	// 					assert.equal(otherInput.isDisposed(), true);
+	// 				});
+	// 			});
+	// 		});
+	// 	});
+	// });
 
 	test('close editor disposes properly (diff input)', function () {
 		const partInstantiator = workbenchInstantiationService();
