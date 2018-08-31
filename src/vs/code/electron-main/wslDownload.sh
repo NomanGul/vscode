@@ -26,9 +26,9 @@ download()
 if [ ! -d "$VSCODE_REMOTE_BIN/$COMMIT" ]; then
 	# This version does not exist
 	if [ -d "$VSCODE_REMOTE_BIN" ]; then
-		echo "Updating Code WSL components to version $COMMIT"
+		echo "Updating Code Headless components to version $COMMIT"
 	else
-		echo "Installing Code WSL components $COMMIT"
+		echo "Installing Code Headless components $COMMIT"
 	fi
 
 	mkdir -p "$VSCODE_REMOTE_BIN"
@@ -41,13 +41,17 @@ if [ ! -d "$VSCODE_REMOTE_BIN/$COMMIT" ]; then
 	# Unpack the .tar.gz file to a temporary folder name
 	echo "Unpacking...";
 	mkdir "$VSCODE_REMOTE_BIN/$TMP_NAME"
-	tar -xf "$VSCODE_REMOTE_BIN/$TMP_NAME.tar.gz" -C "$VSCODE_REMOTE_BIN/$TMP_NAME" --strip-components 1 --verbose
 
-	echo "Copying scripts...";
+	# https://www.unix.com/shell-programming-and-scripting/125877-file-count-tar.html
+	FILE_COUNT=`tar -tf "$VSCODE_REMOTE_BIN/$TMP_NAME.tar.gz" | wc -l`
+
+	# https://unix.stackexchange.com/a/93833
+	tar -xf "$VSCODE_REMOTE_BIN/$TMP_NAME.tar.gz" -C "$VSCODE_REMOTE_BIN/$TMP_NAME" --strip-components 1 --verbose | { I=1; while read; do I=$((I+1)); printf "$I of $FILE_COUNT\r"; done; echo ""; }
+
+	# Copy cli script
 	cp "$CLI_JS_PATH" "$VSCODE_REMOTE_BIN/$TMP_NAME"
 
 	# Rename temporary folder to final folder name
-	echo "Finalizing...";
 	mv "$VSCODE_REMOTE_BIN/$TMP_NAME" "$VSCODE_REMOTE_BIN/$COMMIT"
 
 	# Remove the .tar.gz file
