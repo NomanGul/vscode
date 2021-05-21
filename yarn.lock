@@ -7899,9 +7899,9 @@ vscode-chokidar@1.6.4:
   optionalDependencies:
     vscode-fsevents "0.3.9"
 
-vscode-debugprotocol@1.31.0:
-  version "1.31.0"
-  resolved "https://registry.yarnpkg.com/vscode-debugprotocol/-/vscode-debugprotocol-1.31.0.tgz#8467eeabeea65f52da5ac03b03c18e10e8b95eb4"
+vscode-debugprotocol@1.47.0:
+  version "1.47.0"
+  resolved "https://registry.yarnpkg.com/vscode-debugprotocol/-/vscode-debugprotocol-1.47.0.tgz#700055bea38633a9530a5a552fb3ea314d76b73f"
 
 vscode-fsevents@0.3.9:
   version "0.3.9"
